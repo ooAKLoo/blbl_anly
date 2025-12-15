@@ -402,7 +402,6 @@ async fn get_up_info(mid: i64, state: State<'_, Arc<ScraperState>>) -> Result<Up
 #[tauri::command]
 async fn scrape_videos(
     mid: i64,
-    max_pages: i32,
     app: AppHandle,
     state: State<'_, Arc<ScraperState>>,
 ) -> Result<ScrapeResult, String> {
@@ -424,8 +423,13 @@ async fn scrape_videos(
 
     let mut all_videos: Vec<VideoInfo> = Vec::new();
     let mut total_count = 0i32;
+    let mut max_pages = i32::MAX; // 初始化为最大值，第一次请求后会更新
 
-    for page in 1..=max_pages {
+    let mut page = 1;
+    loop {
+        if page > max_pages {
+            break;
+        }
         let mut params: HashMap<String, String> = HashMap::new();
         params.insert("mid".to_string(), mid.to_string());
         params.insert("ps".to_string(), "30".to_string());
@@ -482,6 +486,11 @@ async fn scrape_videos(
 
         total_count = json["data"]["page"]["count"].as_i64().unwrap_or(0) as i32;
 
+        // 第一次请求后，根据总视频数计算需要的页数（每页30个视频）
+        if page == 1 && total_count > 0 {
+            max_pages = (total_count + 29) / 30; // 向上取整
+        }
+
         for v in vlist {
             let created = v["created"].as_i64().unwrap_or(0);
             let publish_time = chrono::DateTime::from_timestamp(created, 0)
@@ -527,6 +536,8 @@ async fn scrape_videos(
 
         // 延迟避免请求过快
         tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+
+        page += 1;
     }
 
     *state.is_running.lock().await = false;

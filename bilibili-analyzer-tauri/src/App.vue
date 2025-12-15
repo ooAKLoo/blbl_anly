@@ -264,7 +264,6 @@
     <NewScrapeDialog
       v-model="showNewScrapeDialog"
       :mid="mid"
-      :max-pages="maxPages"
       :is-loading="isLoading"
       :progress="progress"
       @start="handleStartScrape"
@@ -316,7 +315,6 @@ const showSettingsDialog = ref(false);
 // Data states
 const mid = ref('');
 const cookie = ref('');
-const maxPages = ref(100);
 const isLoading = ref(false);
 const videos = ref([]);
 const upInfo = ref(null);
@@ -531,9 +529,8 @@ function handleSaveCookie(newCookie) {
   cookie.value = newCookie;
 }
 
-async function handleStartScrape({ mid: newMid, maxPages: newMaxPages }) {
+async function handleStartScrape({ mid: newMid }) {
   mid.value = newMid;
-  maxPages.value = newMaxPages;
   await startScraping();
 }
 
@@ -553,8 +550,7 @@ async function startScraping() {
 
     progress.value.message = '开始爬取视频...';
     const result = await invoke('scrape_videos', {
-      mid: parseInt(mid.value),
-      maxPages: maxPages.value
+      mid: parseInt(mid.value)
     });
 
     if (result.success) {

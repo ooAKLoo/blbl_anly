@@ -25,18 +25,6 @@
               <span class="input-hint">可在 UP主空间页面 URL 中找到 MID</span>
             </div>
             
-            <div class="input-group">
-              <label class="input-label">最大页数</label>
-              <input
-                v-model.number="localMaxPages"
-                type="text"
-                class="input"
-                placeholder="100"
-                :disabled="isLoading"
-              />
-              <span class="input-hint">每页约 30 个视频，100 页 ≈ 3000 个视频</span>
-            </div>
-            
             <!-- Progress -->
             <div v-if="isLoading" class="progress-section">
               <div class="progress-bar">
@@ -75,7 +63,6 @@ import { ref, computed, watch } from 'vue';
 const props = defineProps({
   modelValue: Boolean,
   mid: [String, Number],
-  maxPages: Number,
   isLoading: Boolean,
   progress: Object
 });
@@ -83,14 +70,9 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'start', 'stop']);
 
 const localMid = ref(props.mid || '');
-const localMaxPages = ref(props.maxPages || 100);
 
 watch(() => props.mid, (val) => {
   localMid.value = val || '';
-});
-
-watch(() => props.maxPages, (val) => {
-  localMaxPages.value = val || 100;
 });
 
 const progressPercent = computed(() => {
@@ -112,8 +94,7 @@ function close() {
 function startScrape() {
   if (!localMid.value) return;
   emit('start', {
-    mid: localMid.value,
-    maxPages: localMaxPages.value
+    mid: localMid.value
   });
 }
 </script>
