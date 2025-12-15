@@ -1,2 +1,6 @@
 .idea
 .DS_Store
+analysis_output
+.vscode
+bilibili-analyzer-tauri/node_modules
+bilibili-analyzer-tauri/src-tauri/target
