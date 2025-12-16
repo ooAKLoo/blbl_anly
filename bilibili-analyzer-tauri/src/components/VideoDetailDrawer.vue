@@ -25,7 +25,7 @@
               class="flex items-center gap-4 p-3 bg-neutral-50 rounded-lg transition-all duration-150 border border-transparent hover:bg-neutral-100 hover:border-blue-500/20 hover:translate-x-1"
             >
               <span class="w-8 text-center font-semibold text-blue-500 text-sm flex-shrink-0">{{ index + 1 }}</span>
-              <img :src="video.cover_url" class="w-[140px] h-[79px] object-cover rounded-md flex-shrink-0" referrerpolicy="no-referrer" />
+              <img :src="getImageUrl(video.cover)" class="w-[140px] h-[79px] object-cover rounded-md flex-shrink-0" referrerpolicy="no-referrer" />
               <div class="flex-1 min-w-0">
                 <a :href="video.video_url" target="_blank" class="block text-neutral-900 no-underline font-medium text-[0.95rem] mb-2 leading-snug transition-colors duration-150 hover:text-blue-500">
                   {{ video.title }}
@@ -60,7 +60,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Calendar, Clock, Play, MessageSquare, X } from 'lucide-vue-next';
-import { formatNumber } from '../utils';
+import { formatNumber, getImageUrl } from '../utils';
 
 const props = defineProps({
   visible: {

@@ -1,192 +1,421 @@
 <template>
-  <div class="px-8 py-6 max-w-[1600px] mx-auto overflow-x-hidden">
-    <!-- UP Info Header -->
-    <header v-if="upInfo" class="flex flex-wrap items-center gap-6 p-6 bg-white rounded-xl border border-black/[0.06] mb-6 overflow-hidden">
-      <img :src="upInfo.face" class="w-[72px] h-[72px] rounded-full border-2 border-blue-500" referrerpolicy="no-referrer" />
-      <div class="flex-1">
-        <h1 class="text-xl font-semibold mb-1">{{ upInfo.name }}</h1>
-        <p class="text-neutral-600 text-sm max-w-xs overflow-hidden text-ellipsis whitespace-nowrap mb-2">{{ upInfo.sign }}</p>
-        <span class="inline-block bg-gradient-to-br from-amber-400 to-orange-500 text-neutral-900 px-2.5 py-0.5 rounded-[10px] text-xs font-semibold">Lv.{{ upInfo.level }}</span>
-      </div>
-      <div class="flex items-center">
-        <div class="stat-item">
-          <span class="stat-value">{{ videos.length }}</span>
-          <span class="stat-label">视频</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value">{{ formatNumber(totalPlays) }}</span>
-          <span class="stat-label">总播放</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value">{{ formatNumber(totalDanmu) }}</span>
-          <span class="stat-label">总弹幕</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value">{{ formatNumber(avgPlays) }}</span>
-          <span class="stat-label">均播放</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value">{{ avgEngagementRate }}%</span>
-          <span class="stat-label">互动率</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value text-amber-500">{{ hitRate }}%</span>
-          <span class="stat-label">爆款率</span>
-        </div>
-      </div>
-    </header>
+  <div class="min-h-screen bg-neutral-50/50">
+    <!-- Sticky Header -->
+    <header v-if="upInfo" class="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-black/[0.04]">
+      <div class="max-w-[1400px] mx-auto px-6 py-4">
+        <div class="flex items-center gap-5">
+          <!-- Avatar -->
+          <img :src="upFaceUrl" class="w-14 h-14 rounded-full ring-2 ring-black/[0.04] shadow-sm" referrerpolicy="no-referrer" />
 
-    <!-- Charts Grid -->
-    <div v-if="videos.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">播放量分布 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击柱子查看视频</span></h3>
-        <div ref="playDistChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">视频时长分布 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击柱子查看视频</span></h3>
-        <div ref="durationChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5 lg:col-span-2">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">月度发布趋势与播放量 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击柱子查看该月视频</span></h3>
-        <div ref="monthlyTrendChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">发布小时 vs 平均播放量（黄金时间） <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击查看该时段视频</span></h3>
-        <div ref="hourlyPlayChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">视频时长 vs 平均播放量</h3>
-        <div ref="durationPlayChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">播放量 vs 弹幕数（互动深度）</h3>
-        <div ref="scatterChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">发布时间热力图 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击格子查看视频</span></h3>
-        <div ref="heatmapChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5 lg:col-span-2">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">TOP15 播放量视频 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击直接打开视频</span></h3>
-        <div ref="topVideosChart" class="h-[380px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5 lg:col-span-2">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">TOP15 高互动视频（弹幕/播放比） <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击直接打开视频</span></h3>
-        <div ref="topEngagementChart" class="h-[380px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">年度发布数量</h3>
-        <div ref="yearlyCountChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">年度平均播放量</h3>
-        <div ref="yearlyAvgChart" class="h-[280px]"></div>
-      </div>
-      <div class="bg-white rounded-xl border border-black/[0.06] p-5 lg:col-span-2">
-        <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">全部视频播放量时间线</h3>
-        <div ref="timelineChart" class="h-[380px]"></div>
-      </div>
-    </div>
-
-    <!-- Video List -->
-    <section v-if="videos.length > 0" class="bg-white rounded-xl border border-black/[0.06] p-5">
-      <!-- Chart Filter Badge -->
-      <div v-if="chartFilter" class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-500/10 to-blue-600/10 rounded-lg border border-blue-500/20 mb-3 text-sm text-blue-500 font-medium">
-        <span>📊 图表筛选已激活</span>
-        <button class="flex items-center gap-1.5 px-3 py-1.5 bg-white/80 border border-blue-500/30 rounded-md text-blue-500 text-xs cursor-pointer transition-all duration-150 hover:bg-white hover:border-blue-500 hover:scale-[1.02]" @click="clearChartFilter">
-          <X :size="14" />
-          清除筛选
-        </button>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-3 mb-4">
-        <h3 class="text-sm font-semibold mr-auto">视频列表</h3>
-        <div class="flex items-center gap-2 px-3 py-2 bg-neutral-50 rounded-lg border border-black/[0.06] flex-1 max-w-md mx-4">
-          <Search :size="16" class="text-neutral-400 flex-shrink-0" />
-          <input
-            type="text"
-            v-model="searchKeyword"
-            placeholder="搜索标题关键词（如：张三、死刑）"
-            class="flex-1 border-0 bg-transparent text-neutral-900 text-sm outline-none placeholder:text-neutral-400"
-          />
-          <button v-if="searchKeyword" class="bg-transparent border-0 text-neutral-400 cursor-pointer p-0.5 flex items-center justify-center rounded-full transition-all duration-150 hover:bg-neutral-200 hover:text-neutral-900" @click="searchKeyword = ''">
-            <X :size="14" />
-          </button>
-        </div>
-        <div class="relative" ref="sortDropdownRef">
-          <button class="flex items-center gap-2 px-3 py-2 bg-neutral-50 border border-black/[0.06] rounded-lg text-neutral-900 text-sm cursor-pointer transition-all duration-150 hover:bg-neutral-100 hover:border-black/10" @click="sortDropdownOpen = !sortDropdownOpen">
-            <ArrowUpDown :size="14" />
-            <span>{{ sortOptions.find(o => o.value === sortBy)?.label }}</span>
-            <ChevronDown :size="14" :class="sortDropdownOpen ? 'rotate-180' : ''" class="text-neutral-400 transition-transform duration-150" />
-          </button>
-          <Transition name="dropdown">
-            <div v-if="sortDropdownOpen" class="absolute top-[calc(100%_+_4px)] right-0 min-w-[160px] p-1.5 bg-white border border-black/[0.06] rounded-lg shadow-lg z-[100]">
-              <div
-                v-for="option in sortOptions"
-                :key="option.value"
-                class="flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-600 cursor-pointer rounded-md transition-all duration-150"
-                :class="sortBy === option.value ? 'bg-blue-500/10 text-blue-500' : 'hover:bg-neutral-100 hover:text-neutral-900'"
-                @click="selectSort(option.value)"
-              >
-                <component :is="option.icon" :size="14" />
-                <span>{{ option.label }}</span>
-                <Check v-if="sortBy === option.value" :size="14" class="ml-auto text-blue-500" />
-              </div>
-            </div>
-          </Transition>
-        </div>
-        <span class="text-xs text-neutral-400 bg-neutral-50 px-2.5 py-1 rounded-xl">{{ filteredVideos.length }} / {{ videos.length }} 个视频</span>
-      </div>
-      <div v-if="searchKeyword && filteredVideos.length > 0" class="flex gap-4 px-4 py-3 bg-gradient-to-r from-blue-500/10 to-blue-600/10 rounded-lg mb-3 text-sm text-neutral-600">
-        <span>关键词 "<strong class="text-blue-500">{{ searchKeyword }}</strong>" 的视频：</span>
-        <span>平均播放 <strong class="text-blue-500">{{ formatNumber(filteredAvgPlays) }}</strong></span>
-        <span>平均互动率 <strong class="text-blue-500">{{ filteredEngagementRate }}%</strong></span>
-      </div>
-      <div class="flex flex-col gap-2 max-h-[600px] overflow-y-auto" ref="videoListRef" @scroll="handleVideoListScroll">
-        <div
-          v-for="(video, index) in displayedVideos"
-          :key="video.bvid"
-          class="flex items-center gap-4 p-3 bg-neutral-50 rounded-lg transition-colors duration-150 hover:bg-neutral-100"
-        >
-          <span class="w-8 text-center font-semibold text-blue-500 text-sm">{{ index + 1 }}</span>
-          <img :src="video.cover_url" class="w-[120px] h-[68px] object-cover rounded-md" referrerpolicy="no-referrer" />
+          <!-- Info -->
           <div class="flex-1 min-w-0">
-            <a :href="video.video_url" target="_blank" class="block text-neutral-900 no-underline font-medium text-[0.9rem] mb-1.5 overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-150 hover:text-blue-500">
-              {{ video.title }}
-            </a>
-            <div class="flex flex-wrap gap-3 text-xs text-neutral-400">
-              <span class="inline-flex items-center gap-1" title="发布时间">
-                <Calendar :size="14" class="opacity-70" />
-                {{ video.publish_time }}
+            <div class="flex items-center gap-3 mb-1">
+              <h1 class="text-lg font-semibold text-neutral-900 truncate">{{ upInfo.name }}</h1>
+              <span class="inline-flex items-center px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-semibold rounded-full">
+                Lv.{{ upInfo.level }}
               </span>
-              <span class="inline-flex items-center gap-1" title="视频时长">
-                <Clock :size="14" class="opacity-70" />
-                {{ video.duration }}
-              </span>
-              <span class="inline-flex items-center gap-1" title="播放量">
-                <Play :size="14" class="opacity-70" />
-                {{ formatNumber(video.play_count) }}
-              </span>
-              <span class="inline-flex items-center gap-1" title="弹幕数">
-                <MessageSquare :size="14" class="opacity-70" />
-                {{ formatNumber(video.danmu_count) }}
-              </span>
+            </div>
+            <p class="text-sm text-neutral-500 truncate max-w-md">{{ upInfo.sign || '这个人很懒，什么都没写' }}</p>
+          </div>
+
+          <!-- Key Metrics -->
+          <div class="hidden md:flex items-center gap-1">
+            <div class="metric-card">
+              <span class="metric-value">{{ videos.length }}</span>
+              <span class="metric-label">视频</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-value">{{ formatNumber(avgPlays) }}</span>
+              <span class="metric-label">均播放</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-value text-amber-500">{{ hitRate }}%</span>
+              <span class="metric-label">爆款率</span>
             </div>
           </div>
         </div>
       </div>
-      <div v-if="displayedVideos.length < filteredVideos.length" class="text-center py-4 text-neutral-400 text-sm">
-        <span>加载中... ({{ displayedVideos.length }}/{{ filteredVideos.length }})</span>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-[1400px] mx-auto px-6 py-6">
+      <!-- Tab Navigation -->
+      <nav class="flex items-center gap-1 p-1 bg-neutral-100/80 rounded-xl mb-6 w-fit">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          @click="activeTab = tab.id"
+          :class="[
+            'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+            activeTab === tab.id
+              ? 'bg-white text-neutral-900 shadow-sm'
+              : 'text-neutral-500 hover:text-neutral-700 hover:bg-white/50'
+          ]"
+        >
+          <component :is="tab.icon" :size="16" />
+          {{ tab.label }}
+          <span v-if="tab.id === 'videos'" class="ml-1 px-1.5 py-0.5 text-[10px] bg-neutral-100 rounded-full text-neutral-500">
+            {{ videos.length }}
+          </span>
+        </button>
+      </nav>
+
+      <!-- Tab Content: 数据分析 -->
+      <div v-show="activeTab === 'analysis'" class="space-y-6">
+        <!-- Stats Overview Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div class="stat-card">
+            <div class="stat-icon bg-blue-50 text-blue-500"><Play :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ formatNumber(totalPlays) }}</span>
+              <span class="stat-card-label">总播放</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-purple-50 text-purple-500"><MessageSquare :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ formatNumber(totalDanmu) }}</span>
+              <span class="stat-card-label">总弹幕</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-emerald-50 text-emerald-500"><TrendingUp :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ formatNumber(avgPlays) }}</span>
+              <span class="stat-card-label">均播放</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-orange-50 text-orange-500"><Zap :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ avgEngagementRate }}%</span>
+              <span class="stat-card-label">互动率</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-rose-50 text-rose-500"><Flame :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ hitRate }}%</span>
+              <span class="stat-card-label">爆款率</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-cyan-50 text-cyan-500"><Clock :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ avgDuration }}</span>
+              <span class="stat-card-label">均时长</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid - Organized by Category -->
+        <div v-if="videos.length > 0" class="space-y-6">
+          <!-- 核心数据 -->
+          <section>
+            <h2 class="section-title">
+              <BarChart3 :size="16" />
+              核心数据分析
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="chart-card">
+                <h3 class="chart-title">播放量分布</h3>
+                <div ref="playDistChart" class="h-[260px]"></div>
+              </div>
+              <div class="chart-card">
+                <h3 class="chart-title">视频时长分布</h3>
+                <div ref="durationChart" class="h-[260px]"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 时间趋势 -->
+          <section>
+            <h2 class="section-title">
+              <TrendingUp :size="16" />
+              时间趋势
+            </h2>
+            <div class="chart-card">
+              <h3 class="chart-title">月度发布趋势与播放量</h3>
+              <div ref="monthlyTrendChart" class="h-[280px]"></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+              <div class="chart-card">
+                <h3 class="chart-title">发布小时 vs 平均播放量</h3>
+                <div ref="hourlyPlayChart" class="h-[260px]"></div>
+              </div>
+              <div class="chart-card">
+                <h3 class="chart-title">发布时间热力图</h3>
+                <div ref="heatmapChart" class="h-[260px]"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 内容分析 -->
+          <section>
+            <h2 class="section-title">
+              <Target :size="16" />
+              内容表现
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="chart-card">
+                <h3 class="chart-title">时长 vs 平均播放量</h3>
+                <div ref="durationPlayChart" class="h-[260px]"></div>
+              </div>
+              <div class="chart-card">
+                <h3 class="chart-title">播放量 vs 弹幕数</h3>
+                <div ref="scatterChart" class="h-[260px]"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TOP榜单 -->
+          <section>
+            <h2 class="section-title">
+              <Award :size="16" />
+              TOP 榜单
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="chart-card">
+                <h3 class="chart-title">TOP15 播放量视频</h3>
+                <div ref="topVideosChart" class="h-[360px]"></div>
+              </div>
+              <div class="chart-card">
+                <h3 class="chart-title">TOP15 高互动视频</h3>
+                <div ref="topEngagementChart" class="h-[360px]"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 年度回顾 -->
+          <section>
+            <h2 class="section-title">
+              <Calendar :size="16" />
+              年度回顾
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="chart-card">
+                <h3 class="chart-title">年度发布数量</h3>
+                <div ref="yearlyCountChart" class="h-[260px]"></div>
+              </div>
+              <div class="chart-card">
+                <h3 class="chart-title">年度平均播放量</h3>
+                <div ref="yearlyAvgChart" class="h-[260px]"></div>
+              </div>
+            </div>
+            <div class="chart-card mt-4">
+              <h3 class="chart-title">全部视频播放量时间线</h3>
+              <div ref="timelineChart" class="h-[320px]"></div>
+            </div>
+          </section>
+        </div>
       </div>
-      <div v-else class="text-center py-4 text-neutral-400 text-sm">
-        <span>已加载全部 {{ filteredVideos.length }} 个视频</span>
+
+      <!-- Tab Content: 视频列表 -->
+      <div v-show="activeTab === 'videos'" class="space-y-4">
+        <!-- Chart Filter Badge -->
+        <div v-if="chartFilter" class="flex items-center justify-between px-4 py-3 bg-blue-50 rounded-xl border border-blue-100">
+          <span class="text-sm text-blue-600 font-medium flex items-center gap-2">
+            <Filter :size="14" />
+            图表筛选已激活
+          </span>
+          <button class="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1" @click="clearChartFilter">
+            <X :size="14" />
+            清除
+          </button>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="flex flex-wrap items-center gap-3 p-4 bg-white rounded-xl border border-black/[0.04]">
+          <div class="flex items-center gap-2 flex-1 min-w-[240px] max-w-md px-3 py-2 bg-neutral-50 rounded-lg">
+            <Search :size="16" class="text-neutral-400" />
+            <input
+              type="text"
+              v-model="searchKeyword"
+              placeholder="搜索视频标题..."
+              class="flex-1 bg-transparent border-0 outline-none text-sm text-neutral-900 placeholder:text-neutral-400"
+            />
+            <button v-if="searchKeyword" @click="searchKeyword = ''" class="text-neutral-400 hover:text-neutral-600">
+              <X :size="14" />
+            </button>
+          </div>
+
+          <div class="relative" ref="sortDropdownRef">
+            <button
+              @click="sortDropdownOpen = !sortDropdownOpen"
+              class="flex items-center gap-2 px-3 py-2 bg-neutral-50 hover:bg-neutral-100 rounded-lg text-sm text-neutral-600 transition-colors"
+            >
+              <ArrowUpDown :size="14" />
+              {{ sortOptions.find(o => o.value === sortBy)?.label }}
+              <ChevronDown :size="14" :class="sortDropdownOpen ? 'rotate-180' : ''" class="transition-transform" />
+            </button>
+            <Transition name="dropdown">
+              <div v-if="sortDropdownOpen" class="absolute top-full mt-1 right-0 w-44 p-1.5 bg-white rounded-xl border border-black/[0.06] shadow-lg z-50">
+                <button
+                  v-for="option in sortOptions"
+                  :key="option.value"
+                  @click="selectSort(option.value)"
+                  :class="[
+                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+                    sortBy === option.value
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-neutral-600 hover:bg-neutral-50'
+                  ]"
+                >
+                  <component :is="option.icon" :size="14" />
+                  {{ option.label }}
+                </button>
+              </div>
+            </Transition>
+          </div>
+
+          <!-- View Mode Toggle -->
+          <div class="flex items-center p-1 bg-neutral-100 rounded-lg">
+            <button
+              @click="viewMode = 'grid'"
+              :class="[
+                'p-1.5 rounded-md transition-all duration-150',
+                viewMode === 'grid'
+                  ? 'bg-white text-neutral-900 shadow-sm'
+                  : 'text-neutral-400 hover:text-neutral-600'
+              ]"
+              title="网格视图"
+            >
+              <LayoutGrid :size="16" />
+            </button>
+            <button
+              @click="viewMode = 'list'"
+              :class="[
+                'p-1.5 rounded-md transition-all duration-150',
+                viewMode === 'list'
+                  ? 'bg-white text-neutral-900 shadow-sm'
+                  : 'text-neutral-400 hover:text-neutral-600'
+              ]"
+              title="列表视图"
+            >
+              <List :size="16" />
+            </button>
+          </div>
+
+          <span class="text-xs text-neutral-400 ml-auto">
+            {{ filteredVideos.length }} / {{ videos.length }} 个视频
+          </span>
+        </div>
+
+        <!-- Search Stats -->
+        <div v-if="searchKeyword && filteredVideos.length > 0" class="flex items-center gap-6 px-4 py-3 bg-blue-50/50 rounded-xl text-sm">
+          <span class="text-neutral-600">关键词 "<strong class="text-blue-600">{{ searchKeyword }}</strong>"</span>
+          <span class="text-neutral-500">平均播放 <strong class="text-blue-600">{{ formatNumber(filteredAvgPlays) }}</strong></span>
+          <span class="text-neutral-500">互动率 <strong class="text-blue-600">{{ filteredEngagementRate }}%</strong></span>
+        </div>
+
+        <!-- Video Grid View -->
+        <div v-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" ref="videoListRef">
+          <div
+            v-for="(video, index) in displayedVideos"
+            :key="video.bvid"
+            class="video-card group"
+          >
+            <div class="relative aspect-video rounded-lg overflow-hidden mb-3">
+              <img :src="getVideoCoverUrl(video)" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerpolicy="no-referrer" />
+              <span class="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-xs rounded">
+                {{ video.duration }}
+              </span>
+              <span class="absolute top-2 left-2 px-1.5 py-0.5 bg-blue-500 text-white text-xs font-medium rounded">
+                #{{ index + 1 }}
+              </span>
+            </div>
+            <a :href="video.video_url" target="_blank" class="block text-sm font-medium text-neutral-900 hover:text-blue-600 line-clamp-2 mb-2 transition-colors">
+              {{ video.title }}
+            </a>
+            <div class="flex items-center gap-3 text-xs text-neutral-500">
+              <span class="flex items-center gap-1">
+                <Play :size="12" />
+                {{ formatNumber(video.play_count) }}
+              </span>
+              <span class="flex items-center gap-1">
+                <MessageSquare :size="12" />
+                {{ formatNumber(video.danmu_count) }}
+              </span>
+              <span class="ml-auto">{{ formatDate(video.publish_time) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video List View -->
+        <div v-else class="bg-white rounded-xl border border-black/[0.04] divide-y divide-neutral-100" ref="videoListRef">
+          <div
+            v-for="(video, index) in displayedVideos"
+            :key="video.bvid"
+            class="flex items-center gap-4 p-4 hover:bg-neutral-50 transition-colors group"
+          >
+            <!-- Rank -->
+            <span class="w-8 text-center font-semibold text-blue-500 text-sm flex-shrink-0">
+              {{ index + 1 }}
+            </span>
+
+            <!-- Thumbnail -->
+            <div class="relative w-[140px] h-[80px] rounded-lg overflow-hidden flex-shrink-0">
+              <img :src="getVideoCoverUrl(video)" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerpolicy="no-referrer" />
+              <span class="absolute bottom-1 right-1 px-1 py-0.5 bg-black/70 text-white text-[10px] rounded">
+                {{ video.duration }}
+              </span>
+            </div>
+
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <a :href="video.video_url" target="_blank" class="block text-sm font-medium text-neutral-900 hover:text-blue-600 truncate mb-2 transition-colors">
+                {{ video.title }}
+              </a>
+              <div class="flex items-center gap-4 text-xs text-neutral-500">
+                <span class="flex items-center gap-1">
+                  <Calendar :size="12" class="opacity-60" />
+                  {{ formatDate(video.publish_time) }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <Play :size="12" class="opacity-60" />
+                  {{ formatNumber(video.play_count) }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <MessageSquare :size="12" class="opacity-60" />
+                  {{ formatNumber(video.danmu_count) }}
+                </span>
+                <span class="flex items-center gap-1 text-amber-500">
+                  <Zap :size="12" />
+                  {{ ((video.danmu_count / video.play_count) * 100).toFixed(2) }}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Load More -->
+        <div v-if="displayedVideos.length < filteredVideos.length" class="flex justify-center py-6">
+          <button @click="loadMore" class="px-6 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 text-sm font-medium rounded-lg transition-colors">
+            加载更多 ({{ displayedVideos.length }}/{{ filteredVideos.length }})
+          </button>
+        </div>
+        <div v-else-if="filteredVideos.length > 0" class="text-center py-6 text-sm text-neutral-400">
+          已显示全部 {{ filteredVideos.length }} 个视频
+        </div>
       </div>
-    </section>
+
+      <!-- Tab Content: 文本分析 -->
+      <div v-show="activeTab === 'text-analysis'" class="space-y-6">
+        <!-- Placeholder for future text analysis feature -->
+        <div class="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-black/[0.04]">
+          <div class="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center mb-4">
+            <FileText :size="28" class="text-neutral-400" />
+          </div>
+          <h3 class="text-lg font-semibold text-neutral-900 mb-2">文本分析</h3>
+          <p class="text-sm text-neutral-500 text-center max-w-md mb-6">
+            分析视频标题、评论和弹幕的关键词、情感倾向等文本数据，帮助你更好地理解观众偏好。
+          </p>
+          <span class="px-3 py-1.5 bg-amber-50 text-amber-600 text-xs font-medium rounded-full">
+            即将推出
+          </span>
+        </div>
+      </div>
+    </main>
 
     <!-- Video Drawer -->
     <VideoDetailDrawer
@@ -201,7 +430,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import * as echarts from 'echarts';
 import VideoDetailDrawer from './VideoDetailDrawer.vue';
-import { formatNumber, formatAxisNumber, parseDuration } from '../utils';
+import { formatNumber, formatAxisNumber, parseDuration, parseDurationMinutes, getImageUrl } from '../utils';
 import { chartTheme, distributionColors, heatmapColors, colors, gradients, highlightColor, secondaryAxis } from '../theme';
 import {
   Calendar,
@@ -215,7 +444,15 @@ import {
   TrendingUp,
   ArrowDownWideNarrow,
   Timer,
-  Check
+  BarChart3,
+  Target,
+  Award,
+  FileText,
+  Filter,
+  Zap,
+  Flame,
+  LayoutGrid,
+  List
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -228,6 +465,14 @@ const props = defineProps({
     default: () => []
   }
 });
+
+// Tab state
+const activeTab = ref('analysis');
+const tabs = [
+  { id: 'analysis', label: '数据分析', icon: BarChart3 },
+  { id: 'videos', label: '视频列表', icon: Play },
+  { id: 'text-analysis', label: '文本分析', icon: FileText }
+];
 
 // Chart refs
 const playDistChart = ref(null);
@@ -250,6 +495,7 @@ const sortBy = ref('time_desc');
 const sortDropdownOpen = ref(false);
 const sortDropdownRef = ref(null);
 const displayCount = ref(20);
+const viewMode = ref('grid'); // 'grid' | 'list'
 
 // 图表交互状态
 const drawerVisible = ref(false);
@@ -265,7 +511,6 @@ const sortOptions = [
   { value: 'play_desc', label: '播放最高', icon: TrendingUp },
   { value: 'play_asc', label: '播放最低', icon: ArrowDownWideNarrow },
   { value: 'danmu_desc', label: '弹幕最多', icon: MessageSquare },
-  { value: 'danmu_asc', label: '弹幕最少', icon: MessageSquare },
   { value: 'engagement_desc', label: '互动率最高', icon: TrendingUp },
   { value: 'duration_desc', label: '时长最长', icon: Timer },
   { value: 'duration_asc', label: '时长最短', icon: Timer },
@@ -274,6 +519,16 @@ const sortOptions = [
 // Computed
 const totalPlays = computed(() => props.videos.reduce((sum, v) => sum + v.play_count, 0));
 const totalDanmu = computed(() => props.videos.reduce((sum, v) => sum + v.danmu_count, 0));
+
+const upFaceUrl = computed(() => {
+  if (!props.upInfo) return '';
+  return getImageUrl(props.upInfo.face);
+});
+
+function getVideoCoverUrl(video) {
+  return getImageUrl(video.cover);
+}
+
 const avgPlays = computed(() => {
   if (props.videos.length === 0) return 0;
   return Math.round(totalPlays.value / props.videos.length);
@@ -289,6 +544,15 @@ const hitRate = computed(() => {
   const threshold = avgPlays.value * 2;
   const hitCount = props.videos.filter(v => v.play_count >= threshold).length;
   return ((hitCount / props.videos.length) * 100).toFixed(1);
+});
+
+const avgDuration = computed(() => {
+  if (props.videos.length === 0) return '0:00';
+  const totalSeconds = props.videos.reduce((sum, v) => sum + parseDuration(v.duration), 0);
+  const avgSeconds = Math.round(totalSeconds / props.videos.length);
+  const minutes = Math.floor(avgSeconds / 60);
+  const seconds = avgSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 });
 
 const filteredVideos = computed(() => {
@@ -310,7 +574,6 @@ const filteredVideos = computed(() => {
       case 'play_desc': return b.play_count - a.play_count;
       case 'play_asc': return a.play_count - b.play_count;
       case 'danmu_desc': return b.danmu_count - a.danmu_count;
-      case 'danmu_asc': return a.danmu_count - b.danmu_count;
       case 'engagement_desc': return (b.danmu_count / b.play_count) - (a.danmu_count / a.play_count);
       case 'duration_desc': return parseDuration(b.duration) - parseDuration(a.duration);
       case 'duration_asc': return parseDuration(a.duration) - parseDuration(b.duration);
@@ -338,6 +601,11 @@ const filteredEngagementRate = computed(() => {
 });
 
 // Methods
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+}
+
 function selectSort(value) {
   sortBy.value = value;
   sortDropdownOpen.value = false;
@@ -352,6 +620,7 @@ function openVideoDrawer(title, videosToShow) {
 function applyChartFilter(filterFn) {
   chartFilter.value = filterFn;
   displayCount.value = 20;
+  activeTab.value = 'videos'; // 自动切换到视频列表
 }
 
 function clearChartFilter() {
@@ -361,14 +630,6 @@ function clearChartFilter() {
 function loadMore() {
   if (displayCount.value < filteredVideos.value.length) {
     displayCount.value += 20;
-  }
-}
-
-function handleVideoListScroll(e) {
-  const el = e.target;
-  const threshold = 100;
-  if (el.scrollHeight - el.scrollTop - el.clientHeight < threshold) {
-    loadMore();
   }
 }
 
@@ -382,7 +643,6 @@ watch([searchKeyword, sortBy], () => {
   displayCount.value = 20;
 });
 
-// 监听 videos 变化，重新渲染图表
 watch(() => props.videos, (newVideos) => {
   if (newVideos.length > 0) {
     setTimeout(() => renderAllCharts(), 100);
@@ -443,26 +703,7 @@ function renderPlayDistChart() {
         const idx = params[0].dataIndex;
         const binVideos = videosByBin[idx];
         const count = counts[idx];
-
-        let html = `<div style="max-width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <div style="font-weight: 600; margin-bottom: 8px; color: #111827; font-size: 13px;">${labels[idx]}</div>
-          <div style="color: #6B7280; font-size: 12px; margin-bottom: 8px;">共 <span style="color: #3B82F6; font-weight: 600;">${count}</span> 个视频</div>`;
-
-        if (binVideos.length > 0) {
-          html += '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">';
-          html += '<div style="font-size: 11px; color: #9CA3AF; margin-bottom: 4px;">前5个视频:</div>';
-          const topVideos = binVideos.slice(0, 5);
-          topVideos.forEach(v => {
-            html += `<div style="margin: 4px 0; font-size: 11px; color: #6B7280;">• ${v.title.length > 30 ? v.title.slice(0, 30) + '...' : v.title}</div>`;
-          });
-          if (binVideos.length > 5) {
-            html += `<div style="margin-top: 6px; font-size: 11px; color: #3B82F6;">还有 ${binVideos.length - 5} 个视频...</div>`;
-          }
-          html += '<div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击查看全部</div>';
-          html += '</div>';
-        }
-        html += '</div>';
-        return html;
+        return `<div style="font-size: 13px;"><strong>${labels[idx]}</strong><br/>共 ${count} 个视频<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
       }
     },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: labels, axisLabel: { ...chartTheme.xAxis.axisLabel, rotate: 0, interval: 0 } },
@@ -496,11 +737,7 @@ function renderDurationChart() {
 
   const videosByBin = labels.map(() => []);
   props.videos.forEach(v => {
-    const parts = v.duration.split(':');
-    let minutes = 0;
-    if (parts.length === 2) minutes = parseInt(parts[0]);
-    if (parts.length === 3) minutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-
+    const minutes = parseDurationMinutes(v.duration);
     for (let i = 0; i < bins.length - 1; i++) {
       if (minutes >= bins[i] && minutes < bins[i + 1]) {
         videosByBin[i].push(v);
@@ -510,7 +747,6 @@ function renderDurationChart() {
   });
 
   const counts = videosByBin.map(arr => arr.length);
-  const total = props.videos.length;
 
   chart.setOption({
     ...chartTheme,
@@ -522,30 +758,11 @@ function renderDurationChart() {
       confine: true,
       formatter: (params) => {
         const idx = params[0].dataIndex;
-        const binVideos = videosByBin[idx];
-        const percent = total > 0 ? ((counts[idx] / total) * 100).toFixed(1) : 0;
-
-        let html = `<div style="max-width: 320px;">
-          <div style="font-weight: 600; margin-bottom: 8px; color: #111827; font-size: 13px;">${labels[idx]}</div>
-          <div style="color: #6B7280; font-size: 12px; margin-bottom: 8px;">共 <span style="color: #3B82F6; font-weight: 600;">${counts[idx]}</span> 个视频 (${percent}%)</div>`;
-
-        if (binVideos.length > 0) {
-          html += '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">';
-          html += '<div style="font-size: 11px; color: #9CA3AF; margin-bottom: 4px;">前5个视频:</div>';
-          binVideos.slice(0, 5).forEach(v => {
-            html += `<div style="margin: 4px 0; font-size: 11px; color: #6B7280;">• ${v.title.length > 30 ? v.title.slice(0, 30) + '...' : v.title} (${v.duration})</div>`;
-          });
-          if (binVideos.length > 5) {
-            html += `<div style="margin-top: 6px; font-size: 11px; color: #3B82F6;">还有 ${binVideos.length - 5} 个视频...</div>`;
-          }
-          html += '<div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击查看全部</div></div>';
-        }
-        html += '</div>';
-        return html;
+        return `<div style="font-size: 13px;"><strong>${labels[idx]}</strong><br/>共 ${counts[idx]} 个视频<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
       }
     },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: labels, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: 0, rotate: 0 } },
-    yAxis: { ...chartTheme.yAxis, type: 'value', name: '视频数', nameTextStyle: { color: '#9CA3AF', fontSize: 11, padding: [0, 40, 0, 0] } },
+    yAxis: { ...chartTheme.yAxis, type: 'value' },
     series: [{
       type: 'bar',
       data: counts.map((value, i) => ({
@@ -556,8 +773,7 @@ function renderDurationChart() {
       barMaxWidth: 40,
       showBackground: true,
       backgroundStyle: { color: 'rgba(243, 244, 246, 0.6)', borderRadius: [20, 20, 20, 20] },
-      label: { show: true, position: 'top', formatter: (params) => params.value > 0 ? params.value : '', color: '#6B7280', fontSize: 11, fontWeight: 500 },
-      emphasis: { itemStyle: { shadowBlur: 12, shadowColor: 'rgba(59, 130, 246, 0.3)', shadowOffsetY: 4 } }
+      label: { show: true, position: 'top', formatter: (params) => params.value > 0 ? params.value : '', color: '#6B7280', fontSize: 11, fontWeight: 500 }
     }]
   });
 
@@ -566,16 +782,12 @@ function renderDurationChart() {
     const idx = params.dataIndex;
     openVideoDrawer(`时长区间: ${labels[idx]}`, videosByBin[idx]);
     applyChartFilter((v) => {
-      const parts = v.duration.split(':');
-      let minutes = 0;
-      if (parts.length === 2) minutes = parseInt(parts[0]);
-      if (parts.length === 3) minutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+      const minutes = parseDurationMinutes(v.duration);
       return minutes >= bins[idx] && minutes < bins[idx + 1];
     });
   });
 }
 
-// 其他图表渲染函数（简化版本，完整版请参考原App.vue）
 function renderMonthlyTrendChart() {
   const chart = initChart(monthlyTrendChart, 'monthlyTrend');
   if (!chart) return;
@@ -607,9 +819,7 @@ function renderMonthlyTrendChart() {
       confine: true,
       formatter: params => {
         const month = params[0].axisValue;
-        return `<div><div style="font-weight: 600; margin-bottom: 8px; color: #111827;">${month}</div>
-          <div style="color: #6B7280; font-size: 12px;">发布数量: <span style="color: #3B82F6; font-weight: 600;">${params[0].value}</span></div>
-          <div style="color: #6B7280; font-size: 12px;">平均播放: <span style="color: #93C5FD; font-weight: 600;">${formatNumber(params[1]?.value || 0)}</span></div></div>`;
+        return `<div><strong>${month}</strong><br/>发布: ${params[0].value} 个<br/>均播放: ${formatNumber(params[1]?.value || 0)}</div>`;
       }
     },
     legend: { ...chartTheme.legend, data: ['发布数量', '平均播放量'] },
@@ -693,8 +903,7 @@ function renderDurationPlayChart() {
   const durationData = labels.map(() => ({ count: 0, totalPlays: 0 }));
 
   props.videos.forEach(v => {
-    const parts = v.duration.split(':');
-    let minutes = parts.length === 2 ? parseInt(parts[0]) : parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    const minutes = parseDurationMinutes(v.duration);
     for (let i = 0; i < bins.length - 1; i++) {
       if (minutes >= bins[i] && minutes < bins[i + 1]) {
         durationData[i].count++;
@@ -739,8 +948,7 @@ function renderScatterChart() {
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'item',
-      formatter: p => `<div style="color: #6B7280; font-size: 12px;">播放: <span style="color: #3B82F6; font-weight: 600;">${formatNumber(p.value[0])}</span></div>
-        <div style="color: #6B7280; font-size: 12px;">弹幕: <span style="color: #1D4ED8; font-weight: 600;">${formatNumber(p.value[1])}</span></div>`
+      formatter: p => `播放: ${formatNumber(p.value[0])}<br/>弹幕: ${formatNumber(p.value[1])}`
     },
     xAxis: { ...chartTheme.xAxis, type: 'value', name: '播放量', axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: formatAxisNumber } },
     yAxis: { ...chartTheme.yAxis, type: 'value', name: '弹幕数', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
@@ -917,11 +1125,7 @@ function renderTimelineChart() {
       trigger: 'axis',
       formatter: p => {
         const video = sortedVideos[p[0].dataIndex];
-        return `<div style="max-width: 300px;">
-          <div style="font-weight: 600; margin-bottom: 6px; color: #111827;">${video.title}</div>
-          <div style="color: #6B7280; font-size: 12px;">发布时间: ${video.publish_time}</div>
-          <div style="color: #3B82F6; font-weight: 600; font-size: 12px; margin-top: 4px;">播放量: ${formatNumber(video.play_count)}</div>
-        </div>`;
+        return `<div style="max-width: 280px;"><strong>${video.title}</strong><br/>发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}</div>`;
       }
     },
     grid: { left: '8%', right: '4%', bottom: '15%', top: '10%' },
@@ -929,13 +1133,12 @@ function renderTimelineChart() {
       { type: 'slider', show: true, start: 0, end: 100, bottom: 10, height: 20, borderColor: 'transparent', backgroundColor: '#F3F4F6', fillerColor: 'rgba(59, 130, 246, 0.2)', handleStyle: { color: colors.primary } },
       { type: 'inside', start: 0, end: 100 }
     ],
-    xAxis: { ...chartTheme.xAxis, type: 'category', data: titles, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: Math.floor(sortedVideos.length / 20), rotate: 0 }, name: '视频序号（按发布时间排序）', nameLocation: 'middle', nameGap: 30 },
+    xAxis: { ...chartTheme.xAxis, type: 'category', data: titles, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: Math.floor(sortedVideos.length / 20), rotate: 0 }, name: '视频序号', nameLocation: 'middle', nameGap: 30 },
     yAxis: { ...chartTheme.yAxis, type: 'value', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
     series: [{ type: 'bar', data: plays, barMaxWidth: 16, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors.primary }, { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }]), borderRadius: [3, 3, 0, 0] } }]
   });
 }
 
-// 暴露渲染方法给父组件
 defineExpose({ renderAllCharts });
 
 function handleResize() {
@@ -959,43 +1162,72 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Dropdown transition */
+/* Metric Cards in Header */
+.metric-card {
+  @apply flex flex-col items-center px-4 py-1;
+}
+
+.metric-value {
+  @apply text-base font-semibold text-neutral-900 tabular-nums;
+}
+
+.metric-label {
+  @apply text-[10px] text-neutral-500 mt-0.5;
+}
+
+/* Stats Cards */
+.stat-card {
+  @apply flex items-center gap-3 p-4 bg-white rounded-xl border border-black/[0.04];
+}
+
+.stat-icon {
+  @apply w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0;
+}
+
+.stat-card-value {
+  @apply block text-lg font-semibold text-neutral-900 tabular-nums;
+}
+
+.stat-card-label {
+  @apply block text-xs text-neutral-500 mt-0.5;
+}
+
+/* Section Title */
+.section-title {
+  @apply flex items-center gap-2 text-sm font-semibold text-neutral-700 mb-4;
+}
+
+/* Chart Card */
+.chart-card {
+  @apply bg-white rounded-xl border border-black/[0.04] p-5;
+}
+
+.chart-title {
+  @apply text-sm font-medium text-neutral-700 mb-3;
+}
+
+/* Video Card */
+.video-card {
+  @apply bg-white rounded-xl border border-black/[0.04] p-3 transition-shadow duration-200 hover:shadow-md;
+}
+
+/* Dropdown Animation */
 .dropdown-enter-active,
 .dropdown-leave-active {
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s ease;
 }
 
 .dropdown-enter-from,
 .dropdown-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-4px);
 }
 
-/* Stats - Linear/Notion style */
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 20px;
-}
-
-.stat-value {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #111827;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 2px;
-}
-
-.stat-divider {
-  width: 1px;
-  height: 32px;
-  background: #e5e7eb;
+/* Line Clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

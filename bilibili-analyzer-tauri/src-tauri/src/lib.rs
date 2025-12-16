@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Mutex;
+use std::io::Write;
 
 // WBI 混淆表 (固定值)
 const MIXIN_KEY_ENC_TAB: [usize; 64] = [
@@ -30,7 +31,7 @@ pub struct VideoInfo {
     pub favorite_count: i64,
     pub category: String,
     pub description: String,
-    pub cover_url: String,
+    pub cover: Option<String>,  // 本地封面路径
     pub video_url: String,
 }
 
@@ -39,7 +40,7 @@ pub struct UpInfo {
     pub name: String,
     pub sign: String,
     pub level: i32,
-    pub face: String,
+    pub face: Option<String>,  // 本地头像路径
     pub mid: i64,
 }
 
@@ -85,10 +86,186 @@ fn get_db_path(app_handle: &AppHandle) -> PathBuf {
     app_data_dir.join("bilibili_analyzer.db")
 }
 
+// 获取图片存储目录
+fn get_images_dir(app_handle: &AppHandle) -> PathBuf {
+    let app_data_dir = app_handle.path().app_data_dir().expect("获取应用数据目录失败");
+    let images_dir = app_data_dir.join("images");
+    std::fs::create_dir_all(&images_dir).expect("创建图片目录失败");
+    images_dir
+}
+
+// 获取头像存储目录
+fn get_avatars_dir(app_handle: &AppHandle) -> PathBuf {
+    let images_dir = get_images_dir(app_handle);
+    let avatars_dir = images_dir.join("avatars");
+    std::fs::create_dir_all(&avatars_dir).expect("创建头像目录失败");
+    avatars_dir
+}
+
+// 获取封面存储目录
+fn get_covers_dir(app_handle: &AppHandle) -> PathBuf {
+    let images_dir = get_images_dir(app_handle);
+    let covers_dir = images_dir.join("covers");
+    std::fs::create_dir_all(&covers_dir).expect("创建封面目录失败");
+    covers_dir
+}
+
+// 从URL中提取文件扩展名
+fn get_extension_from_url(url: &str) -> String {
+    // 移除查询参数
+    let url_without_query = url.split('?').next().unwrap_or(url);
+    // 获取扩展名
+    if let Some(ext) = url_without_query.rsplit('.').next() {
+        let ext_lower = ext.to_lowercase();
+        if ["jpg", "jpeg", "png", "gif", "webp"].contains(&ext_lower.as_str()) {
+            return ext_lower;
+        }
+    }
+    "jpg".to_string() // 默认扩展名
+}
+
+// 下载图片到本地（带重试机制）
+async fn download_image(client: &reqwest::Client, url: &str, save_path: &PathBuf) -> Result<(), String> {
+    // 如果文件已存在，跳过下载
+    if save_path.exists() {
+        return Ok(());
+    }
+
+    let max_retries = 3;
+    let mut last_error = String::new();
+
+    for attempt in 0..max_retries {
+        if attempt > 0 {
+            // 重试前等待，指数退避
+            tokio::time::sleep(tokio::time::Duration::from_millis(500 * (attempt as u64 + 1))).await;
+        }
+
+        let resp = match client
+            .get(url)
+            .header(USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+            .header(REFERER, "https://www.bilibili.com")
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                last_error = format!("请求失败: {}", e);
+                continue;
+            }
+        };
+
+        if !resp.status().is_success() {
+            last_error = format!("状态码: {}", resp.status());
+            // 5xx 错误可以重试，4xx 错误直接返回
+            if resp.status().is_server_error() {
+                continue;
+            }
+            return Err(format!("下载图片失败，{}", last_error));
+        }
+
+        let bytes = match resp.bytes().await {
+            Ok(b) => b,
+            Err(e) => {
+                last_error = format!("读取数据失败: {}", e);
+                continue;
+            }
+        };
+
+        let mut file = std::fs::File::create(save_path)
+            .map_err(|e| format!("创建图片文件失败: {}", e))?;
+
+        file.write_all(&bytes)
+            .map_err(|e| format!("写入图片失败: {}", e))?;
+
+        return Ok(());
+    }
+
+    Err(format!("下载图片失败（重试{}次）: {}", max_retries, last_error))
+}
+
+// 下载UP主头像
+async fn download_avatar(client: &reqwest::Client, app_handle: &AppHandle, mid: i64, face_url: &str) -> Option<String> {
+    if face_url.is_empty() {
+        return None;
+    }
+
+    let avatars_dir = get_avatars_dir(app_handle);
+    let ext = get_extension_from_url(face_url);
+    let filename = format!("{}.{}", mid, ext);
+    let save_path = avatars_dir.join(&filename);
+
+    match download_image(client, face_url, &save_path).await {
+        Ok(_) => Some(save_path.to_string_lossy().to_string()),
+        Err(e) => {
+            eprintln!("下载头像失败 mid={}: {}", mid, e);
+            None
+        }
+    }
+}
+
+// 下载视频封面
+async fn download_cover(client: &reqwest::Client, app_handle: &AppHandle, bvid: &str, cover_url: &str) -> Option<String> {
+    if cover_url.is_empty() {
+        return None;
+    }
+
+    let covers_dir = get_covers_dir(app_handle);
+    let ext = get_extension_from_url(cover_url);
+    let filename = format!("{}.{}", bvid, ext);
+    let save_path = covers_dir.join(&filename);
+
+    match download_image(client, cover_url, &save_path).await {
+        Ok(_) => Some(save_path.to_string_lossy().to_string()),
+        Err(e) => {
+            eprintln!("下载封面失败 bvid={}: {}", bvid, e);
+            None
+        }
+    }
+}
+
+// 批量下载封面（带频率控制和进度更新）
+async fn download_covers_batch(
+    client: &reqwest::Client,
+    app_handle: &AppHandle,
+    videos: &mut Vec<VideoInfo>,
+    cover_urls: &[(String, String)],  // (bvid, cover_url)
+    batch_size: usize,
+    delay_ms: u64,
+) {
+    let total = videos.len();
+
+    // 建立 bvid -> cover_url 的映射
+    let url_map: std::collections::HashMap<&str, &str> = cover_urls
+        .iter()
+        .map(|(bvid, url)| (bvid.as_str(), url.as_str()))
+        .collect();
+
+    for (i, video) in videos.iter_mut().enumerate() {
+        // 发送下载进度
+        let _ = app_handle.emit("scrape-progress", ScrapeProgress {
+            current: (i + 1) as i32,
+            total: total as i32,
+            page: 0,
+            message: format!("正在下载视频封面 ({}/{})", i + 1, total),
+        });
+
+        if let Some(&cover_url) = url_map.get(video.bvid.as_str()) {
+            if let Some(local_path) = download_cover(client, app_handle, &video.bvid, cover_url).await {
+                video.cover = Some(local_path);
+            }
+        }
+
+        // 每下载 batch_size 张图片后暂停一下，避免请求过快
+        if (i + 1) % batch_size == 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+        }
+    }
+}
+
 fn init_database(db_path: &PathBuf) -> Result<Connection, String> {
     let conn = Connection::open(db_path).map_err(|e| format!("打开数据库失败: {}", e))?;
 
-    // 创建UP主表
+    // 创建UP主表（只存储本地头像路径）
     conn.execute(
         "CREATE TABLE IF NOT EXISTS up_users (
             mid INTEGER PRIMARY KEY,
@@ -102,7 +279,7 @@ fn init_database(db_path: &PathBuf) -> Result<Connection, String> {
         [],
     ).map_err(|e| format!("创建up_users表失败: {}", e))?;
 
-    // 创建视频表
+    // 创建视频表（只存储本地封面路径）
     conn.execute(
         "CREATE TABLE IF NOT EXISTS videos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,7 +295,7 @@ fn init_database(db_path: &PathBuf) -> Result<Connection, String> {
             favorite_count INTEGER,
             category TEXT,
             description TEXT,
-            cover_url TEXT,
+            cover TEXT,
             video_url TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (mid) REFERENCES up_users(mid)
@@ -132,7 +309,35 @@ fn init_database(db_path: &PathBuf) -> Result<Connection, String> {
         [],
     ).map_err(|e| format!("创建索引失败: {}", e))?;
 
+    // 创建设置表（用于存储 Cookie 等配置）
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )",
+        [],
+    ).map_err(|e| format!("创建settings表失败: {}", e))?;
+
     Ok(conn)
+}
+
+// 保存设置到数据库
+fn save_setting(conn: &Connection, key: &str, value: &str) -> Result<(), String> {
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, value],
+    ).map_err(|e| format!("保存设置失败: {}", e))?;
+    Ok(())
+}
+
+// 从数据库读取设置
+fn load_setting(conn: &Connection, key: &str) -> Option<String> {
+    conn.query_row(
+        "SELECT value FROM settings WHERE key = ?1",
+        [key],
+        |row| row.get(0),
+    ).ok()
 }
 
 // 保存UP主信息到数据库
@@ -144,7 +349,7 @@ fn save_up_info_to_db(conn: &Connection, up_info: &UpInfo) -> Result<(), String>
             name = excluded.name,
             sign = excluded.sign,
             level = excluded.level,
-            face = excluded.face,
+            face = COALESCE(excluded.face, face),
             updated_at = CURRENT_TIMESTAMP",
         params![up_info.mid, up_info.name, up_info.sign, up_info.level, up_info.face],
     ).map_err(|e| format!("保存UP主信息失败: {}", e))?;
@@ -156,17 +361,18 @@ fn save_videos_to_db(conn: &Connection, mid: i64, videos: &[VideoInfo]) -> Resul
     for video in videos {
         conn.execute(
             "INSERT INTO videos (mid, bvid, aid, title, publish_time, duration, play_count,
-             danmu_count, comment_count, favorite_count, category, description, cover_url, video_url)
+             danmu_count, comment_count, favorite_count, category, description, cover, video_url)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
              ON CONFLICT(bvid) DO UPDATE SET
                 play_count = excluded.play_count,
                 danmu_count = excluded.danmu_count,
                 comment_count = excluded.comment_count,
-                favorite_count = excluded.favorite_count",
+                favorite_count = excluded.favorite_count,
+                cover = COALESCE(excluded.cover, cover)",
             params![
                 mid, video.bvid, video.aid, video.title, video.publish_time, video.duration,
                 video.play_count, video.danmu_count, video.comment_count, video.favorite_count,
-                video.category, video.description, video.cover_url, video.video_url
+                video.category, video.description, video.cover, video.video_url
             ],
         ).map_err(|e| format!("保存视频失败: {}", e))?;
     }
@@ -200,7 +406,7 @@ fn load_up_list_from_db(conn: &Connection) -> Result<Vec<UpInfo>, String> {
 fn load_videos_from_db(conn: &Connection, mid: i64) -> Result<Vec<VideoInfo>, String> {
     let mut stmt = conn.prepare(
         "SELECT bvid, aid, title, publish_time, duration, play_count, danmu_count,
-         comment_count, favorite_count, category, description, cover_url, video_url
+         comment_count, favorite_count, category, description, cover, video_url
          FROM videos WHERE mid = ?1 ORDER BY publish_time DESC"
     ).map_err(|e| format!("准备查询失败: {}", e))?;
 
@@ -217,7 +423,7 @@ fn load_videos_from_db(conn: &Connection, mid: i64) -> Result<Vec<VideoInfo>, St
             favorite_count: row.get(8)?,
             category: row.get(9)?,
             description: row.get(10)?,
-            cover_url: row.get(11)?,
+            cover: row.get(11)?,
             video_url: row.get(12)?,
         })
     }).map_err(|e| format!("查询视频列表失败: {}", e))?;
@@ -299,10 +505,37 @@ fn build_headers(cookie: &str) -> HeaderMap {
 // Tauri 命令
 
 #[tauri::command]
-async fn set_cookie(cookie: String, state: State<'_, Arc<ScraperState>>) -> Result<bool, String> {
+async fn set_cookie(cookie: String, app: AppHandle, state: State<'_, Arc<ScraperState>>) -> Result<bool, String> {
+    // 保存到内存
     let mut cookie_lock = state.cookie.lock().await;
-    *cookie_lock = cookie;
+    *cookie_lock = cookie.clone();
+
+    // 持久化到数据库
+    let db_path = get_db_path(&app);
+    if let Ok(conn) = init_database(&db_path) {
+        let _ = save_setting(&conn, "cookie", &cookie);
+    }
     Ok(true)
+}
+
+#[tauri::command]
+async fn get_cookie(app: AppHandle, state: State<'_, Arc<ScraperState>>) -> Result<String, String> {
+    // 先尝试从内存获取
+    let cookie = state.cookie.lock().await.clone();
+    if !cookie.is_empty() {
+        return Ok(cookie);
+    }
+
+    // 内存为空则从数据库加载
+    let db_path = get_db_path(&app);
+    if let Ok(conn) = init_database(&db_path) {
+        if let Some(saved_cookie) = load_setting(&conn, "cookie") {
+            // 同步到内存
+            *state.cookie.lock().await = saved_cookie.clone();
+            return Ok(saved_cookie);
+        }
+    }
+    Ok(String::new())
 }
 
 #[tauri::command]
@@ -351,18 +584,17 @@ async fn init_wbi_keys(state: State<'_, Arc<ScraperState>>) -> Result<bool, Stri
     Ok(true)
 }
 
-#[tauri::command]
-async fn get_up_info(mid: i64, state: State<'_, Arc<ScraperState>>) -> Result<UpInfo, String> {
-    let cookie = state.cookie.lock().await.clone();
-    let img_key = state.img_key.lock().await.clone();
-    let sub_key = state.sub_key.lock().await.clone();
-
-    let client = reqwest::Client::new();
-    let headers = build_headers(&cookie);
-
+// 内部使用的获取UP主信息（返回 face_url 用于下载）
+async fn fetch_up_info_with_url(
+    client: &reqwest::Client,
+    headers: &HeaderMap,
+    mid: i64,
+    img_key: &str,
+    sub_key: &str,
+) -> Result<(UpInfo, String), String> {
     let mut params: HashMap<String, String> = HashMap::new();
     params.insert("mid".to_string(), mid.to_string());
-    enc_wbi(&mut params, &img_key, &sub_key);
+    enc_wbi(&mut params, img_key, sub_key);
 
     let url = format!(
         "https://api.bilibili.com/x/space/wbi/acc/info?{}",
@@ -375,7 +607,7 @@ async fn get_up_info(mid: i64, state: State<'_, Arc<ScraperState>>) -> Result<Up
 
     let resp = client
         .get(&url)
-        .headers(headers)
+        .headers(headers.clone())
         .send()
         .await
         .map_err(|e| format!("请求失败: {}", e))?;
@@ -390,13 +622,28 @@ async fn get_up_info(mid: i64, state: State<'_, Arc<ScraperState>>) -> Result<Up
     }
 
     let data = &json["data"];
-    Ok(UpInfo {
+    let face_url = data["face"].as_str().unwrap_or("").to_string();
+
+    Ok((UpInfo {
         name: data["name"].as_str().unwrap_or("").to_string(),
         sign: data["sign"].as_str().unwrap_or("").to_string(),
         level: data["level"].as_i64().unwrap_or(0) as i32,
-        face: data["face"].as_str().unwrap_or("").to_string(),
+        face: None,
         mid,
-    })
+    }, face_url))
+}
+
+#[tauri::command]
+async fn get_up_info(mid: i64, state: State<'_, Arc<ScraperState>>) -> Result<UpInfo, String> {
+    let cookie = state.cookie.lock().await.clone();
+    let img_key = state.img_key.lock().await.clone();
+    let sub_key = state.sub_key.lock().await.clone();
+
+    let client = reqwest::Client::new();
+    let headers = build_headers(&cookie);
+
+    let (up_info, _) = fetch_up_info_with_url(&client, &headers, mid, &img_key, &sub_key).await?;
+    Ok(up_info)
 }
 
 #[tauri::command]
@@ -422,6 +669,7 @@ async fn scrape_videos(
     let headers = build_headers(&cookie);
 
     let mut all_videos: Vec<VideoInfo> = Vec::new();
+    let mut cover_urls: Vec<(String, String)> = Vec::new();  // (bvid, cover_url)
     let mut total_count = 0i32;
     let mut max_pages = i32::MAX; // 初始化为最大值，第一次请求后会更新
 
@@ -498,6 +746,12 @@ async fn scrape_videos(
                 .unwrap_or_default();
 
             let bvid = v["bvid"].as_str().unwrap_or("").to_string();
+            let cover_url = v["pic"].as_str().unwrap_or("").to_string();
+
+            // 记录封面URL用于后续下载
+            if !cover_url.is_empty() {
+                cover_urls.push((bvid.clone(), cover_url));
+            }
 
             all_videos.push(VideoInfo {
                 title: v["title"].as_str().unwrap_or("").to_string(),
@@ -516,7 +770,7 @@ async fn scrape_videos(
                     .chars()
                     .take(100)
                     .collect(),
-                cover_url: v["pic"].as_str().unwrap_or("").to_string(),
+                cover: None,  // 稍后下载
                 video_url: format!("https://www.bilibili.com/video/{}", bvid),
             });
         }
@@ -542,11 +796,27 @@ async fn scrape_videos(
 
     *state.is_running.lock().await = false;
 
-    // 获取UP主信息
-    let up_info = match get_up_info(mid, state).await {
-        Ok(info) => Some(info),
-        Err(_) => None,
+    // 获取UP主信息（带 face_url）
+    let (mut up_info, face_url) = match fetch_up_info_with_url(&client, &headers, mid, &img_key, &sub_key).await {
+        Ok((info, url)) => (Some(info), url),
+        Err(_) => (None, String::new()),
     };
+
+    // 下载UP主头像
+    if let Some(ref mut info) = up_info {
+        let _ = app.emit("scrape-progress", ScrapeProgress {
+            current: 0,
+            total: all_videos.len() as i32,
+            page: 0,
+            message: "正在下载UP主头像...".to_string(),
+        });
+        if let Some(local_path) = download_avatar(&client, &app, mid, &face_url).await {
+            info.face = Some(local_path);
+        }
+    }
+
+    // 批量下载视频封面（带频率控制：每5张暂停500ms）
+    download_covers_batch(&client, &app, &mut all_videos, &cover_urls, 5, 500).await;
 
     // 保存数据到SQLite数据库
     let db_path = get_db_path(&app);
@@ -637,7 +907,6 @@ async fn export_csv(videos: Vec<VideoInfo>, path: String) -> Result<bool, String
         "收藏数",
         "分区",
         "简介",
-        "封面图URL",
         "视频链接",
     ])
     .map_err(|e| format!("写入表头失败: {}", e))?;
@@ -655,7 +924,6 @@ async fn export_csv(videos: Vec<VideoInfo>, path: String) -> Result<bool, String
             v.favorite_count.to_string(),
             v.category,
             v.description,
-            v.cover_url,
             v.video_url,
         ])
         .map_err(|e| format!("写入数据失败: {}", e))?;
@@ -672,6 +940,7 @@ pub fn run() {
         .manage(Arc::new(ScraperState::default()))
         .invoke_handler(tauri::generate_handler![
             set_cookie,
+            get_cookie,
             init_wbi_keys,
             get_up_info,
             scrape_videos,
