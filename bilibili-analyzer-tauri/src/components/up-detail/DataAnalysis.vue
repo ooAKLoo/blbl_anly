@@ -876,55 +876,89 @@ function renderTimelineChart() {
 
   const videos = props.analysisVideos;
   const sortedVideos = [...videos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
-  const titles = sortedVideos.map((v, i) => `#${i + 1}`);
-  const plays = sortedVideos.map(v => v.play_count);
 
   // 当前筛选阈值
   let currentThreshold = null;
 
-  // 根据阈值生成柱子颜色数据
-  const getBarData = (threshold) => {
-    return plays.map(play => ({
-      value: play,
-      itemStyle: {
-        color: threshold === null
-          ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors.primary }, { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }])
-          : play >= threshold
-            ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#F59E0B' }, { offset: 1, color: 'rgba(245, 158, 11, 0.4)' }])
-            : new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(156, 163, 175, 0.4)' }, { offset: 1, color: 'rgba(156, 163, 175, 0.15)' }]),
-        borderRadius: [3, 3, 0, 0]
-      }
-    }));
+  // 构建 dataset 源数据：[index, play_count, videoIndex]
+  const sourceData = sortedVideos.map((v, i) => [i, v.play_count, i]);
+
+  // 渲染图表的函数
+  const renderChart = (threshold) => {
+    const filteredData = threshold === null
+      ? sourceData
+      : sourceData.filter(d => d[1] >= threshold);
+
+    const barColor = threshold === null
+      ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors.primary }, { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }])
+      : new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#F59E0B' }, { offset: 1, color: 'rgba(245, 158, 11, 0.4)' }]);
+
+    const filteredCount = filteredData.length;
+    const totalCount = sourceData.length;
+
+    chart.setOption({
+      ...chartTheme,
+      tooltip: {
+        ...chartTheme.tooltip,
+        trigger: 'axis',
+        formatter: p => {
+          if (!p || !p[0]) return '';
+          const videoIdx = p[0].data[2];
+          const video = sortedVideos[videoIdx];
+          const thresholdInfo = threshold !== null
+            ? `<br/><span style="color: #F59E0B">阈值: ${formatNumber(threshold)}</span>`
+            : '';
+          return `<div style="max-width: 280px;"><strong>${video.title}</strong><br/>发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}${thresholdInfo}</div>`;
+        }
+      },
+      grid: { left: '8%', right: '4%', bottom: '22%', top: '12%' },
+      dataZoom: [
+        { type: 'slider', show: true, start: 0, end: 100, bottom: 8, height: 18, borderColor: 'transparent', backgroundColor: '#F3F4F6', fillerColor: 'rgba(59, 130, 246, 0.2)', handleStyle: { color: colors.primary } }
+      ],
+      xAxis: {
+        ...chartTheme.xAxis,
+        type: 'category',
+        axisLabel: { show: false },
+        axisTick: { show: false },
+        name: threshold !== null ? `筛选: ${filteredCount}/${totalCount} 个视频` : `共 ${totalCount} 个视频`,
+        nameLocation: 'middle',
+        nameGap: 25,
+        nameTextStyle: { color: threshold !== null ? '#F59E0B' : '#9CA3AF', fontSize: 11 }
+      },
+      yAxis: {
+        ...chartTheme.yAxis,
+        type: 'value',
+        axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber },
+        axisLine: { lineStyle: { color: threshold !== null ? '#F59E0B' : '#E5E7EB' } },
+        triggerEvent: true
+      },
+      series: [{
+        type: 'bar',
+        data: filteredData,
+        encode: { x: 0, y: 1 },
+        barMaxWidth: 16,
+        itemStyle: { color: barColor, borderRadius: [3, 3, 0, 0] },
+        markLine: threshold !== null ? {
+          silent: true,
+          symbol: 'none',
+          animation: false,
+          lineStyle: { color: '#F59E0B', width: 1.5, type: 'dashed' },
+          label: {
+            show: true,
+            position: 'insideEndTop',
+            formatter: `阈值: ${formatNumber(threshold)}`,
+            color: '#F59E0B',
+            fontSize: 11,
+            fontWeight: 500
+          },
+          data: [{ yAxis: threshold }]
+        } : { data: [] }
+      }]
+    }, { notMerge: true }); // notMerge 确保完全替换，避免残留数据
   };
 
-  const baseOption = {
-    ...chartTheme,
-    tooltip: {
-      ...chartTheme.tooltip,
-      trigger: 'axis',
-      formatter: p => {
-        const video = sortedVideos[p[0].dataIndex];
-        const thresholdInfo = currentThreshold !== null
-          ? `<br/><span style="color: ${video.play_count >= currentThreshold ? '#F59E0B' : '#9CA3AF'}">阈值: ${formatNumber(currentThreshold)}</span>`
-          : '';
-        return `<div style="max-width: 280px;"><strong>${video.title}</strong><br/>发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}${thresholdInfo}</div>`;
-      }
-    },
-    grid: { left: '8%', right: '4%', bottom: '22%', top: '10%' },
-    dataZoom: [
-      { type: 'slider', show: true, start: 0, end: 100, bottom: 8, height: 18, borderColor: 'transparent', backgroundColor: '#F3F4F6', fillerColor: 'rgba(59, 130, 246, 0.2)', handleStyle: { color: colors.primary } }
-    ],
-    xAxis: { ...chartTheme.xAxis, type: 'category', data: titles, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: Math.floor(sortedVideos.length / 20), rotate: 0 }, name: '视频序号', nameLocation: 'middle', nameGap: 25 },
-    yAxis: {
-      ...chartTheme.yAxis,
-      type: 'value',
-      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber },
-      triggerEvent: true
-    },
-    series: [{ type: 'bar', data: getBarData(null), barMaxWidth: 16 }]
-  };
-
-  chart.setOption(baseOption);
+  // 初始渲染
+  renderChart(null);
 
   // 监听Y轴点击事件
   chart.getZr().off('click');
@@ -935,7 +969,6 @@ function renderTimelineChart() {
     // 检查点击是否在Y轴区域（X坐标小于grid左边界）
     const gridInfo = chart.getModel().getComponent('grid').coordinateSystem.getRect();
     if (params.offsetX < gridInfo.x && params.offsetX > 0) {
-      // 点击在Y轴区域，获取对应的播放量值
       const yValue = pointInGrid[1];
       if (yValue !== null && yValue >= 0) {
         // 如果已有阈值且点击相近位置，则取消筛选；否则设置新阈值
@@ -944,41 +977,7 @@ function renderTimelineChart() {
         } else {
           currentThreshold = Math.round(yValue);
         }
-
-        // 更新图表，使用 markLine 显示阈值参考线
-        chart.setOption({
-          series: [{
-            data: getBarData(currentThreshold),
-            markLine: currentThreshold !== null ? {
-              silent: true,
-              symbol: 'none',
-              animation: false,
-              lineStyle: {
-                color: '#F59E0B',
-                width: 1.5,
-                type: 'dashed'
-              },
-              label: {
-                show: true,
-                position: 'insideEndTop',
-                formatter: `阈值: ${formatNumber(currentThreshold)}`,
-                color: '#F59E0B',
-                fontSize: 11,
-                fontWeight: 500
-              },
-              data: [{ yAxis: currentThreshold }]
-            } : {
-              data: []
-            }
-          }],
-          yAxis: {
-            axisLine: {
-              lineStyle: {
-                color: currentThreshold !== null ? '#F59E0B' : '#E5E7EB'
-              }
-            }
-          }
-        });
+        renderChart(currentThreshold);
       }
     }
   });
