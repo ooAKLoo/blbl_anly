@@ -1,59 +1,20 @@
 <template>
   <div class="space-y-6">
     <!-- 筛选器 -->
-    <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-      <!-- 时间筛选 -->
-      <div class="flex items-center gap-3">
-        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">时间范围</span>
-        <div class="flex items-center gap-1">
-          <button
-            v-for="option in timeRangeOptions"
-            :key="option.value"
-            @click="$emit('update:timeRange', option.value)"
-            :class="[
-              'px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150',
-              timeRange === option.value
-                ? 'bg-neutral-900 text-white'
-                : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
-            ]"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-      </div>
-
-      <!-- 分隔线 -->
-      <div class="w-px h-4 bg-neutral-200"></div>
-
-      <!-- 时长筛选 -->
-      <div class="flex items-center gap-3">
-        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">视频时长</span>
-        <div class="flex items-center gap-1">
-          <button
-            v-for="option in durationOptions"
-            :key="option.value"
-            @click="$emit('update:duration', option.value)"
-            :class="[
-              'px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150',
-              duration === option.value
-                ? 'bg-neutral-900 text-white'
-                : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
-            ]"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-      </div>
-
-      <!-- 筛选结果 -->
-      <div class="flex items-center gap-2 ml-auto">
+    <VideoFilterBar
+      :time-range="timeRange"
+      :duration="duration"
+      @update:time-range="$emit('update:timeRange', $event)"
+      @update:duration="$emit('update:duration', $event)"
+    >
+      <template #right>
         <span class="text-xs text-neutral-400">
           已筛选 <strong class="text-neutral-600">{{ analysisVideos.length }}</strong> / {{ allVideos.length }} 个视频
         </span>
         <span v-if="hasActiveFilter" class="text-xs text-neutral-400">·</span>
         <span v-if="hasActiveFilter" class="text-xs text-neutral-400">{{ dataTimeRange }}</span>
-      </div>
-    </div>
+      </template>
+    </VideoFilterBar>
 
     <!-- 数据概览卡片 -->
     <section>
@@ -252,8 +213,10 @@
 <script setup>
 import { ref, computed, watch, toRefs } from 'vue';
 import * as echarts from 'echarts';
+import VideoFilterBar from '../VideoFilterBar.vue';
 import { useVideoMetrics } from '../../composables/useVideoMetrics';
-import { formatNumber, formatAxisNumber, parseDuration, parseDurationMinutes } from '../../utils';
+import { formatNumber, formatAxisNumber, parseDurationMinutes } from '../../utils';
+import { ANALYSIS_THRESHOLDS } from '../../constants';
 import { chartTheme, distributionColors, heatmapColors, colors, gradients, highlightColor, secondaryAxis } from '../../theme';
 import { open } from '@tauri-apps/plugin-shell';
 import {
@@ -283,9 +246,7 @@ const props = defineProps({
     required: true
   },
   timeRange: String,
-  duration: String,
-  timeRangeOptions: Array,
-  durationOptions: Array
+  duration: String
 });
 
 const emit = defineEmits(['update:timeRange', 'update:duration', 'open-drawer']);
@@ -795,7 +756,7 @@ function renderTopEngagementChart() {
 
   const videos = props.analysisVideos;
   const videosWithEngagement = videos
-    .filter(v => v.play_count >= 10000)
+    .filter(v => v.play_count >= ANALYSIS_THRESHOLDS.minPlayForEngagement)
     .map(v => ({
       ...v,
       engagementRate: ((v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0)) / v.play_count) * 100
@@ -866,7 +827,17 @@ function renderYearlyAvgChart() {
     tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
     yAxis: { ...chartTheme.yAxis, type: 'value', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
-    series: [{ type: 'line', data: avgPlaysData, smooth: 0.4, showSymbol: false, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.area) }, itemStyle: { color: colors.blue500 }, lineStyle: { width: 2.5 } }]
+    series: [{
+      type: 'line',
+      data: avgPlaysData,
+      smooth: 0.4,
+      showSymbol: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.area) },
+      itemStyle: { color: colors.blue500, borderColor: '#fff', borderWidth: 2 },
+      lineStyle: { width: 2.5 }
+    }]
   });
 }
 
@@ -982,9 +953,18 @@ function renderTimelineChart() {
     }
   });
 }
-
-function formatDate(dateStr) {
-  const date = new Date(dateStr);
-  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-}
 </script>
+
+<style scoped>
+.section-title {
+  @apply flex items-center gap-2 text-sm font-medium text-neutral-600 mb-3;
+}
+
+.chart-card {
+  @apply bg-white rounded-2xl p-5;
+}
+
+.chart-title {
+  @apply text-sm font-medium text-neutral-700 mb-3;
+}
+</style>

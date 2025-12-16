@@ -1,224 +1,368 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <!-- 筛选器 -->
-    <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-      <div class="flex items-center gap-3">
-        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">时间范围</span>
-        <div class="flex items-center gap-1">
-          <button
-            v-for="option in timeRangeOptions"
-            :key="option.value"
-            @click="$emit('update:timeRange', option.value)"
-            :class="[
-              'px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150',
-              timeRange === option.value
-                ? 'bg-neutral-900 text-white'
-                : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
-            ]"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-      </div>
-      <div class="w-px h-4 bg-neutral-200"></div>
-      <div class="flex items-center gap-3">
-        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">视频时长</span>
-        <div class="flex items-center gap-1">
-          <button
-            v-for="option in durationOptions"
-            :key="option.value"
-            @click="$emit('update:duration', option.value)"
-            :class="[
-              'px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150',
-              duration === option.value
-                ? 'bg-neutral-900 text-white'
-                : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
-            ]"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 ml-auto">
+    <VideoFilterBar
+      :time-range="timeRange"
+      :duration="duration"
+      @update:time-range="$emit('update:timeRange', $event)"
+      @update:duration="$emit('update:duration', $event)"
+    >
+      <template #right>
         <button
           @click="copyAnalysisReport"
-          class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
+          class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
         >
           <Copy :size="14" />
           {{ copySuccess ? '已复制' : '复制报告' }}
         </button>
-      </div>
-    </div>
+      </template>
+    </VideoFilterBar>
 
     <!-- 分析报告内容 -->
-    <div v-if="videos.length > 0" class="space-y-5">
+    <div v-if="videos.length > 0" class="space-y-8">
 
-      <!-- 核心结论卡片 -->
-      <section class="bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-2xl p-6 text-white">
+      <!-- ==================== 第一层：核心结论 ==================== -->
+      <section class="report-card bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 text-white">
         <div class="flex items-start justify-between mb-4">
           <div>
-            <h2 class="text-lg font-semibold mb-1">账号数据洞察报告</h2>
-            <p class="text-neutral-400 text-sm">基于 {{ videos.length }} 个视频 · {{ dataTimeRange }}</p>
-          </div>
-          <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 rounded-full">
-            <Sparkles :size="14" class="text-amber-400" />
-            <span class="text-xs font-medium">智能分析</span>
+            <h2 class="text-lg font-semibold tracking-tight">账号诊断结论</h2>
+            <p class="text-neutral-500 text-xs mt-1">{{ videos.length }} 个视频 · {{ dataTimeRange }}</p>
           </div>
         </div>
-
-        <div class="bg-white/5 rounded-xl p-4 mb-4">
-          <p class="text-base leading-relaxed">{{ reportSummary.headline }}</p>
-        </div>
-
-        <div class="grid grid-cols-4 gap-4">
-          <div class="text-center">
-            <div class="text-2xl font-bold tabular-nums">{{ formatNumber(avgPlays) }}</div>
-            <div class="text-xs text-neutral-400 mt-1">场均播放</div>
-          </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold tabular-nums">{{ hitRate }}%</div>
-            <div class="text-xs text-neutral-400 mt-1">爆款率</div>
-          </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold tabular-nums">{{ avgEngagementRate }}%</div>
-            <div class="text-xs text-neutral-400 mt-1">互动率</div>
-          </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold tabular-nums">{{ monthlyPublishRate }}</div>
-            <div class="text-xs text-neutral-400 mt-1">月均发布</div>
-          </div>
-        </div>
+        <p class="text-base text-neutral-200 leading-relaxed">{{ reportSummary.headline }}</p>
       </section>
 
-      <!-- 关键发现 -->
-      <section>
-        <h2 class="section-title">
-          <Lightbulb :size="16" />
-          关键发现
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div v-for="(finding, index) in reportFindings" :key="index" class="bg-white rounded-xl p-5">
-            <div class="flex items-start gap-3">
+      <!-- ==================== 第二层：关键发现 + 行动建议 ==================== -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- 关键发现 -->
+        <section class="report-card">
+          <h2 class="section-title">
+            <Lightbulb :size="16" class="text-amber-500" />
+            关键发现
+          </h2>
+          <div class="space-y-4">
+            <div v-for="(finding, index) in reportFindings" :key="index" class="flex items-start gap-3">
               <div :class="[
                 'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
                 finding.type === 'positive' ? 'bg-emerald-50 text-emerald-500' :
                 finding.type === 'negative' ? 'bg-rose-50 text-rose-500' :
                 'bg-blue-50 text-blue-500'
               ]">
-                <component :is="finding.icon" :size="16" />
-              </div>
-              <div>
-                <h3 class="text-sm font-semibold text-neutral-900 mb-1">{{ finding.title }}</h3>
-                <p class="text-sm text-neutral-600 leading-relaxed">{{ finding.description }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 数据洞察 -->
-      <section>
-        <h2 class="section-title">
-          <TrendingUp :size="16" />
-          数据洞察
-        </h2>
-        <div class="bg-white rounded-2xl divide-y divide-neutral-100">
-          <div v-for="(insight, index) in reportInsights" :key="index" class="p-5">
-            <div class="flex items-start gap-4">
-              <div class="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <component :is="insight.icon" :size="18" class="text-neutral-500" />
+                <component :is="finding.icon" :size="15" />
               </div>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-2">
-                  <h3 class="text-sm font-semibold text-neutral-900">{{ insight.title }}</h3>
-                  <span v-if="insight.metric" class="text-sm font-semibold text-blue-600">{{ insight.metric }}</span>
-                </div>
-                <p class="text-sm text-neutral-600 leading-relaxed">{{ insight.description }}</p>
-                <div v-if="insight.details" class="flex flex-wrap gap-2 mt-3">
-                  <span
-                    v-for="(detail, i) in insight.details"
-                    :key="i"
-                    class="px-2.5 py-1 bg-neutral-100 text-neutral-600 text-xs rounded-md"
-                  >
-                    {{ detail }}
-                  </span>
-                </div>
+                <h3 class="text-sm font-medium text-neutral-900">{{ finding.title }}</h3>
+                <p class="text-sm text-neutral-500 mt-0.5 leading-relaxed">{{ finding.description }}</p>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- 行动建议 -->
-      <section>
-        <h2 class="section-title">
-          <Target :size="16" />
-          行动建议
-        </h2>
-        <div class="bg-white rounded-2xl p-5">
+        <!-- 行动建议 -->
+        <section class="report-card">
+          <h2 class="section-title">
+            <Target :size="16" class="text-blue-500" />
+            行动建议
+          </h2>
           <div class="space-y-4">
             <div v-for="(rec, index) in reportRecommendations" :key="index" class="flex items-start gap-3">
               <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                 {{ index + 1 }}
               </div>
-              <div>
-                <h4 class="text-sm font-semibold text-neutral-900 mb-1">{{ rec.title }}</h4>
-                <p class="text-sm text-neutral-600 leading-relaxed">{{ rec.description }}</p>
+              <div class="flex-1 min-w-0">
+                <h4 class="text-sm font-medium text-neutral-900">{{ rec.title }}</h4>
+                <p class="text-sm text-neutral-500 mt-0.5 leading-relaxed">{{ rec.description }}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ==================== 第三层：数据洞察详情 ==================== -->
+      <section class="report-card">
+        <h2 class="section-title">
+          <BarChart3 :size="16" class="text-violet-500" />
+          数据洞察
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div v-for="(insight, index) in reportInsights" :key="index" class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <component :is="insight.icon" :size="18" class="text-neutral-500" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="text-sm font-medium text-neutral-900">{{ insight.title }}</h3>
+                <span class="text-sm font-semibold text-blue-600 tabular-nums">{{ insight.metric }}</span>
+              </div>
+              <p class="text-sm text-neutral-500 leading-relaxed">{{ insight.description }}</p>
+              <div v-if="insight.details" class="flex flex-wrap gap-2 mt-2">
+                <span
+                  v-for="(detail, i) in insight.details"
+                  :key="i"
+                  class="px-2 py-0.5 bg-neutral-100 text-neutral-500 text-xs rounded"
+                >
+                  {{ detail }}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 数据说明 -->
-      <div class="text-center text-xs text-neutral-400 py-4">
-        以上分析基于筛选范围内的 {{ videos.length }} 个视频数据，由算法自动生成，仅供参考
-      </div>
-
-      <!-- AI 深度分析 Prompt 模板 -->
-      <section class="mt-8">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="section-title mb-0">
-            <Wand2 :size="16" />
-            AI 深度分析
-          </h2>
-          <span class="text-xs text-neutral-400">复制提示词，粘贴到你喜欢的 AI 工具中</span>
+      <!-- ==================== 第四层：长尾深度分析 ==================== -->
+      <div v-if="longTailHealth || quadrantAnalysis" class="space-y-6">
+        <div class="flex items-center gap-3">
+          <h2 class="text-base font-semibold text-neutral-800">深度分析</h2>
+          <div class="h-px flex-1 bg-neutral-200"></div>
+          <span class="text-xs text-neutral-400">长尾理论 · 利基识别</span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div
-            v-for="(prompt, index) in aiPromptTemplates"
-            :key="index"
-            class="group bg-white rounded-xl p-5 hover:shadow-md transition-all duration-200 cursor-pointer border border-transparent hover:border-blue-100"
-            @click="copyPrompt(prompt)"
-          >
-            <div class="flex items-start gap-3">
-              <div :class="[
-                'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
-                prompt.color
-              ]">
-                <component :is="prompt.icon" :size="18" class="text-white" />
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- 内容结构分析 -->
+          <section v-if="longTailHealth" class="report-card">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4">内容结构</h3>
+
+            <!-- 健康度状态 -->
+            <div class="flex items-center gap-3 p-3 rounded-xl mb-4" :class="[
+              longTailHealth.healthLevel === 'excellent' ? 'bg-emerald-50' :
+              longTailHealth.healthLevel === 'good' ? 'bg-blue-50' :
+              longTailHealth.healthLevel === 'risky' ? 'bg-rose-50' : 'bg-neutral-50'
+            ]">
+              <component
+                :is="longTailHealth.healthLevel === 'excellent' ? Sparkles :
+                     longTailHealth.healthLevel === 'risky' ? TrendingDown : Activity"
+                :size="18"
+                :class="[
+                  longTailHealth.healthLevel === 'excellent' ? 'text-emerald-500' :
+                  longTailHealth.healthLevel === 'good' ? 'text-blue-500' :
+                  longTailHealth.healthLevel === 'risky' ? 'text-rose-500' : 'text-neutral-500'
+                ]"
+              />
+              <div>
+                <div class="text-sm font-medium text-neutral-900">{{ longTailHealth.healthDesc }}</div>
+                <div class="text-xs text-neutral-500">前 20% 视频贡献 {{ longTailHealth.top20Contribution }}% 播放量</div>
               </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-1">
-                  <h3 class="text-sm font-semibold text-neutral-900">{{ prompt.title }}</h3>
-                  <span class="text-xs text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                    <Copy :size="12" />
-                    点击复制
-                  </span>
+            </div>
+
+            <!-- 头腰尾分布 -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-neutral-500">头部（2x均值以上）</span>
+                <span class="text-sm font-semibold text-amber-600 tabular-nums">{{ longTailHealth.head.count }} 个 · {{ longTailHealth.head.ratio }}%</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-neutral-500">腰部（稳定内容）</span>
+                <span class="text-sm font-semibold text-blue-600 tabular-nums">{{ longTailHealth.waist.count }} 个 · {{ longTailHealth.waist.ratio }}%</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-neutral-500">长尾（0.5x均值以下）</span>
+                <span class="text-sm font-semibold text-neutral-600 tabular-nums">{{ longTailHealth.tail.count }} 个 · {{ longTailHealth.tail.ratio }}%</span>
+              </div>
+            </div>
+
+            <!-- 长尾有效性 -->
+            <div class="mt-4 pt-4 border-t border-neutral-100">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-neutral-500">长尾有效性</span>
+                <span class="text-sm font-semibold tabular-nums">{{ longTailHealth.effectiveTail.ratio }}%</span>
+              </div>
+              <div class="h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-emerald-500 rounded-full transition-all"
+                  :style="{ width: longTailHealth.effectiveTail.ratio + '%' }"
+                ></div>
+              </div>
+              <p class="text-xs text-neutral-400 mt-2">有效长尾 = 播放低但互动率达标的内容</p>
+            </div>
+          </section>
+
+          <!-- 四象限分析 -->
+          <section v-if="quadrantAnalysis" class="report-card">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4">内容四象限</h3>
+
+            <div class="grid grid-cols-2 gap-3">
+              <!-- 明星内容 -->
+              <div class="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-medium text-amber-700">明星内容</span>
+                  <span class="text-lg font-bold text-amber-600 tabular-nums">{{ quadrantAnalysis.quadrants.star.count }}</span>
                 </div>
-                <p class="text-xs text-neutral-500 leading-relaxed line-clamp-2">{{ prompt.description }}</p>
-                <div class="flex flex-wrap gap-1.5 mt-2">
-                  <span
-                    v-for="(tag, i) in prompt.tags"
-                    :key="i"
-                    class="px-2 py-0.5 bg-neutral-100 text-neutral-500 text-[10px] rounded-full"
-                  >
-                    {{ tag }}
-                  </span>
+                <p class="text-[11px] text-amber-600/70">高播放 · 高互动</p>
+              </div>
+
+              <!-- 利基宝藏 -->
+              <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100 relative">
+                <div class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] rounded font-medium">
+                  蓝海
+                </div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-medium text-emerald-700">利基宝藏</span>
+                  <span class="text-lg font-bold text-emerald-600 tabular-nums">{{ quadrantAnalysis.quadrants.niche.count }}</span>
+                </div>
+                <p class="text-[11px] text-emerald-600/70">低播放 · 高互动</p>
+              </div>
+
+              <!-- 流量内容 -->
+              <div class="p-3 rounded-xl bg-blue-50 border border-blue-100">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-medium text-blue-700">流量内容</span>
+                  <span class="text-lg font-bold text-blue-600 tabular-nums">{{ quadrantAnalysis.quadrants.traffic.count }}</span>
+                </div>
+                <p class="text-[11px] text-blue-600/70">高播放 · 低互动</p>
+              </div>
+
+              <!-- 待优化 -->
+              <div class="p-3 rounded-xl bg-neutral-100 border border-neutral-200">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-medium text-neutral-600">待优化</span>
+                  <span class="text-lg font-bold text-neutral-500 tabular-nums">{{ quadrantAnalysis.quadrants.weak.count }}</span>
+                </div>
+                <p class="text-[11px] text-neutral-500">低播放 · 低互动</p>
+              </div>
+            </div>
+
+            <!-- 利基内容列表 -->
+            <div v-if="quadrantAnalysis.quadrants.niche.videos.length > 0" class="mt-4 pt-4 border-t border-neutral-100">
+              <p class="text-xs text-neutral-500 mb-2">利基宝藏内容（值得深挖）</p>
+              <div class="space-y-1.5">
+                <div
+                  v-for="(v, i) in quadrantAnalysis.quadrants.niche.videos.slice(0, 2)"
+                  :key="i"
+                  class="text-xs text-neutral-600 truncate"
+                >
+                  · {{ v.title }}
                 </div>
               </div>
             </div>
+          </section>
+        </div>
+
+        <!-- 被低估的内容 -->
+        <section v-if="undervaluedContent && undervaluedContent.videos.length > 0" class="report-card">
+          <h3 class="text-sm font-semibold text-neutral-900 mb-1">被低估的潜力内容</h3>
+          <p class="text-xs text-neutral-500 mb-4">{{ undervaluedContent.insight }}</p>
+
+          <div class="space-y-2">
+            <div
+              v-for="(video, index) in undervaluedContent.videos.slice(0, 3)"
+              :key="index"
+              class="flex items-center gap-3 py-3 border-b border-neutral-100 last:border-0"
+            >
+              <span class="text-xs text-neutral-400 w-4">{{ index + 1 }}</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-neutral-900 truncate">{{ video.title }}</p>
+                <div class="flex items-center gap-3 mt-0.5">
+                  <span class="text-xs text-neutral-400">{{ formatNumber(video.play_count) }} 播放</span>
+                  <span class="text-xs text-neutral-400">·</span>
+                  <span class="text-xs text-emerald-600">{{ video.engagementRate.toFixed(2) }}% 互动率</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 蓝海机会 -->
+        <div v-if="blueOceanTiming || blueOceanDuration" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- 蓝海时段 -->
+          <section v-if="blueOceanTiming" class="report-card">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4">
+              <Clock :size="14" class="inline mr-1.5 text-cyan-500" />
+              发布时段分析
+            </h3>
+
+            <div v-if="blueOceanTiming.blueOcean.length > 0" class="mb-4">
+              <p class="text-xs text-neutral-500 mb-2">蓝海时段（竞争少、效果好）</p>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="(h, i) in blueOceanTiming.blueOcean"
+                  :key="i"
+                  class="px-3 py-1.5 bg-cyan-50 text-cyan-700 text-sm font-medium rounded-lg"
+                >
+                  {{ h.label }}
+                  <span class="text-cyan-500 text-xs ml-1">{{ h.efficiency }}%</span>
+                </span>
+              </div>
+            </div>
+
+            <div v-if="blueOceanTiming.redOcean.length > 0">
+              <p class="text-xs text-neutral-500 mb-2">红海时段（竞争激烈）</p>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="(h, i) in blueOceanTiming.redOcean"
+                  :key="i"
+                  class="px-3 py-1.5 bg-rose-50 text-rose-700 text-sm font-medium rounded-lg"
+                >
+                  {{ h.label }}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <!-- 蓝海时长 -->
+          <section v-if="blueOceanDuration" class="report-card">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4">
+              <Timer :size="14" class="inline mr-1.5 text-violet-500" />
+              内容时长分析
+            </h3>
+
+            <div v-if="blueOceanDuration.mainstream.length > 0" class="mb-4">
+              <p class="text-xs text-neutral-500 mb-2">主流时长</p>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="(d, i) in blueOceanDuration.mainstream"
+                  :key="i"
+                  class="px-3 py-1.5 bg-neutral-100 text-neutral-700 text-sm font-medium rounded-lg"
+                >
+                  {{ d.label }}
+                  <span class="text-neutral-400 text-xs ml-1">{{ d.ratio }}%</span>
+                </span>
+              </div>
+            </div>
+
+            <div v-if="blueOceanDuration.blueOcean.length > 0" class="mb-4">
+              <p class="text-xs text-neutral-500 mb-2">蓝海时长（占比少但效果好）</p>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="(d, i) in blueOceanDuration.blueOcean"
+                  :key="i"
+                  class="px-3 py-1.5 bg-violet-50 text-violet-700 text-sm font-medium rounded-lg"
+                >
+                  {{ d.label }}
+                  <span class="text-violet-500 text-xs ml-1">{{ d.efficiency }}%</span>
+                </span>
+              </div>
+            </div>
+
+            <div v-if="blueOceanDuration.depthPreference" class="p-3 bg-amber-50 rounded-lg">
+              <p class="text-xs font-medium text-amber-700">
+                {{ blueOceanDuration.depthPreference.type === 'long' ? '粉丝偏好深度长内容' : '短视频更受欢迎' }}
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- 分隔线 -->
+      <div class="text-center text-xs text-neutral-400 py-2">
+        以上分析基于 {{ videos.length }} 个视频数据，由算法自动生成
+      </div>
+
+      <!-- ==================== 第五层：AI 工具 ==================== -->
+      <section class="report-card">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold text-neutral-900">AI 深度分析</h2>
+          <span class="text-xs text-neutral-400">点击复制提示词</span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-1">
+          <div
+            v-for="(prompt, index) in aiPromptTemplates"
+            :key="index"
+            class="group flex items-center gap-2 py-2.5 cursor-pointer hover:bg-neutral-50 rounded-lg px-2 -mx-2 transition-colors"
+            @click="copyPrompt(prompt)"
+          >
+            <component :is="prompt.icon" :size="14" class="text-neutral-400 group-hover:text-neutral-600 transition-colors flex-shrink-0" />
+            <span class="text-sm text-neutral-700 group-hover:text-neutral-900 transition-colors truncate">{{ prompt.title }}</span>
           </div>
         </div>
 
@@ -229,7 +373,7 @@
             class="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white text-sm rounded-full shadow-lg z-50"
           >
             <CheckCircle :size="16" class="text-emerald-400" />
-            已复制到剪贴板，可粘贴到 AI 工具中使用
+            已复制到剪贴板
           </div>
         </Transition>
       </section>
@@ -237,20 +381,19 @@
 
     <!-- 无数据状态 -->
     <div v-else class="flex flex-col items-center justify-center py-20 bg-white rounded-2xl">
-      <div class="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center mb-4">
-        <FileText :size="28" class="text-neutral-400" />
+      <div class="w-14 h-14 bg-neutral-100 rounded-xl flex items-center justify-center mb-4">
+        <FileText :size="24" class="text-neutral-400" />
       </div>
-      <h3 class="text-lg font-semibold text-neutral-900 mb-2">暂无数据</h3>
-      <p class="text-sm text-neutral-500 text-center max-w-md">
-        当前筛选条件下没有视频数据，请调整筛选条件后重试
-      </p>
+      <h3 class="text-base font-semibold text-neutral-900 mb-1">暂无数据</h3>
+      <p class="text-sm text-neutral-500">请调整筛选条件</p>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
-import { formatNumber } from '../../utils';
+import VideoFilterBar from '../VideoFilterBar.vue';
+import { formatNumber, copyToClipboard, parseDurationMinutes } from '../../utils';
 import { useVideoMetrics } from '../../composables/useVideoMetrics';
 import {
   Clock,
@@ -273,7 +416,14 @@ import {
   CalendarDays,
   MessageSquare,
   BarChart3,
-  Timer
+  Timer,
+  Gem,
+  Layers,
+  Compass,
+  Sailboat,
+  Radar,
+  Search,
+  ExternalLink
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -283,23 +433,7 @@ const props = defineProps({
   duration: { type: String, default: 'all' }
 });
 
-const emit = defineEmits(['update:timeRange', 'update:duration']);
-
-// 筛选选项
-const timeRangeOptions = [
-  { value: 'all', label: '全部' },
-  { value: '30d', label: '近30天' },
-  { value: '90d', label: '近90天' },
-  { value: '1y', label: '近1年' },
-  { value: 'thisYear', label: '今年' }
-];
-
-const durationOptions = [
-  { value: 'all', label: '全部时长' },
-  { value: 'short', label: '<5分钟' },
-  { value: 'medium', label: '5-20分钟' },
-  { value: 'long', label: '>20分钟' }
-];
+defineEmits(['update:timeRange', 'update:duration']);
 
 const copySuccess = ref(false);
 const promptCopySuccess = ref(false);
@@ -323,7 +457,12 @@ const {
   getPublishFrequency,
   getTrendAnalysis,
   getHitVideoFeatures,
-  generateDataSummary
+  generateDataSummary,
+  getUndervaluedContent,
+  getLongTailHealth,
+  getBlueOceanTiming,
+  getBlueOceanDuration,
+  getQuadrantAnalysis
 } = useVideoMetrics(videosRef);
 
 // 报告摘要
@@ -369,7 +508,7 @@ const reportFindings = computed(() => {
   if (bestDur) {
     findings.push({
       title: '最佳内容时长',
-      description: `${bestDur.label}的视频表现最好，平均播放量达到 ${formatNumber(Math.round(bestDur.avgPlay))}，共有 ${bestDur.count} 个视频。`,
+      description: `${bestDur.label}的视频表现最好，平均播放 ${formatNumber(Math.round(bestDur.avgPlay))}`,
       type: 'positive',
       icon: Clock
     });
@@ -379,16 +518,16 @@ const reportFindings = computed(() => {
   if (bestTime) {
     findings.push({
       title: '黄金发布时间',
-      description: `${bestTime.bestHour}:00 发布的视频平均播放量最高，达到 ${formatNumber(Math.round(bestTime.avgPlay))}。推荐时段：${bestTime.topHours.join('、')}。`,
+      description: `推荐时段：${bestTime.topHours.join('、')}`,
       type: 'positive',
-      icon: Clock
+      icon: Calendar
     });
   }
 
   const trend = getTrendAnalysis(videoList);
   if (trend) {
     findings.push({
-      title: trend.trend === 'up' ? '数据上升中' : trend.trend === 'down' ? '数据波动中' : '表现稳定',
+      title: trend.trend === 'up' ? '数据上升中' : trend.trend === 'down' ? '数据波动' : '表现稳定',
       description: trend.description,
       type: trend.trend === 'up' ? 'positive' : trend.trend === 'down' ? 'negative' : 'neutral',
       icon: trend.trend === 'up' ? TrendingUp : trend.trend === 'down' ? TrendingDown : Activity
@@ -398,8 +537,8 @@ const reportFindings = computed(() => {
   const hitFeatures = getHitVideoFeatures(videoList, avgPlays.value);
   if (hitFeatures && hitFeatures.count >= 2) {
     findings.push({
-      title: `${hitFeatures.count} 个爆款视频`,
-      description: `爆款率 ${hitFeatures.rate}%，爆款视频平均时长约 ${hitFeatures.avgDuration} 分钟${hitFeatures.topHour ? `，多在 ${hitFeatures.topHour}:00 发布` : ''}。`,
+      title: `${hitFeatures.count} 个爆款`,
+      description: `爆款率 ${hitFeatures.rate}%，平均时长 ${hitFeatures.avgDuration} 分钟`,
       type: 'positive',
       icon: Flame
     });
@@ -423,25 +562,19 @@ const reportInsights = computed(() => {
 
   insights.push({
     title: '播放量分布',
-    description: `中位数 ${formatNumber(median)}，最高 ${formatNumber(maxPlay)}，最低 ${formatNumber(minPlay)}。${playRange > 50 ? '数据波动较大，需关注内容稳定性。' : playRange > 10 ? '播放量分布较为分散。' : '播放量相对稳定。'}`,
+    description: playRange > 50 ? '数据波动较大' : playRange > 10 ? '分布较分散' : '相对稳定',
     metric: `中位数 ${formatNumber(median)}`,
     icon: BarChart3,
-    details: [`最高 ${formatNumber(maxPlay)}`, `最低 ${formatNumber(minPlay)}`, `波动 ${playRange.toFixed(0)}x`]
+    details: [`最高 ${formatNumber(maxPlay)}`, `最低 ${formatNumber(minPlay)}`]
   });
 
   const engRate = parseFloat(avgEngagementRate.value);
-  let engDesc;
-  if (engRate >= 5) engDesc = '互动率优秀，观众参与度很高';
-  else if (engRate >= 2) engDesc = '互动率良好，观众有一定参与热情';
-  else if (engRate >= 1) engDesc = '互动率一般，可尝试增加互动引导';
-  else engDesc = '互动率偏低，建议优化内容增加观众参与';
-
   insights.push({
     title: '互动质量',
-    description: engDesc,
+    description: engRate >= 5 ? '互动率优秀' : engRate >= 2 ? '互动率良好' : engRate >= 1 ? '互动率一般' : '互动率偏低',
     metric: `${engRate.toFixed(2)}%`,
     icon: MessageSquare,
-    details: [`弹幕 ${formatNumber(totalDanmu.value)}`, `评论 ${formatNumber(totalComments.value)}`, `收藏 ${formatNumber(totalFavorites.value)}`]
+    details: [`弹幕 ${formatNumber(totalDanmu.value)}`, `评论 ${formatNumber(totalComments.value)}`]
   });
 
   const freq = getPublishFrequency(videoList);
@@ -451,26 +584,18 @@ const reportInsights = computed(() => {
       description: freq.suggestion,
       metric: `${freq.monthlyRate} 条/月`,
       icon: CalendarDays,
-      details: [`周均 ${freq.weeklyRate} 条`, `${freq.frequency}更新`]
+      details: [`${freq.frequency}更新`]
     });
   }
 
-  const durations = videoList.map(v => {
-    const parts = v.duration.split(':');
-    return parts.length === 2 ? parseInt(parts[0]) : parseInt(parts[0]) * 60 + parseInt(parts[1]);
-  });
+  const durations = videoList.map(v => parseDurationMinutes(v.duration));
   const avgDur = durations.reduce((s, d) => s + d, 0) / durations.length;
-  const shortCount = durations.filter(d => d < 5).length;
-  const longCount = durations.filter(d => d > 20).length;
-  const shortRatio = (shortCount / videoList.length * 100).toFixed(0);
-  const longRatio = (longCount / videoList.length * 100).toFixed(0);
 
   insights.push({
     title: '内容时长',
-    description: `平均时长 ${avgDur.toFixed(1)} 分钟，${shortRatio}% 为短视频（<5分钟），${longRatio}% 为长视频（>20分钟）。`,
-    metric: `均时长 ${avgDur.toFixed(1)}分`,
-    icon: Timer,
-    details: [`短视频 ${shortRatio}%`, `长视频 ${longRatio}%`]
+    description: `平均时长 ${avgDur.toFixed(1)} 分钟`,
+    metric: `${avgDur.toFixed(1)} 分`,
+    icon: Timer
   });
 
   return insights;
@@ -487,7 +612,7 @@ const reportRecommendations = computed(() => {
   if (bestDur) {
     recs.push({
       title: '优化内容时长',
-      description: `数据显示 ${bestDur.label} 的视频表现最佳，建议多产出该时长范围的内容，可作为主力内容形式。`
+      description: `${bestDur.label} 的视频表现最佳，建议多产出该时长内容`
     });
   }
 
@@ -495,7 +620,7 @@ const reportRecommendations = computed(() => {
   if (bestTime) {
     recs.push({
       title: '把握发布时机',
-      description: `推荐在 ${bestTime.topHours.join('、')} 发布视频，这些时段的视频平均播放量更高。`
+      description: `推荐在 ${bestTime.topHours.join('、')} 发布视频`
     });
   }
 
@@ -503,15 +628,7 @@ const reportRecommendations = computed(() => {
   if (engRate < 2) {
     recs.push({
       title: '提升互动引导',
-      description: '当前互动率偏低，建议在视频中增加互动引导，如提问、投票、评论区互动等，提高观众参与度。'
-    });
-  }
-
-  const freq = getPublishFrequency(videoList);
-  if (freq && parseFloat(freq.monthlyRate) < 4) {
-    recs.push({
-      title: '提高更新频率',
-      description: '当前月均发布不足 4 条，建议适当提高更新频率，保持账号活跃度和粉丝黏性。'
+      description: '建议在视频中增加互动引导，提高观众参与度'
     });
   }
 
@@ -519,12 +636,19 @@ const reportRecommendations = computed(() => {
   if (trend && trend.trend === 'down') {
     recs.push({
       title: '分析下滑原因',
-      description: '近期数据有所回落，建议分析近期内容与之前爆款的差异，找出影响因素并调整创作方向。'
+      description: '建议分析近期内容与之前爆款的差异'
     });
   }
 
   return recs.slice(0, 4);
 });
+
+// 长尾分析
+const undervaluedContent = computed(() => getUndervaluedContent(props.videos));
+const longTailHealth = computed(() => getLongTailHealth(props.videos));
+const blueOceanTiming = computed(() => getBlueOceanTiming(props.videos));
+const blueOceanDuration = computed(() => getBlueOceanDuration(props.videos));
+const quadrantAnalysis = computed(() => getQuadrantAnalysis(props.videos));
 
 // AI Prompt 模板
 const aiPromptTemplates = computed(() => {
@@ -532,240 +656,74 @@ const aiPromptTemplates = computed(() => {
 
   return [
     {
-      title: '内容选题策略分析',
-      description: '基于高播放视频的标题特征，分析什么样的选题更容易获得高播放',
+      title: '选题策略',
+      description: '分析高播放视频特征，给出选题建议',
       icon: Crosshair,
       color: 'bg-blue-500',
-      tags: ['选题方向', '标题优化', '爆款规律'],
-      prompt: `你是一位资深的 B站内容运营专家，精通数据分析和内容策略。请基于以下账号数据，进行深度的内容选题分析。
-
-${dataSummary}
-
-请从以下维度进行分析：
-
-1. **高播放视频的标题特征分析**
-   - 分析 TOP5 视频标题的共同特征（关键词、句式、情绪词等）
-   - 总结这些标题吸引点击的核心要素
-
-2. **低播放视频的问题诊断**
-   - 对比分析低播放视频标题与高播放视频的差异
-   - 指出可能导致低播放的标题问题
-
-3. **选题方向建议**
-   - 基于数据推断该账号的核心受众画像
-   - 推荐 5 个具体的选题方向，并说明理由
-   - 给出 3 个具体的标题优化示例
-
-4. **内容差异化建议**
-   - 如何在当前内容基础上做差异化创新
-   - 值得尝试的新内容形式
-
-请用数据说话，给出具体、可执行的建议。`
+      prompt: `你是B站内容运营专家。请基于以下数据进行内容选题分析：\n\n${dataSummary}\n\n请分析：1.高播放视频标题特征 2.低播放视频问题 3.选题方向建议 4.标题优化示例`
     },
     {
-      title: '发布策略优化',
-      description: '分析最佳发布时间、更新频率，制定科学的发布计划',
+      title: '发布策略',
+      description: '优化发布时间和更新频率',
       icon: Calendar,
       color: 'bg-emerald-500',
-      tags: ['发布时间', '更新频率', '排期规划'],
-      prompt: `你是一位 B站运营数据分析师，擅长通过数据优化发布策略。请基于以下账号数据，给出发布策略优化建议。
-
-${dataSummary}
-
-请分析并给出建议：
-
-1. **最佳发布时间分析**
-   - 基于发布时间分布和播放表现，推断最佳发布时间段
-   - 工作日 vs 周末的发布策略差异
-   - 给出具体的推荐发布时间表
-
-2. **更新频率优化**
-   - 当前更新频率是否合理？
-   - 基于账号定位，建议的最佳更新频率
-   - 如何平衡产出质量和数量
-
-3. **内容排期建议**
-   - 设计一个为期 4 周的内容排期模板
-   - 不同类型内容的穿插策略
-   - 如何利用热点和节日节点
-
-4. **持续增长策略**
-   - 如何建立稳定的内容产出节奏
-   - 避免断更和不规律更新的方法
-
-请结合数据，给出可落地执行的具体方案。`
+      prompt: `你是B站运营分析师。请基于以下数据给出发布策略建议：\n\n${dataSummary}\n\n请分析：1.最佳发布时间 2.更新频率建议 3.内容排期模板`
     },
     {
-      title: '竞品对标分析',
-      description: '分析当前数据表现，提供可对标的竞品研究方向',
-      icon: Users,
-      color: 'bg-violet-500',
-      tags: ['竞品分析', '差距定位', '学习方向'],
-      prompt: `你是一位 B站行业研究分析师，擅长竞品分析和市场定位。请基于以下账号数据，帮我进行竞品对标分析。
-
-${dataSummary}
-
-请从以下角度分析：
-
-1. **账号定位诊断**
-   - 基于数据判断该账号目前处于什么发展阶段
-   - 核心竞争力和差异化优势是什么
-   - 当前存在的主要短板
-
-2. **对标账号画像**
-   - 描述应该对标什么类型的账号（不需要具体账号名）
-   - 对标账号应该具备哪些特征
-   - 场均播放、更新频率等指标的对标参考值
-
-3. **差距分析**
-   - 与理想对标账号相比，可能存在哪些差距
-   - 哪些差距是短期可以弥补的
-   - 哪些需要长期积累
-
-4. **学习方向建议**
-   - 建议重点学习对标账号的哪些方面
-   - 具体的研究方法和关注点
-   - 避免盲目模仿的注意事项
-
-5. **差异化破局思路**
-   - 如何在同类内容中建立辨识度
-   - 可以尝试的创新方向
-
-请给出专业、客观的分析建议。`
-    },
-    {
-      title: '增长瓶颈诊断',
-      description: '深度分析当前数据表现，找出增长瓶颈并给出突破建议',
+      title: '增长诊断',
+      description: '找出增长瓶颈和突破策略',
       icon: TrendingUp,
       color: 'bg-amber-500',
-      tags: ['增长诊断', '瓶颈分析', '突破策略'],
-      prompt: `你是一位资深的内容创作者增长顾问，精通 B站平台算法和增长策略。请基于以下账号数据，进行增长瓶颈诊断。
-
-${dataSummary}
-
-请进行以下分析：
-
-1. **整体健康度评估**
-   - 基于各项指标，给账号打一个健康度评分（1-10分）
-   - 指出数据中的亮点和问题点
-   - 与同体量账号的横向对比（基于你的经验判断）
-
-2. **增长瓶颈诊断**
-   - 当前最主要的增长瓶颈是什么？
-   - 是流量获取问题还是内容留存问题？
-   - 爆款率和互动率反映了什么问题？
-
-3. **播放量波动分析**
-   - 播放量波动大的可能原因
-   - 如何提高内容表现的稳定性
-   - 建立「保底播放量」的策略
-
-4. **突破策略建议**
-   - 短期（1个月内）可以做的优化
-   - 中期（1-3个月）需要调整的方向
-   - 长期（3-6个月）的增长规划
-
-5. **风险预警**
-   - 当前策略可能存在的风险
-   - 需要避免的运营误区
-
-请给出专业、可执行的诊断报告。`
+      prompt: `你是内容创作增长顾问。请基于以下数据进行增长诊断：\n\n${dataSummary}\n\n请分析：1.健康度评估 2.增长瓶颈 3.突破策略建议`
     },
     {
-      title: '爆款复制方法论',
-      description: '分析历史爆款规律，总结可复制的爆款方法论',
+      title: '遗珠挖掘',
+      description: '发现被低估的利基内容',
+      icon: Gem,
+      color: 'bg-teal-500',
+      prompt: `你是长尾理论专家。请基于以下数据挖掘被低估的内容：\n\n${dataSummary}\n\n请分析：1.低播放高互动内容特征 2.利基市场价值 3.内容升级策略`
+    },
+    {
+      title: '竞品分析',
+      description: '分析竞品长尾寻找机会',
+      icon: Search,
+      color: 'bg-indigo-500',
+      prompt: `你是竞争策略分析师。假设以下数据来自竞品账号：\n\n${dataSummary}\n\n请分析：1.竞品内容结构 2.长尾弱点 3.差异化机会`
+    },
+    {
+      title: '爆款方法论',
+      description: '总结可复制的爆款规律',
       icon: Repeat,
       color: 'bg-rose-500',
-      tags: ['爆款分析', '规律总结', '复制方法'],
-      prompt: `你是一位 B站爆款内容研究专家，擅长从数据中提炼爆款规律。请基于以下账号数据，帮我总结爆款方法论。
-
-${dataSummary}
-
-请进行以下分析：
-
-1. **爆款定义与识别**
-   - 基于该账号数据，如何定义「爆款」
-   - 爆款率 ${hitRate.value}% 处于什么水平
-   - 爆款视频有哪些共同特征
-
-2. **爆款要素拆解**
-   - 从标题角度：爆款标题的核心公式
-   - 从时长角度：最容易出爆款的时长区间
-   - 从发布时间：爆款视频的发布时间规律
-   - 从选题角度：什么类型选题更容易爆
-
-3. **爆款复制清单**
-   - 给出一个「爆款检查清单」，发布前逐项检查
-   - 至少包含 10 个检查项
-   - 每个检查项说明为什么重要
-
-4. **提升爆款率的具体策略**
-   - 如何将爆款率从 ${hitRate.value}% 提升到更高水平
-   - 3 个最值得尝试的优化方向
-   - 需要避免的常见错误
-
-5. **爆款内容的二次利用**
-   - 如何基于爆款做延伸内容
-   - 爆款素材的复用策略
-
-请用结构化的方式输出，便于实际应用。`
+      prompt: `你是爆款内容研究专家。请基于以下数据总结爆款方法论：\n\n${dataSummary}\n\n请分析：1.爆款要素拆解 2.爆款检查清单 3.提升爆款率策略`
     },
     {
-      title: '数据全景分析报告',
-      description: '生成一份完整的账号数据分析报告，适合汇报或复盘使用',
+      title: '蓝海策略',
+      description: '分析时段时长差异化机会',
+      icon: Compass,
+      color: 'bg-cyan-500',
+      prompt: `你是蓝海战略专家。请基于以下数据分析差异化机会：\n\n${dataSummary}\n\n请分析：1.蓝海时段 2.蓝海时长 3.差异化发布计划`
+    },
+    {
+      title: '竞品对标',
+      description: '定位差距和学习方向',
+      icon: Users,
+      color: 'bg-violet-500',
+      prompt: `你是行业研究分析师。请基于以下数据进行竞品对标分析：\n\n${dataSummary}\n\n请分析：1.账号定位 2.对标账号画像 3.差距分析 4.学习方向`
+    },
+    {
+      title: '完整报告',
+      description: '生成完整数据分析报告',
       icon: BookOpen,
       color: 'bg-slate-700',
-      tags: ['完整报告', '数据复盘', '专业汇报'],
-      prompt: `你是一位专业的数据分析师，擅长撰写结构化的分析报告。请基于以下账号数据，生成一份完整的数据分析报告。
-
-${dataSummary}
-
-请按以下结构输出报告：
-
----
-
-# ${props.upName || 'UP主'} 数据分析报告
-
-## 一、执行摘要
-（200字以内，概括核心发现和关键建议）
-
-## 二、数据概览
-### 2.1 核心指标
-（用表格呈现关键指标及其含义）
-
-### 2.2 数据健康度评估
-（综合评分及各维度得分）
-
-## 三、深度分析
-### 3.1 内容表现分析
-- 播放量分布特征
-- 爆款内容规律
-- 内容稳定性评估
-
-### 3.2 用户互动分析
-- 互动率解读
-- 观众活跃度评估
-- 粉丝黏性判断
-
-### 3.3 运营效率分析
-- 发布频率评估
-- 时间投入产出比
-- 内容产出效率
-
-## 四、问题诊断
-（列出 3-5 个主要问题，按优先级排序）
-
-## 五、优化建议
-### 5.1 短期优化（1个月内）
-### 5.2 中期规划（1-3个月）
-### 5.3 长期方向（3-6个月）
-
-## 六、总结
-（简要总结和鼓励性建议）
-
----
-
-请确保报告专业、客观、可执行。`
+      prompt: `你是专业数据分析师。请基于以下数据生成完整报告：\n\n${dataSummary}\n\n请按以下结构输出：一、执行摘要 二、数据概览 三、深度分析 四、问题诊断 五、优化建议 六、总结`
+    },
+    {
+      title: '自定义',
+      description: '复制数据用于自定义分析',
+      icon: Wand2,
+      color: 'bg-neutral-700',
+      prompt: dataSummary
     }
   ];
 });
@@ -774,65 +732,48 @@ ${dataSummary}
 async function copyAnalysisReport() {
   const summary = reportSummary.value;
   const findings = reportFindings.value;
-  const insights = reportInsights.value;
   const recs = reportRecommendations.value;
 
   let text = `【${props.upName || 'UP主'} 数据分析报告】\n`;
   text += `数据范围：${dataTimeRange.value}，共 ${props.videos.length} 个视频\n\n`;
-
-  text += `📊 核心结论\n${summary.headline}\n`;
-  text += `• 场均播放：${formatNumber(avgPlays.value)}\n`;
-  text += `• 爆款率：${hitRate.value}%\n`;
-  text += `• 互动率：${avgEngagementRate.value}%\n`;
-  text += `• 月均发布：${monthlyPublishRate.value} 条\n\n`;
+  text += `${summary.headline}\n\n`;
+  text += `核心指标：场均播放 ${formatNumber(avgPlays.value)} | 爆款率 ${hitRate.value}% | 互动率 ${avgEngagementRate.value}%\n\n`;
 
   if (findings.length > 0) {
-    text += `💡 关键发现\n`;
-    findings.forEach((f, i) => {
-      text += `${i + 1}. ${f.title}：${f.description}\n`;
-    });
-    text += '\n';
-  }
-
-  if (insights.length > 0) {
-    text += `📈 数据洞察\n`;
-    insights.forEach((ins, i) => {
-      text += `${i + 1}. ${ins.title}（${ins.metric}）：${ins.description}\n`;
-    });
+    text += `关键发现：\n`;
+    findings.forEach((f, i) => text += `${i + 1}. ${f.title}：${f.description}\n`);
     text += '\n';
   }
 
   if (recs.length > 0) {
-    text += `🎯 行动建议\n`;
-    recs.forEach((r, i) => {
-      text += `${i + 1}. ${r.title}：${r.description}\n`;
-    });
+    text += `行动建议：\n`;
+    recs.forEach((r, i) => text += `${i + 1}. ${r.title}：${r.description}\n`);
   }
 
-  try {
-    await navigator.clipboard.writeText(text);
+  const success = await copyToClipboard(text);
+  if (success) {
     copySuccess.value = true;
     setTimeout(() => copySuccess.value = false, 2000);
-  } catch (e) {
-    console.error('复制失败', e);
   }
 }
 
 // 复制 Prompt
 async function copyPrompt(prompt) {
-  try {
-    await navigator.clipboard.writeText(prompt.prompt);
+  const success = await copyToClipboard(prompt.prompt);
+  if (success) {
     promptCopySuccess.value = true;
-    setTimeout(() => promptCopySuccess.value = false, 2500);
-  } catch (e) {
-    console.error('复制失败', e);
+    setTimeout(() => promptCopySuccess.value = false, 2000);
   }
 }
 </script>
 
 <style scoped>
+.report-card {
+  @apply bg-white rounded-2xl p-6;
+}
+
 .section-title {
-  @apply flex items-center gap-2 text-sm font-semibold text-neutral-700 mb-4;
+  @apply flex items-center gap-2 text-sm font-semibold text-neutral-800 mb-4;
 }
 
 .line-clamp-2 {
@@ -851,24 +792,12 @@ async function copyPrompt(prompt) {
 }
 
 @keyframes toast-in {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, 20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
+  0% { opacity: 0; transform: translate(-50%, 20px); }
+  100% { opacity: 1; transform: translate(-50%, 0); }
 }
 
 @keyframes toast-out {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -10px);
-  }
+  0% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
 }
 </style>
