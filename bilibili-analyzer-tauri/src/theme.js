@@ -1,38 +1,28 @@
 /**
  * 主题配置 - 颜色、图表样式等
+ * 统一使用蓝色系，通过不同饱和度区分
  */
 
 /**
- * 主色调
+ * 蓝色系主色调（从深到浅）
  */
 export const colors = {
+  // 主蓝色系 - 用于大部分图表
+  blue900: '#1E3A8A',
+  blue800: '#1E40AF',
+  blue700: '#1D4ED8',
+  blue600: '#2563EB',
+  blue500: '#3B82F6',  // 主色
+  blue400: '#60A5FA',
+  blue300: '#93C5FD',
+  blue200: '#BFDBFE',
+  blue100: '#DBEAFE',
+  blue50: '#EFF6FF',
+
+  // 语义色（仅用于特殊场景）
   primary: '#3B82F6',
   primaryHover: '#2563EB',
   primaryLight: 'rgba(59, 130, 246, 0.2)',
-
-  success: '#10B981',
-  successHover: '#059669',
-  successLight: 'rgba(16, 185, 129, 0.2)',
-
-  warning: '#F59E0B',
-  warningHover: '#D97706',
-  warningLight: 'rgba(245, 158, 11, 0.2)',
-
-  danger: '#EF4444',
-  dangerHover: '#DC2626',
-  dangerLight: 'rgba(239, 68, 68, 0.2)',
-
-  purple: '#8B5CF6',
-  purpleHover: '#7C3AED',
-  purpleLight: 'rgba(139, 92, 246, 0.15)',
-
-  pink: '#EC4899',
-  pinkHover: '#DB2777',
-  pinkLight: 'rgba(236, 72, 153, 0.2)',
-
-  indigo: '#6366F1',
-  indigoHover: '#4F46E5',
-  indigoLight: 'rgba(99, 102, 241, 0.2)',
 
   // 中性色
   text: '#111827',
@@ -45,50 +35,83 @@ export const colors = {
 };
 
 /**
- * 渐变色配置
+ * 蓝色系渐变配置
  */
 export const gradients = {
-  primary: [
+  // 默认柱状图渐变（垂直）
+  bar: [
     { offset: 0, color: '#3B82F6' },
-    { offset: 1, color: 'rgba(59, 130, 246, 0.2)' }
+    { offset: 1, color: 'rgba(59, 130, 246, 0.15)' }
   ],
-  primaryHorizontal: [
+  // 横向柱状图渐变
+  barHorizontal: [
     { offset: 0, color: '#2563EB' },
     { offset: 1, color: '#60A5FA' }
   ],
-  success: [
-    { offset: 0, color: '#10B981' },
-    { offset: 1, color: 'rgba(16, 185, 129, 0.2)' }
+  // 面积图渐变
+  area: [
+    { offset: 0, color: 'rgba(59, 130, 246, 0.2)' },
+    { offset: 1, color: 'rgba(59, 130, 246, 0)' }
   ],
-  warning: [
-    { offset: 0, color: '#F59E0B' },
-    { offset: 1, color: 'rgba(245, 158, 11, 0.2)' }
+  // 深蓝渐变（用于强调）
+  barDeep: [
+    { offset: 0, color: '#1D4ED8' },
+    { offset: 1, color: 'rgba(29, 78, 216, 0.15)' }
   ],
-  purple: [
-    { offset: 0, color: '#8B5CF6' },
-    { offset: 1, color: 'rgba(139, 92, 246, 0.15)' }
-  ],
-  pink: [
-    { offset: 0, color: '#DB2777' },
-    { offset: 1, color: '#F472B6' }
-  ],
-  indigo: [
-    { offset: 0, color: '#6366F1' },
-    { offset: 1, color: 'rgba(99, 102, 241, 0.2)' }
+  // 浅蓝渐变
+  barLight: [
+    { offset: 0, color: '#60A5FA' },
+    { offset: 1, color: 'rgba(96, 165, 250, 0.15)' }
   ]
 };
 
 /**
- * 时长分布图颜色（渐变色系 - 从深蓝到浅蓝）
+ * 时长/分布图颜色（蓝色系不同饱和度，从深到浅）
  */
-export const durationChartColors = [
-  '#1D4ED8', '#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#DBEAFE'
+export const distributionColors = [
+  '#1D4ED8',  // 深蓝
+  '#2563EB',
+  '#3B82F6',  // 主蓝
+  '#60A5FA',
+  '#93C5FD',
+  '#BFDBFE',
+  '#DBEAFE'   // 浅蓝
 ];
 
 /**
- * 热力图颜色
+ * 热力图颜色（蓝色系，从浅到深）
  */
-export const heatmapColors = ['#F3F4F6', '#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6'];
+export const heatmapColors = [
+  '#F3F4F6',  // 无数据 - 灰色
+  '#DBEAFE',  // 很少
+  '#93C5FD',  // 较少
+  '#60A5FA',  // 中等
+  '#3B82F6',  // 较多
+  '#1D4ED8'   // 很多
+];
+
+/**
+ * 高亮/强调色（用于最佳时段、最高值等）
+ * 使用更深的蓝色，而非其他颜色
+ */
+export const highlightColor = {
+  primary: '#1D4ED8',      // 深蓝高亮
+  gradient: [
+    { offset: 0, color: '#1D4ED8' },
+    { offset: 1, color: 'rgba(29, 78, 216, 0.2)' }
+  ]
+};
+
+/**
+ * 双轴图表第二轴颜色（使用浅蓝色区分）
+ */
+export const secondaryAxis = {
+  line: '#93C5FD',
+  area: [
+    { offset: 0, color: 'rgba(147, 197, 253, 0.3)' },
+    { offset: 1, color: 'rgba(147, 197, 253, 0)' }
+  ]
+};
 
 /**
  * 现代大厂风格图表主题配置
