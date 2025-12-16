@@ -8,30 +8,35 @@
         <p class="text-neutral-600 text-sm max-w-xs overflow-hidden text-ellipsis whitespace-nowrap mb-2">{{ upInfo.sign }}</p>
         <span class="inline-block bg-gradient-to-br from-amber-400 to-orange-500 text-neutral-900 px-2.5 py-0.5 rounded-[10px] text-xs font-semibold">Lv.{{ upInfo.level }}</span>
       </div>
-      <div class="flex flex-wrap gap-3">
-        <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
-          <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ videos.length }}</span>
-          <span class="text-xs text-neutral-400">视频数</span>
+      <div class="flex items-center">
+        <div class="stat-item">
+          <span class="stat-value">{{ videos.length }}</span>
+          <span class="stat-label">视频</span>
         </div>
-        <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
-          <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ formatNumber(totalPlays) }}</span>
-          <span class="text-xs text-neutral-400">总播放</span>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value">{{ formatNumber(totalPlays) }}</span>
+          <span class="stat-label">总播放</span>
         </div>
-        <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
-          <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ formatNumber(totalDanmu) }}</span>
-          <span class="text-xs text-neutral-400">总弹幕</span>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value">{{ formatNumber(totalDanmu) }}</span>
+          <span class="stat-label">总弹幕</span>
         </div>
-        <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
-          <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ formatNumber(avgPlays) }}</span>
-          <span class="text-xs text-neutral-400">平均播放</span>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value">{{ formatNumber(avgPlays) }}</span>
+          <span class="stat-label">均播放</span>
         </div>
-        <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
-          <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ avgEngagementRate }}%</span>
-          <span class="text-xs text-neutral-400">平均互动率</span>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value">{{ avgEngagementRate }}%</span>
+          <span class="stat-label">互动率</span>
         </div>
-        <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
-          <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ hitRate }}%</span>
-          <span class="text-xs text-neutral-400">爆款率</span>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value text-amber-500">{{ hitRate }}%</span>
+          <span class="stat-label">爆款率</span>
         </div>
       </div>
     </header>
@@ -197,7 +202,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import * as echarts from 'echarts';
 import VideoDetailDrawer from './VideoDetailDrawer.vue';
 import { formatNumber, formatAxisNumber, parseDuration } from '../utils';
-import { chartTheme, durationChartColors, heatmapColors, colors, gradients } from '../theme';
+import { chartTheme, distributionColors, heatmapColors, colors, gradients, highlightColor, secondaryAxis } from '../theme';
 import {
   Calendar,
   Clock,
@@ -467,10 +472,10 @@ function renderPlayDistChart() {
       data: counts,
       barMaxWidth: 32,
       itemStyle: {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.primary),
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar),
         borderRadius: [6, 6, 0, 0]
       },
-      emphasis: { itemStyle: { color: colors.primaryHover } }
+      emphasis: { itemStyle: { color: colors.blue600 } }
     }]
   });
 
@@ -545,7 +550,7 @@ function renderDurationChart() {
       type: 'bar',
       data: counts.map((value, i) => ({
         value,
-        itemStyle: { color: durationChartColors[i], borderRadius: [20, 20, 20, 20] }
+        itemStyle: { color: distributionColors[i], borderRadius: [20, 20, 20, 20] }
       })),
       barWidth: '50%',
       barMaxWidth: 40,
@@ -604,7 +609,7 @@ function renderMonthlyTrendChart() {
         const month = params[0].axisValue;
         return `<div><div style="font-weight: 600; margin-bottom: 8px; color: #111827;">${month}</div>
           <div style="color: #6B7280; font-size: 12px;">发布数量: <span style="color: #3B82F6; font-weight: 600;">${params[0].value}</span></div>
-          <div style="color: #6B7280; font-size: 12px;">平均播放: <span style="color: #8B5CF6; font-weight: 600;">${formatNumber(params[1]?.value || 0)}</span></div></div>`;
+          <div style="color: #6B7280; font-size: 12px;">平均播放: <span style="color: #93C5FD; font-weight: 600;">${formatNumber(params[1]?.value || 0)}</span></div></div>`;
       }
     },
     legend: { ...chartTheme.legend, data: ['发布数量', '平均播放量'] },
@@ -614,8 +619,8 @@ function renderMonthlyTrendChart() {
       { ...chartTheme.yAxis, type: 'value', position: 'right', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } }
     ],
     series: [
-      { name: '发布数量', type: 'bar', data: counts, barMaxWidth: 32, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.primary), borderRadius: [6, 6, 0, 0] } },
-      { name: '平均播放量', type: 'line', yAxisIndex: 1, data: avgPlaysData, smooth: 0.4, showSymbol: false, itemStyle: { color: colors.purple }, lineStyle: { width: 2.5 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.purple) } }
+      { name: '发布数量', type: 'bar', data: counts, barMaxWidth: 32, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar), borderRadius: [6, 6, 0, 0] } },
+      { name: '平均播放量', type: 'line', yAxisIndex: 1, data: avgPlaysData, smooth: 0.4, showSymbol: false, itemStyle: { color: secondaryAxis.line }, lineStyle: { width: 2.5 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, secondaryAxis.area) } }
     ]
   });
 
@@ -663,8 +668,8 @@ function renderHourlyPlayChart() {
         value: v,
         itemStyle: {
           color: sortedHours.includes(i)
-            ? new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.warning)
-            : new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.primary),
+            ? new echarts.graphic.LinearGradient(0, 0, 0, 1, highlightColor.gradient)
+            : new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar),
           borderRadius: [6, 6, 0, 0]
         }
       }))
@@ -714,8 +719,8 @@ function renderDurationPlayChart() {
         value: v,
         itemStyle: {
           color: i === bestIndex
-            ? new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.success)
-            : new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.primary),
+            ? new echarts.graphic.LinearGradient(0, 0, 0, 1, highlightColor.gradient)
+            : new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar),
           borderRadius: [6, 6, 0, 0]
         }
       }))
@@ -735,11 +740,11 @@ function renderScatterChart() {
       ...chartTheme.tooltip,
       trigger: 'item',
       formatter: p => `<div style="color: #6B7280; font-size: 12px;">播放: <span style="color: #3B82F6; font-weight: 600;">${formatNumber(p.value[0])}</span></div>
-        <div style="color: #6B7280; font-size: 12px;">弹幕: <span style="color: #10B981; font-weight: 600;">${formatNumber(p.value[1])}</span></div>`
+        <div style="color: #6B7280; font-size: 12px;">弹幕: <span style="color: #1D4ED8; font-weight: 600;">${formatNumber(p.value[1])}</span></div>`
     },
     xAxis: { ...chartTheme.xAxis, type: 'value', name: '播放量', axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: formatAxisNumber } },
     yAxis: { ...chartTheme.yAxis, type: 'value', name: '弹幕数', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
-    series: [{ type: 'scatter', symbolSize: 6, data: data, itemStyle: { color: colors.success, opacity: 0.6 } }]
+    series: [{ type: 'scatter', symbolSize: 6, data: data, itemStyle: { color: colors.blue500, opacity: 0.6 } }]
   });
 }
 
@@ -812,7 +817,7 @@ function renderTopVideosChart() {
     grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
     xAxis: { ...chartTheme.xAxis, type: 'value', axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: formatAxisNumber } },
     yAxis: { ...chartTheme.yAxis, type: 'category', data: titles.reverse(), axisLabel: { ...chartTheme.yAxis.axisLabel, width: 150, overflow: 'truncate' } },
-    series: [{ type: 'bar', data: plays.reverse(), barMaxWidth: 24, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, gradients.primaryHorizontal), borderRadius: [0, 6, 6, 0] } }]
+    series: [{ type: 'bar', data: plays.reverse(), barMaxWidth: 24, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, gradients.barHorizontal), borderRadius: [0, 6, 6, 0] } }]
   });
 
   chart.off('click');
@@ -841,7 +846,7 @@ function renderTopEngagementChart() {
     grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
     xAxis: { ...chartTheme.xAxis, type: 'value', axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: v => v + '%' } },
     yAxis: { ...chartTheme.yAxis, type: 'category', data: titles.reverse(), axisLabel: { ...chartTheme.yAxis.axisLabel, width: 150, overflow: 'truncate' } },
-    series: [{ type: 'bar', data: rates.reverse(), barMaxWidth: 24, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, gradients.pink), borderRadius: [0, 6, 6, 0] } }]
+    series: [{ type: 'bar', data: rates.reverse(), barMaxWidth: 24, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, gradients.barHorizontal), borderRadius: [0, 6, 6, 0] } }]
   });
 
   chart.off('click');
@@ -869,7 +874,7 @@ function renderYearlyCountChart() {
     tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
     yAxis: { ...chartTheme.yAxis, type: 'value', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
-    series: [{ type: 'bar', data: counts, barMaxWidth: 48, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.indigo), borderRadius: [6, 6, 0, 0] }, label: { show: true, position: 'top', color: '#6B7280', fontSize: 11, fontWeight: 600 } }]
+    series: [{ type: 'bar', data: counts, barMaxWidth: 48, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar), borderRadius: [6, 6, 0, 0] }, label: { show: true, position: 'top', color: '#6B7280', fontSize: 11, fontWeight: 600 } }]
   });
 }
 
@@ -893,7 +898,7 @@ function renderYearlyAvgChart() {
     tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
     yAxis: { ...chartTheme.yAxis, type: 'value', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
-    series: [{ type: 'line', data: avgPlaysData, smooth: 0.4, showSymbol: false, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(99, 102, 241, 0.15)' }, { offset: 1, color: 'rgba(99, 102, 241, 0)' }]) }, itemStyle: { color: colors.indigo }, lineStyle: { width: 2.5 } }]
+    series: [{ type: 'line', data: avgPlaysData, smooth: 0.4, showSymbol: false, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.area) }, itemStyle: { color: colors.blue500 }, lineStyle: { width: 2.5 } }]
   });
 }
 
@@ -964,5 +969,33 @@ onUnmounted(() => {
 .dropdown-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* Stats - Linear/Notion style */
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.stat-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: #e5e7eb;
 }
 </style>
