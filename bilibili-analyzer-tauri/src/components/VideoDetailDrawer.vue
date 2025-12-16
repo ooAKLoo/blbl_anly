@@ -47,6 +47,14 @@
                     <MessageSquare :size="14" class="opacity-70" />
                     {{ formatNumber(video.danmu_count) }}
                   </span>
+                  <span class="inline-flex items-center gap-1" title="评论数">
+                    <MessageCircle :size="14" class="opacity-70" />
+                    {{ formatNumber(video.comment_count || 0) }}
+                  </span>
+                  <span class="inline-flex items-center gap-1" title="收藏数">
+                    <Star :size="14" class="opacity-70" />
+                    {{ formatNumber(video.favorite_count || 0) }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -59,7 +67,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { Calendar, Clock, Play, MessageSquare, X } from 'lucide-vue-next';
+import { Calendar, Clock, Play, MessageSquare, MessageCircle, Star, X } from 'lucide-vue-next';
 import { formatNumber, getImageUrl } from '../utils';
 
 const props = defineProps({

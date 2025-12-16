@@ -1,77 +1,119 @@
 <template>
-  <div class="min-h-screen bg-neutral-50/50">
-    <!-- Sticky Header -->
-    <header v-if="upInfo" class="sticky top-0 z-40 bg-white/80 backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <div class="max-w-[1400px] mx-auto px-6 py-4">
-        <div class="flex items-center gap-5">
-          <!-- Avatar -->
-          <img :src="upFaceUrl" class="w-14 h-14 rounded-full ring-2 ring-black/[0.04] shadow-sm" referrerpolicy="no-referrer" />
-
-          <!-- Info -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-3 mb-1">
-              <h1 class="text-lg font-semibold text-neutral-900 truncate">{{ upInfo.name }}</h1>
-              <span class="inline-flex items-center px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-semibold rounded-full">
-                Lv.{{ upInfo.level }}
-              </span>
+  <div class="min-h-screen bg-neutral-50">
+    <div class="max-w-[1400px] mx-auto px-6">
+      <!-- Unified Sticky Header -->
+      <header v-if="upInfo" class="sticky top-0 z-40 bg-neutral-50 pt-4 pb-2">
+        <!-- UP Info Row -->
+        <div class="flex items-center gap-4 mb-3">
+          <img :src="upFaceUrl" class="w-10 h-10 rounded-full" referrerpolicy="no-referrer" />
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h1 class="text-base font-semibold text-neutral-900 truncate">{{ upInfo.name }}</h1>
+              <span class="text-xs text-neutral-400">Lv.{{ upInfo.level }}</span>
+              <span class="text-neutral-200">·</span>
+              <span class="text-xs text-neutral-400">{{ videos.length }} 个视频</span>
             </div>
-            <p class="text-sm text-neutral-500 truncate max-w-md">{{ upInfo.sign || '这个人很懒，什么都没写' }}</p>
-          </div>
-
-          <!-- Key Metrics -->
-          <div class="hidden md:flex items-center gap-1">
-            <div class="metric-card">
-              <span class="metric-value">{{ videos.length }}</span>
-              <span class="metric-label">视频</span>
-            </div>
-            <div class="metric-card">
-              <span class="metric-value">{{ formatNumber(avgPlays) }}</span>
-              <span class="metric-label">均播放</span>
-            </div>
-            <div class="metric-card">
-              <span class="metric-value text-amber-500">{{ hitRate }}%</span>
-              <span class="metric-label">爆款率</span>
-            </div>
+            <p class="text-xs text-neutral-400 truncate mt-0.5">{{ upInfo.sign || '这个人很懒，什么都没写' }}</p>
           </div>
         </div>
-      </div>
-    </header>
 
-    <!-- Main Content -->
-    <main class="max-w-[1400px] mx-auto px-6 py-6">
-      <!-- Tab Navigation -->
-      <nav class="flex items-center gap-1 p-1 bg-neutral-100/80 rounded-xl mb-6 w-fit">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          @click="activeTab = tab.id"
-          :class="[
-            'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
-            activeTab === tab.id
-              ? 'bg-white text-neutral-900 shadow-sm'
-              : 'text-neutral-500 hover:text-neutral-700 hover:bg-white/50'
-          ]"
-        >
-          <component :is="tab.icon" :size="16" />
-          {{ tab.label }}
-          <span v-if="tab.id === 'videos'" class="ml-1 px-1.5 py-0.5 text-[10px] bg-neutral-100 rounded-full text-neutral-500">
-            {{ videos.length }}
-          </span>
-        </button>
-      </nav>
+        <!-- Tab Navigation -->
+        <nav class="flex items-center gap-6 border-b border-neutral-200">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            @click="activeTab = tab.id"
+            :class="[
+              'relative py-2.5 text-sm font-medium transition-colors',
+              activeTab === tab.id
+                ? 'text-neutral-900'
+                : 'text-neutral-400 hover:text-neutral-600'
+            ]"
+          >
+            {{ tab.label }}
+            <span
+              v-if="activeTab === tab.id"
+              class="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 rounded-full"
+            ></span>
+          </button>
+        </nav>
+      </header>
+
+      <!-- Main Content -->
+      <main class="py-6">
 
       <!-- Tab Content: 数据分析 -->
       <div v-show="activeTab === 'analysis'" class="space-y-6">
+        <!-- Filter Bar -->
+        <div class="flex flex-wrap items-center gap-4 p-4 bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <!-- Time Range Filter -->
+          <div class="flex items-center gap-2">
+            <Filter :size="14" class="text-neutral-400" />
+            <span class="text-sm text-neutral-500">时间</span>
+          </div>
+          <div class="flex items-center p-1 bg-neutral-100 rounded-lg">
+            <button
+              v-for="option in timeRangeOptions"
+              :key="option.value"
+              @click="selectedTimeRange = option.value"
+              :class="[
+                'px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150',
+                selectedTimeRange === option.value
+                  ? 'bg-white text-neutral-900 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-700'
+              ]"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+
+          <!-- Duration Filter -->
+          <div class="flex items-center gap-2 ml-2">
+            <Clock :size="14" class="text-neutral-400" />
+            <span class="text-sm text-neutral-500">时长</span>
+          </div>
+          <div class="flex items-center p-1 bg-neutral-100 rounded-lg">
+            <button
+              v-for="option in durationOptions"
+              :key="option.value"
+              @click="selectedDuration = option.value"
+              :class="[
+                'px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150',
+                selectedDuration === option.value
+                  ? 'bg-white text-neutral-900 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-700'
+              ]"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+
+          <!-- Filter Stats -->
+          <div class="flex items-center gap-3 ml-auto text-sm">
+            <span class="text-neutral-500">
+              筛选结果：<strong class="text-neutral-700">{{ analysisVideos.length }}</strong> / {{ videos.length }} 个视频
+            </span>
+            <span v-if="hasActiveFilter && videos.length > 0" class="text-neutral-300">·</span>
+            <span v-if="hasActiveFilter && videos.length > 0" class="text-neutral-500">
+              均播放 <strong :class="avgPlaysChange >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                {{ formatNumber(avgPlays) }}
+                <span class="text-xs">({{ avgPlaysChange >= 0 ? '+' : '' }}{{ avgPlaysChange.toFixed(1) }}%)</span>
+              </strong>
+            </span>
+          </div>
+        </div>
+
         <!-- Data Range Info -->
         <div class="flex items-center gap-2 text-sm text-neutral-500">
           <BarChart3 :size="14" class="text-neutral-400" />
-          <span>统计范围：<strong class="text-neutral-700">{{ videos.length }}</strong> 个视频</span>
+          <span>统计范围：<strong class="text-neutral-700">{{ analysisVideos.length }}</strong> 个视频</span>
           <span class="text-neutral-300">·</span>
           <span>{{ dataTimeRange }}</span>
         </div>
 
         <!-- Stats Overview Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <!-- 第一行：核心播放数据 -->
           <div class="stat-card">
             <div class="stat-icon bg-blue-50 text-blue-500"><Play :size="18" /></div>
             <div>
@@ -80,24 +122,10 @@
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon bg-purple-50 text-purple-500"><MessageSquare :size="18" /></div>
-            <div>
-              <span class="stat-card-value">{{ formatNumber(totalDanmu) }}</span>
-              <span class="stat-card-label">总弹幕</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon bg-emerald-50 text-emerald-500"><TrendingUp :size="18" /></div>
+            <div class="stat-icon bg-emerald-50 text-emerald-500"><Calculator :size="18" /></div>
             <div>
               <span class="stat-card-value">{{ formatNumber(avgPlays) }}</span>
               <span class="stat-card-label">均播放</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon bg-orange-50 text-orange-500"><Zap :size="18" /></div>
-            <div>
-              <span class="stat-card-value">{{ avgEngagementRate }}%</span>
-              <span class="stat-card-label">互动率</span>
             </div>
           </div>
           <div class="stat-card">
@@ -114,10 +142,48 @@
               <span class="stat-card-label">均时长</span>
             </div>
           </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-indigo-50 text-indigo-500"><CalendarDays :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ monthlyPublishRate }}</span>
+              <span class="stat-card-label">月均发布</span>
+            </div>
+          </div>
+          <!-- 第二行：互动数据 -->
+          <div class="stat-card">
+            <div class="stat-icon bg-purple-50 text-purple-500"><MessageSquare :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ formatNumber(totalDanmu) }}</span>
+              <span class="stat-card-label">总弹幕</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-sky-50 text-sky-500"><MessageCircle :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ formatNumber(totalComments) }}</span>
+              <span class="stat-card-label">总评论</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-amber-50 text-amber-500"><Star :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ formatNumber(totalFavorites) }}</span>
+              <span class="stat-card-label">总收藏</span>
+            </div>
+          </div>
+          <div class="stat-card col-span-2 sm:col-span-1">
+            <div class="stat-icon bg-orange-50 text-orange-500"><Zap :size="18" /></div>
+            <div>
+              <span class="stat-card-value">{{ avgEngagementRate }}%</span>
+              <span class="stat-card-label">互动率</span>
+            </div>
+          </div>
         </div>
+        <!-- 互动率说明 -->
+        <p class="text-xs text-neutral-400 -mt-4">互动率 = (弹幕 + 评论 + 收藏) / 播放</p>
 
         <!-- Charts Grid - Organized by Category -->
-        <div v-if="videos.length > 0" class="space-y-6">
+        <div v-if="analysisVideos.length > 0" class="space-y-6">
           <!-- 核心数据 -->
           <section>
             <h2 class="section-title">
@@ -130,7 +196,7 @@
                 <div ref="playDistChart" class="h-[260px]"></div>
               </div>
               <div class="chart-card">
-                <h3 class="chart-title">视频时长分布</h3>
+                <h3 class="chart-title">视频时长分布与平均播放量</h3>
                 <div ref="durationChart" class="h-[260px]"></div>
               </div>
             </div>
@@ -152,8 +218,9 @@
                 <div ref="hourlyPlayChart" class="h-[260px]"></div>
               </div>
               <div class="chart-card">
-                <h3 class="chart-title">发布时间热力图</h3>
-                <div ref="heatmapChart" class="h-[260px]"></div>
+                <h3 class="chart-title">最佳发布时间（按平均播放量）</h3>
+                <p class="text-xs text-neutral-400 -mt-2 mb-2">颜色越红表示该时段发布的视频平均播放量越高</p>
+                <div ref="heatmapChart" class="h-[280px]"></div>
               </div>
             </div>
           </section>
@@ -164,15 +231,10 @@
               <Target :size="16" />
               内容表现
             </h2>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div class="chart-card">
-                <h3 class="chart-title">时长 vs 平均播放量</h3>
-                <div ref="durationPlayChart" class="h-[260px]"></div>
-              </div>
-              <div class="chart-card">
-                <h3 class="chart-title">播放量 vs 弹幕数</h3>
-                <div ref="scatterChart" class="h-[260px]"></div>
-              </div>
+            <div class="chart-card">
+              <h3 class="chart-title">播放量 vs 弹幕数</h3>
+              <p class="text-xs text-neutral-400 -mt-2 mb-3">点击散点查看视频详情</p>
+              <div ref="scatterChart" class="h-[280px]"></div>
             </div>
           </section>
 
@@ -212,6 +274,7 @@
             </div>
             <div class="chart-card mt-4">
               <h3 class="chart-title">全部视频播放量时间线</h3>
+              <p class="text-xs text-neutral-400 -mt-2 mb-2">点击纵坐标可筛选高于该播放量的视频，再次点击取消筛选</p>
               <div ref="timelineChart" class="h-[320px]"></div>
             </div>
           </section>
@@ -379,7 +442,7 @@
                 <a :href="video.video_url" target="_blank" class="block text-sm font-medium text-neutral-900 hover:text-blue-600 truncate mb-2 transition-colors">
                   {{ video.title }}
                 </a>
-                <div class="flex items-center gap-4 text-xs text-neutral-500">
+                <div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
                   <span class="flex items-center gap-1">
                     <Calendar :size="12" class="opacity-60" />
                     {{ formatDate(video.publish_time) }}
@@ -392,9 +455,13 @@
                     <MessageSquare :size="12" class="opacity-60" />
                     {{ formatNumber(video.danmu_count) }}
                   </span>
-                  <span class="flex items-center gap-1 text-amber-500">
-                    <Zap :size="12" />
-                    {{ ((video.danmu_count / video.play_count) * 100).toFixed(2) }}%
+                  <span class="flex items-center gap-1">
+                    <MessageCircle :size="12" class="opacity-60" />
+                    {{ formatNumber(video.comment_count || 0) }}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <Star :size="12" class="opacity-60" />
+                    {{ formatNumber(video.favorite_count || 0) }}
                   </span>
                 </div>
               </div>
@@ -425,6 +492,7 @@
         </div>
       </div>
     </main>
+    </div>
 
     <!-- Video Drawer -->
     <VideoDetailDrawer
@@ -442,11 +510,14 @@ import VideoDetailDrawer from './VideoDetailDrawer.vue';
 import VirtualGrid from './VirtualGrid.vue';
 import { formatNumber, formatAxisNumber, parseDuration, parseDurationMinutes, getImageUrl } from '../utils';
 import { chartTheme, distributionColors, heatmapColors, colors, gradients, highlightColor, secondaryAxis } from '../theme';
+import { open } from '@tauri-apps/plugin-shell';
 import {
   Calendar,
+  CalendarDays,
   Clock,
   Play,
   MessageSquare,
+  MessageCircle,
   Search,
   X,
   ArrowUpDown,
@@ -461,7 +532,10 @@ import {
   Zap,
   Flame,
   LayoutGrid,
-  List
+  List,
+  Calculator,
+  Star,
+  Filter
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -494,7 +568,6 @@ const yearlyCountChart = ref(null);
 const yearlyAvgChart = ref(null);
 const timelineChart = ref(null);
 const hourlyPlayChart = ref(null);
-const durationPlayChart = ref(null);
 const topEngagementChart = ref(null);
 const virtualGridRef = ref(null);
 const virtualListRef = ref(null);
@@ -505,6 +578,24 @@ const sortBy = ref('time_desc');
 const sortDropdownOpen = ref(false);
 const sortDropdownRef = ref(null);
 const viewMode = ref('grid'); // 'grid' | 'list'
+
+// 数据分析筛选
+const selectedTimeRange = ref('all');
+const timeRangeOptions = [
+  { value: 'all', label: '全部' },
+  { value: '30d', label: '近30天' },
+  { value: '90d', label: '近90天' },
+  { value: '1y', label: '近1年' },
+  { value: 'thisYear', label: '今年' }
+];
+
+const selectedDuration = ref('all');
+const durationOptions = [
+  { value: 'all', label: '全部时长' },
+  { value: 'short', label: '<5分钟' },
+  { value: 'medium', label: '5-20分钟' },
+  { value: 'long', label: '>20分钟' }
+];
 
 // 图表交互状态
 const drawerVisible = ref(false);
@@ -524,9 +615,67 @@ const sortOptions = [
   { value: 'duration_asc', label: '时长最短', icon: Timer },
 ];
 
-// Computed
-const totalPlays = computed(() => props.videos.reduce((sum, v) => sum + v.play_count, 0));
-const totalDanmu = computed(() => props.videos.reduce((sum, v) => sum + v.danmu_count, 0));
+// Computed - 数据分析筛选后的视频
+const analysisVideos = computed(() => {
+  let result = props.videos;
+
+  // 时间范围筛选
+  if (selectedTimeRange.value !== 'all') {
+    const now = new Date();
+    let startDate;
+
+    switch (selectedTimeRange.value) {
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      case 'thisYear':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+    }
+
+    if (startDate) {
+      result = result.filter(v => new Date(v.publish_time) >= startDate);
+    }
+  }
+
+  // 时长筛选
+  if (selectedDuration.value !== 'all') {
+    result = result.filter(v => {
+      const minutes = parseDurationMinutes(v.duration);
+      switch (selectedDuration.value) {
+        case 'short':
+          return minutes < 5;
+        case 'medium':
+          return minutes >= 5 && minutes <= 20;
+        case 'long':
+          return minutes > 20;
+        default:
+          return true;
+      }
+    });
+  }
+
+  return result;
+});
+
+// 全量数据的平均播放（用于对比）
+const allVideosAvgPlays = computed(() => {
+  if (props.videos.length === 0) return 0;
+  const total = props.videos.reduce((sum, v) => sum + v.play_count, 0);
+  return Math.round(total / props.videos.length);
+});
+
+// 筛选后的统计数据
+const totalPlays = computed(() => analysisVideos.value.reduce((sum, v) => sum + v.play_count, 0));
+const totalDanmu = computed(() => analysisVideos.value.reduce((sum, v) => sum + v.danmu_count, 0));
+const totalComments = computed(() => analysisVideos.value.reduce((sum, v) => sum + (v.comment_count || 0), 0));
+const totalFavorites = computed(() => analysisVideos.value.reduce((sum, v) => sum + (v.favorite_count || 0), 0));
 
 const upFaceUrl = computed(() => {
   if (!props.upInfo) return '';
@@ -538,38 +687,65 @@ function getVideoCoverUrl(video) {
 }
 
 const avgPlays = computed(() => {
-  if (props.videos.length === 0) return 0;
-  return Math.round(totalPlays.value / props.videos.length);
+  if (analysisVideos.value.length === 0) return 0;
+  return Math.round(totalPlays.value / analysisVideos.value.length);
 });
 
+// 均播放变化百分比
+const avgPlaysChange = computed(() => {
+  if (allVideosAvgPlays.value === 0) return 0;
+  return ((avgPlays.value - allVideosAvgPlays.value) / allVideosAvgPlays.value) * 100;
+});
+
+// 是否有激活的筛选条件
+const hasActiveFilter = computed(() => {
+  return selectedTimeRange.value !== 'all' || selectedDuration.value !== 'all';
+});
+
+// 互动率 = (弹幕 + 评论 + 收藏) / 播放
 const avgEngagementRate = computed(() => {
   if (totalPlays.value === 0) return '0.00';
-  return ((totalDanmu.value / totalPlays.value) * 100).toFixed(2);
+  const totalEngagement = totalDanmu.value + totalComments.value + totalFavorites.value;
+  return ((totalEngagement / totalPlays.value) * 100).toFixed(2);
 });
 
 const hitRate = computed(() => {
-  if (props.videos.length === 0) return '0.0';
+  if (analysisVideos.value.length === 0) return '0.0';
   const threshold = avgPlays.value * 2;
-  const hitCount = props.videos.filter(v => v.play_count >= threshold).length;
-  return ((hitCount / props.videos.length) * 100).toFixed(1);
+  const hitCount = analysisVideos.value.filter(v => v.play_count >= threshold).length;
+  return ((hitCount / analysisVideos.value.length) * 100).toFixed(1);
 });
 
 const avgDuration = computed(() => {
-  if (props.videos.length === 0) return '0:00';
-  const totalSeconds = props.videos.reduce((sum, v) => sum + parseDuration(v.duration), 0);
-  const avgSeconds = Math.round(totalSeconds / props.videos.length);
+  if (analysisVideos.value.length === 0) return '0:00';
+  const totalSeconds = analysisVideos.value.reduce((sum, v) => sum + parseDuration(v.duration), 0);
+  const avgSeconds = Math.round(totalSeconds / analysisVideos.value.length);
   const minutes = Math.floor(avgSeconds / 60);
   const seconds = avgSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 });
 
 const dataTimeRange = computed(() => {
-  if (props.videos.length === 0) return '';
-  const dates = props.videos.map(v => new Date(v.publish_time)).sort((a, b) => a - b);
+  if (analysisVideos.value.length === 0) return '';
+  const dates = analysisVideos.value.map(v => new Date(v.publish_time)).sort((a, b) => a - b);
   const earliest = dates[0];
   const latest = dates[dates.length - 1];
   const formatYM = (d) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
   return `${formatYM(earliest)} - ${formatYM(latest)}`;
+});
+
+const monthlyPublishRate = computed(() => {
+  if (analysisVideos.value.length === 0) return '0';
+  const dates = analysisVideos.value.map(v => new Date(v.publish_time)).sort((a, b) => a - b);
+  const earliest = dates[0];
+  const latest = dates[dates.length - 1];
+  // 计算月份跨度（至少1个月）
+  const monthSpan = Math.max(1,
+    (latest.getFullYear() - earliest.getFullYear()) * 12 +
+    (latest.getMonth() - earliest.getMonth()) + 1
+  );
+  const rate = analysisVideos.value.length / monthSpan;
+  return rate >= 10 ? Math.round(rate).toString() : rate.toFixed(1);
 });
 
 const filteredVideos = computed(() => {
@@ -587,7 +763,11 @@ const filteredVideos = computed(() => {
       case 'play_desc': return b.play_count - a.play_count;
       case 'play_asc': return a.play_count - b.play_count;
       case 'danmu_desc': return b.danmu_count - a.danmu_count;
-      case 'engagement_desc': return (b.danmu_count / b.play_count) - (a.danmu_count / a.play_count);
+      case 'engagement_desc': {
+        const engA = (a.danmu_count + (a.comment_count || 0) + (a.favorite_count || 0)) / a.play_count;
+        const engB = (b.danmu_count + (b.comment_count || 0) + (b.favorite_count || 0)) / b.play_count;
+        return engB - engA;
+      }
       case 'duration_desc': return parseDuration(b.duration) - parseDuration(a.duration);
       case 'duration_asc': return parseDuration(a.duration) - parseDuration(b.duration);
       default: return 0;
@@ -606,9 +786,10 @@ const filteredAvgPlays = computed(() => {
 const filteredEngagementRate = computed(() => {
   if (filteredVideos.value.length === 0) return '0.00';
   const totalPlays = filteredVideos.value.reduce((sum, v) => sum + v.play_count, 0);
-  const totalDanmu = filteredVideos.value.reduce((sum, v) => sum + v.danmu_count, 0);
+  const totalEngagement = filteredVideos.value.reduce((sum, v) =>
+    sum + v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0), 0);
   if (totalPlays === 0) return '0.00';
-  return ((totalDanmu / totalPlays) * 100).toFixed(2);
+  return ((totalEngagement / totalPlays) * 100).toFixed(2);
 });
 
 // Methods
@@ -646,6 +827,11 @@ watch(() => props.videos, (newVideos) => {
   }
 }, { immediate: true });
 
+// 筛选条件变化时重新渲染图表
+watch([selectedTimeRange, selectedDuration], () => {
+  setTimeout(() => renderAllCharts(), 50);
+});
+
 // 图表相关方法
 function initChart(ref, name) {
   if (!ref.value) return null;
@@ -655,12 +841,11 @@ function initChart(ref, name) {
 }
 
 function renderAllCharts() {
-  if (props.videos.length === 0) return;
+  if (analysisVideos.value.length === 0) return;
   renderPlayDistChart();
   renderDurationChart();
   renderMonthlyTrendChart();
   renderHourlyPlayChart();
-  renderDurationPlayChart();
   renderScatterChart();
   renderHeatmapChart();
   renderTopVideosChart();
@@ -674,11 +859,35 @@ function renderPlayDistChart() {
   const chart = initChart(playDistChart, 'playDist');
   if (!chart) return;
 
-  const bins = [0, 500000, 1000000, 1500000, 2000000, 3000000, 5000000, Infinity];
-  const labels = ['<50万', '50-100万', '100-150万', '150-200万', '200-300万', '300-500万', '>500万'];
+  const videos = analysisVideos.value;
+
+  // 动态计算区间：根据数据的最大播放量自适应
+  const plays = videos.map(v => v.play_count).sort((a, b) => a - b);
+  const maxPlay = plays[plays.length - 1] || 0;
+  const medianPlay = plays[Math.floor(plays.length / 2)] || 0;
+
+  let bins, labels;
+
+  if (maxPlay <= 10000) {
+    // 极小UP：<1千, 1-3千, 3-5千, 5千-1万, >1万
+    bins = [0, 1000, 3000, 5000, 10000, Infinity];
+    labels = ['<1千', '1-3千', '3-5千', '5千-1万', '>1万'];
+  } else if (maxPlay <= 100000) {
+    // 小UP：<5千, 5千-1万, 1-3万, 3-5万, 5-10万, >10万
+    bins = [0, 5000, 10000, 30000, 50000, 100000, Infinity];
+    labels = ['<5千', '5千-1万', '1-3万', '3-5万', '5-10万', '>10万'];
+  } else if (maxPlay <= 1000000) {
+    // 中UP：<1万, 1-5万, 5-10万, 10-30万, 30-50万, 50-100万, >100万
+    bins = [0, 10000, 50000, 100000, 300000, 500000, 1000000, Infinity];
+    labels = ['<1万', '1-5万', '5-10万', '10-30万', '30-50万', '50-100万', '>100万'];
+  } else {
+    // 大UP：<10万, 10-50万, 50-100万, 100-200万, 200-500万, 500万-1000万, >1000万
+    bins = [0, 100000, 500000, 1000000, 2000000, 5000000, 10000000, Infinity];
+    labels = ['<10万', '10-50万', '50-100万', '100-200万', '200-500万', '500-1000万', '>1000万'];
+  }
 
   const videosByBin = labels.map(() => []);
-  props.videos.forEach(v => {
+  videos.forEach(v => {
     for (let i = 0; i < bins.length - 1; i++) {
       if (v.play_count >= bins[i] && v.play_count < bins[i + 1]) {
         videosByBin[i].push(v);
@@ -698,7 +907,6 @@ function renderPlayDistChart() {
       confine: true,
       formatter: (params) => {
         const idx = params[0].dataIndex;
-        const binVideos = videosByBin[idx];
         const count = counts[idx];
         return `<div style="font-size: 13px;"><strong>${labels[idx]}</strong><br/>共 ${count} 个视频<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
       }
@@ -728,55 +936,81 @@ function renderDurationChart() {
   const chart = initChart(durationChart, 'duration');
   if (!chart) return;
 
+  const videos = analysisVideos.value;
   const bins = [0, 5, 10, 15, 20, 30, 60, Infinity];
   const labels = ['<5分', '5-10分', '10-15分', '15-20分', '20-30分', '30-60分', '>60分'];
 
   const videosByBin = labels.map(() => []);
-  props.videos.forEach(v => {
+  const durationData = labels.map(() => ({ count: 0, totalPlays: 0 }));
+
+  videos.forEach(v => {
     const minutes = parseDurationMinutes(v.duration);
     for (let i = 0; i < bins.length - 1; i++) {
       if (minutes >= bins[i] && minutes < bins[i + 1]) {
         videosByBin[i].push(v);
+        durationData[i].count++;
+        durationData[i].totalPlays += v.play_count;
         break;
       }
     }
   });
 
   const counts = videosByBin.map(arr => arr.length);
+  const avgPlaysData = durationData.map(d => d.count > 0 ? Math.round(d.totalPlays / d.count) : 0);
+  const bestIndex = avgPlaysData.indexOf(Math.max(...avgPlaysData.filter(v => v > 0)));
 
   chart.setOption({
     ...chartTheme,
-    grid: { top: 20, right: 50, bottom: 30, left: 20, containLabel: true },
+    grid: { top: 30, right: 60, bottom: 30, left: 20, containLabel: true },
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'axis',
-      axisPointer: { type: 'none' },
       confine: true,
       formatter: (params) => {
         const idx = params[0].dataIndex;
-        return `<div style="font-size: 13px;"><strong>${labels[idx]}</strong><br/>共 ${counts[idx]} 个视频<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
+        const avgPlay = avgPlaysData[idx];
+        return `<div style="font-size: 13px;"><strong>${labels[idx]}</strong><br/>共 ${counts[idx]} 个视频<br/>均播放: ${formatNumber(avgPlay)}<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
       }
     },
+    legend: { ...chartTheme.legend, data: ['视频数量', '平均播放量'], top: 0 },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: labels, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: 0, rotate: 0 } },
-    yAxis: { ...chartTheme.yAxis, type: 'value' },
-    series: [{
-      type: 'bar',
-      data: counts.map((value, i) => ({
-        value,
-        itemStyle: { color: distributionColors[i], borderRadius: [20, 20, 20, 20] }
-      })),
-      barWidth: '50%',
-      barMaxWidth: 40,
-      showBackground: true,
-      backgroundStyle: { color: 'rgba(243, 244, 246, 0.6)', borderRadius: [20, 20, 20, 20] },
-      label: { show: true, position: 'top', formatter: (params) => params.value > 0 ? params.value : '', color: '#6B7280', fontSize: 11, fontWeight: 500 }
-    }]
+    yAxis: [
+      { ...chartTheme.yAxis, type: 'value', position: 'left', name: '数量' },
+      { ...chartTheme.yAxis, type: 'value', position: 'right', name: '播放量', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } }
+    ],
+    series: [
+      {
+        name: '视频数量',
+        type: 'bar',
+        data: counts.map((value, i) => ({
+          value,
+          itemStyle: { color: distributionColors[i], borderRadius: [4, 4, 0, 0] }
+        })),
+        barMaxWidth: 32
+      },
+      {
+        name: '平均播放量',
+        type: 'line',
+        yAxisIndex: 1,
+        data: avgPlaysData.map((v, i) => ({
+          value: v,
+          itemStyle: { color: i === bestIndex ? highlightColor.solid : secondaryAxis.line }
+        })),
+        smooth: 0.3,
+        symbol: 'circle',
+        symbolSize: (value, params) => params.dataIndex === bestIndex ? 10 : 6,
+        itemStyle: { color: secondaryAxis.line },
+        lineStyle: { width: 2.5, color: secondaryAxis.line }
+      }
+    ]
   });
 
   chart.off('click');
   chart.on('click', (params) => {
-    const idx = params.dataIndex;
-    openVideoDrawer(`时长区间: ${labels[idx]}`, videosByBin[idx]);
+    if (params.seriesType === 'bar') {
+      const idx = params.dataIndex;
+      openVideoDrawer(`时长区间: ${labels[idx]}`, videosByBin[idx]);
+    }
   });
 }
 
@@ -784,10 +1018,11 @@ function renderMonthlyTrendChart() {
   const chart = initChart(monthlyTrendChart, 'monthlyTrend');
   if (!chart) return;
 
+  const videos = analysisVideos.value;
   const monthlyData = {};
   const monthlyVideos = {};
 
-  props.videos.forEach(v => {
+  videos.forEach(v => {
     const month = v.publish_time.slice(0, 7);
     if (!monthlyData[month]) {
       monthlyData[month] = { count: 0, totalPlays: 0 };
@@ -839,6 +1074,7 @@ function renderHourlyPlayChart() {
   const chart = initChart(hourlyPlayChart, 'hourlyPlay');
   if (!chart) return;
 
+  const videos = analysisVideos.value;
   const hourlyData = {};
   const hourlyVideos = {};
   for (let i = 0; i < 24; i++) {
@@ -846,7 +1082,7 @@ function renderHourlyPlayChart() {
     hourlyVideos[i] = [];
   }
 
-  props.videos.forEach(v => {
+  videos.forEach(v => {
     const hour = new Date(v.publish_time).getHours();
     hourlyData[hour].count++;
     hourlyData[hour].totalPlays += v.play_count;
@@ -884,65 +1120,50 @@ function renderHourlyPlayChart() {
   });
 }
 
-function renderDurationPlayChart() {
-  const chart = initChart(durationPlayChart, 'durationPlay');
-  if (!chart) return;
-
-  const bins = [0, 5, 10, 15, 20, 30, 60, Infinity];
-  const labels = ['<5分', '5-10分', '10-15分', '15-20分', '20-30分', '30-60分', '>60分'];
-  const durationData = labels.map(() => ({ count: 0, totalPlays: 0 }));
-
-  props.videos.forEach(v => {
-    const minutes = parseDurationMinutes(v.duration);
-    for (let i = 0; i < bins.length - 1; i++) {
-      if (minutes >= bins[i] && minutes < bins[i + 1]) {
-        durationData[i].count++;
-        durationData[i].totalPlays += v.play_count;
-        break;
-      }
-    }
-  });
-
-  const avgPlaysData = durationData.map(d => d.count > 0 ? Math.round(d.totalPlays / d.count) : 0);
-  const bestIndex = avgPlaysData.indexOf(Math.max(...avgPlaysData));
-
-  chart.setOption({
-    ...chartTheme,
-    tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
-    xAxis: { ...chartTheme.xAxis, type: 'category', data: labels },
-    yAxis: { ...chartTheme.yAxis, type: 'value', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
-    series: [{
-      type: 'bar',
-      barMaxWidth: 32,
-      data: avgPlaysData.map((v, i) => ({
-        value: v,
-        itemStyle: {
-          color: i === bestIndex
-            ? new echarts.graphic.LinearGradient(0, 0, 0, 1, highlightColor.gradient)
-            : new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar),
-          borderRadius: [6, 6, 0, 0]
-        }
-      }))
-    }]
-  });
-}
-
 function renderScatterChart() {
   const chart = initChart(scatterChart, 'scatter');
   if (!chart) return;
 
-  const data = props.videos.map(v => [v.play_count, v.danmu_count]);
+  const videos = analysisVideos.value;
+  // 直接存储视频引用，避免索引问题
+  const scatterData = videos.map(v => ({
+    value: [v.play_count, v.danmu_count],
+    video: v
+  }));
 
   chart.setOption({
     ...chartTheme,
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'item',
-      formatter: p => `播放: ${formatNumber(p.value[0])}<br/>弹幕: ${formatNumber(p.value[1])}`
+      formatter: (params) => {
+        const video = params.data.video;
+        if (!video) return '';
+        const title = video.title.length > 30 ? video.title.slice(0, 30) + '...' : video.title;
+        return `<div style="max-width: 280px;"><strong>${title}</strong><br/>播放: ${formatNumber(params.value[0])}<br/>弹幕: ${formatNumber(params.value[1])}<br/>弹幕率: ${((params.value[1] / params.value[0]) * 100).toFixed(2)}%<br/><span style="color:#3B82F6">点击打开视频</span></div>`;
+      }
     },
     xAxis: { ...chartTheme.xAxis, type: 'value', name: '播放量', axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: formatAxisNumber } },
     yAxis: { ...chartTheme.yAxis, type: 'value', name: '弹幕数', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
-    series: [{ type: 'scatter', symbolSize: 6, data: data, itemStyle: { color: colors.blue500, opacity: 0.6 } }]
+    series: [{
+      type: 'scatter',
+      symbolSize: 10,
+      data: scatterData,
+      itemStyle: { color: colors.blue500, opacity: 0.7 },
+      emphasis: {
+        itemStyle: { color: colors.blue600, opacity: 1, shadowBlur: 10, shadowColor: 'rgba(59, 130, 246, 0.5)' },
+        scale: 1.8
+      },
+      cursor: 'pointer'
+    }]
+  });
+
+  chart.off('click');
+  chart.on('click', async (params) => {
+    const video = params.data?.video;
+    if (video && video.video_url) {
+      await open(video.video_url);
+    }
   });
 }
 
@@ -950,49 +1171,112 @@ function renderHeatmapChart() {
   const chart = initChart(heatmapChart, 'heatmap');
   if (!chart) return;
 
+  const videos = analysisVideos.value;
   const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-  const hours = Array.from({ length: 24 }, (_, i) => i + '时');
+  const hours = Array.from({ length: 24 }, (_, i) => `${i}时`);
 
-  const data = [];
-  const countMap = {};
-  const videoMap = {};
+  // 统计每个时间段的视频数量和总播放量
+  const statsMap = {};  // { count, totalPlays, videos }
 
-  props.videos.forEach(v => {
+  videos.forEach(v => {
     const date = new Date(v.publish_time);
     const weekday = (date.getDay() + 6) % 7;
     const hour = date.getHours();
     const key = `${weekday}-${hour}`;
-    countMap[key] = (countMap[key] || 0) + 1;
-    if (!videoMap[key]) videoMap[key] = [];
-    videoMap[key].push(v);
+    if (!statsMap[key]) {
+      statsMap[key] = { count: 0, totalPlays: 0, videos: [] };
+    }
+    statsMap[key].count++;
+    statsMap[key].totalPlays += v.play_count;
+    statsMap[key].videos.push(v);
   });
+
+  // 计算平均播放量
+  const data = [];
+  let maxAvgPlay = 0;
 
   for (let w = 0; w < 7; w++) {
     for (let h = 0; h < 24; h++) {
-      data.push([h, w, countMap[`${w}-${h}`] || 0]);
+      const key = `${w}-${h}`;
+      const stats = statsMap[key];
+      const avgPlay = stats ? Math.round(stats.totalPlays / stats.count) : 0;
+      data.push([h, w, avgPlay, stats?.count || 0]);  // [小时, 周几, 平均播放, 视频数]
+      if (avgPlay > maxAvgPlay) maxAvgPlay = avgPlay;
     }
   }
 
-  const maxCount = Math.max(...data.map(d => d[2]));
+  // 找出最佳时间段
+  const bestSlot = data.reduce((best, curr) => curr[2] > best[2] ? curr : best, data[0]);
 
   chart.setOption({
     ...chartTheme,
-    grid: { ...chartTheme.grid, bottom: 60 },
-    tooltip: { ...chartTheme.tooltip, confine: true },
-    xAxis: { ...chartTheme.xAxis, type: 'category', data: hours },
-    yAxis: { ...chartTheme.yAxis, type: 'category', data: weekdays },
-    visualMap: { min: 0, max: maxCount, calculable: true, orient: 'horizontal', left: 'center', bottom: 5, inRange: { color: heatmapColors } },
-    series: [{ type: 'heatmap', data: data, itemStyle: { borderRadius: 4, borderWidth: 3, borderColor: '#ffffff' } }]
+    grid: { top: 10, right: 80, bottom: 60, left: 60 },
+    tooltip: {
+      ...chartTheme.tooltip,
+      confine: true,
+      formatter: (params) => {
+        const [hour, weekday, avgPlay, count] = params.value;
+        if (count === 0) return `${weekdays[weekday]} ${hour}时<br/>暂无数据`;
+        const isBest = hour === bestSlot[0] && weekday === bestSlot[1];
+        return `<div>
+          <strong>${weekdays[weekday]} ${hour}时</strong>${isBest ? ' <span style="color:#EF4444">★ 最佳</span>' : ''}<br/>
+          平均播放: <strong>${formatNumber(avgPlay)}</strong><br/>
+          视频数: ${count} 个<br/>
+          <span style="color:#3B82F6">点击查看详情</span>
+        </div>`;
+      }
+    },
+    xAxis: {
+      ...chartTheme.xAxis,
+      type: 'category',
+      data: hours,
+      splitArea: { show: true },
+      axisLabel: { ...chartTheme.xAxis.axisLabel, interval: 1 }
+    },
+    yAxis: {
+      ...chartTheme.yAxis,
+      type: 'category',
+      data: weekdays,
+      splitArea: { show: true }
+    },
+    visualMap: {
+      min: 0,
+      max: maxAvgPlay || 1,
+      calculable: true,
+      orient: 'vertical',
+      right: 0,
+      top: 'center',
+      itemHeight: 120,
+      inRange: { color: heatmapColors },
+      formatter: (value) => formatNumber(Math.round(value))
+    },
+    series: [{
+      type: 'heatmap',
+      data: data.map(d => [d[0], d[1], d[2]]),
+      label: {
+        show: false
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowColor: 'rgba(0, 0, 0, 0.3)'
+        }
+      },
+      itemStyle: {
+        borderRadius: 3,
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }
+    }]
   });
 
   chart.off('click');
   chart.on('click', (params) => {
-    const weekday = params.value[1];
-    const hour = params.value[0];
+    const [hour, weekday] = params.value;
     const key = `${weekday}-${hour}`;
-    const vids = videoMap[key] || [];
-    if (vids.length > 0) {
-      openVideoDrawer(`${weekdays[weekday]} ${hour}时发布的视频`, vids);
+    const stats = statsMap[key];
+    if (stats && stats.videos.length > 0) {
+      openVideoDrawer(`${weekdays[weekday]} ${hour}时发布`, stats.videos);
     }
   });
 }
@@ -1001,7 +1285,8 @@ function renderTopVideosChart() {
   const chart = initChart(topVideosChart, 'topVideos');
   if (!chart) return;
 
-  const topVideosData = [...props.videos].sort((a, b) => b.play_count - a.play_count).slice(0, 15);
+  const videos = analysisVideos.value;
+  const topVideosData = [...videos].sort((a, b) => b.play_count - a.play_count).slice(0, 15);
   const titles = topVideosData.map(v => v.title.length > 20 ? v.title.slice(0, 20) + '...' : v.title);
   const plays = topVideosData.map(v => v.play_count);
 
@@ -1015,9 +1300,9 @@ function renderTopVideosChart() {
   });
 
   chart.off('click');
-  chart.on('click', (params) => {
+  chart.on('click', async (params) => {
     const video = topVideosData[14 - params.dataIndex];
-    window.open(video.video_url, '_blank');
+    await open(video.video_url);
   });
 }
 
@@ -1025,9 +1310,14 @@ function renderTopEngagementChart() {
   const chart = initChart(topEngagementChart, 'topEngagement');
   if (!chart) return;
 
-  const videosWithEngagement = props.videos
+  const videos = analysisVideos.value;
+  // 互动率 = (弹幕 + 评论 + 收藏) / 播放
+  const videosWithEngagement = videos
     .filter(v => v.play_count >= 10000)
-    .map(v => ({ ...v, engagementRate: (v.danmu_count / v.play_count) * 100 }))
+    .map(v => ({
+      ...v,
+      engagementRate: ((v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0)) / v.play_count) * 100
+    }))
     .sort((a, b) => b.engagementRate - a.engagementRate)
     .slice(0, 15);
 
@@ -1044,9 +1334,9 @@ function renderTopEngagementChart() {
   });
 
   chart.off('click');
-  chart.on('click', (params) => {
+  chart.on('click', async (params) => {
     const video = videosWithEngagement[14 - params.dataIndex];
-    window.open(video.video_url, '_blank');
+    await open(video.video_url);
   });
 }
 
@@ -1054,8 +1344,9 @@ function renderYearlyCountChart() {
   const chart = initChart(yearlyCountChart, 'yearlyCount');
   if (!chart) return;
 
+  const videos = analysisVideos.value;
   const yearlyData = {};
-  props.videos.forEach(v => {
+  videos.forEach(v => {
     const year = v.publish_time.slice(0, 4);
     yearlyData[year] = (yearlyData[year] || 0) + 1;
   });
@@ -1076,8 +1367,9 @@ function renderYearlyAvgChart() {
   const chart = initChart(yearlyAvgChart, 'yearlyAvg');
   if (!chart) return;
 
+  const videos = analysisVideos.value;
   const yearlyData = {};
-  props.videos.forEach(v => {
+  videos.forEach(v => {
     const year = v.publish_time.slice(0, 4);
     if (!yearlyData[year]) yearlyData[year] = { count: 0, totalPlays: 0 };
     yearlyData[year].count++;
@@ -1100,18 +1392,40 @@ function renderTimelineChart() {
   const chart = initChart(timelineChart, 'timeline');
   if (!chart) return;
 
-  const sortedVideos = [...props.videos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
+  const videos = analysisVideos.value;
+  const sortedVideos = [...videos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
   const titles = sortedVideos.map((v, i) => `#${i + 1}`);
   const plays = sortedVideos.map(v => v.play_count);
 
-  chart.setOption({
+  // 当前筛选阈值
+  let currentThreshold = null;
+
+  // 根据阈值生成柱子颜色数据
+  const getBarData = (threshold) => {
+    return plays.map(play => ({
+      value: play,
+      itemStyle: {
+        color: threshold === null
+          ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors.primary }, { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }])
+          : play >= threshold
+            ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#F59E0B' }, { offset: 1, color: 'rgba(245, 158, 11, 0.4)' }])
+            : new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(156, 163, 175, 0.4)' }, { offset: 1, color: 'rgba(156, 163, 175, 0.15)' }]),
+        borderRadius: [3, 3, 0, 0]
+      }
+    }));
+  };
+
+  const baseOption = {
     ...chartTheme,
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'axis',
       formatter: p => {
         const video = sortedVideos[p[0].dataIndex];
-        return `<div style="max-width: 280px;"><strong>${video.title}</strong><br/>发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}</div>`;
+        const thresholdInfo = currentThreshold !== null
+          ? `<br/><span style="color: ${video.play_count >= currentThreshold ? '#F59E0B' : '#9CA3AF'}">阈值: ${formatNumber(currentThreshold)}</span>`
+          : '';
+        return `<div style="max-width: 280px;"><strong>${video.title}</strong><br/>发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}${thresholdInfo}</div>`;
       }
     },
     grid: { left: '8%', right: '4%', bottom: '22%', top: '10%' },
@@ -1119,8 +1433,72 @@ function renderTimelineChart() {
       { type: 'slider', show: true, start: 0, end: 100, bottom: 8, height: 18, borderColor: 'transparent', backgroundColor: '#F3F4F6', fillerColor: 'rgba(59, 130, 246, 0.2)', handleStyle: { color: colors.primary } }
     ],
     xAxis: { ...chartTheme.xAxis, type: 'category', data: titles, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: Math.floor(sortedVideos.length / 20), rotate: 0 }, name: '视频序号', nameLocation: 'middle', nameGap: 25 },
-    yAxis: { ...chartTheme.yAxis, type: 'value', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
-    series: [{ type: 'bar', data: plays, barMaxWidth: 16, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors.primary }, { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }]), borderRadius: [3, 3, 0, 0] } }]
+    yAxis: {
+      ...chartTheme.yAxis,
+      type: 'value',
+      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber },
+      triggerEvent: true
+    },
+    series: [{ type: 'bar', data: getBarData(null), barMaxWidth: 16 }]
+  };
+
+  chart.setOption(baseOption);
+
+  // 监听Y轴点击事件
+  chart.getZr().off('click');
+  chart.getZr().on('click', (params) => {
+    const pointInPixel = [params.offsetX, params.offsetY];
+    const pointInGrid = chart.convertFromPixel('grid', pointInPixel);
+
+    // 检查点击是否在Y轴区域（X坐标小于grid左边界）
+    const gridInfo = chart.getModel().getComponent('grid').coordinateSystem.getRect();
+    if (params.offsetX < gridInfo.x && params.offsetX > 0) {
+      // 点击在Y轴区域，获取对应的播放量值
+      const yValue = pointInGrid[1];
+      if (yValue !== null && yValue >= 0) {
+        // 如果已有阈值且点击相近位置，则取消筛选；否则设置新阈值
+        if (currentThreshold !== null && currentThreshold > 0 && Math.abs(yValue - currentThreshold) / currentThreshold < 0.1) {
+          currentThreshold = null;
+        } else {
+          currentThreshold = Math.round(yValue);
+        }
+
+        // 更新图表，使用 markLine 显示阈值参考线
+        chart.setOption({
+          series: [{
+            data: getBarData(currentThreshold),
+            markLine: currentThreshold !== null ? {
+              silent: true,
+              symbol: 'none',
+              animation: false,
+              lineStyle: {
+                color: '#F59E0B',
+                width: 1.5,
+                type: 'dashed'
+              },
+              label: {
+                show: true,
+                position: 'insideEndTop',
+                formatter: `阈值: ${formatNumber(currentThreshold)}`,
+                color: '#F59E0B',
+                fontSize: 11,
+                fontWeight: 500
+              },
+              data: [{ yAxis: currentThreshold }]
+            } : {
+              data: []
+            }
+          }],
+          yAxis: {
+            axisLine: {
+              lineStyle: {
+                color: currentThreshold !== null ? '#F59E0B' : '#E5E7EB'
+              }
+            }
+          }
+        });
+      }
+    }
   });
 }
 
@@ -1147,19 +1525,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Metric Cards in Header */
-.metric-card {
-  @apply flex flex-col items-center px-4 py-1;
-}
-
-.metric-value {
-  @apply text-base font-semibold text-neutral-900 tabular-nums;
-}
-
-.metric-label {
-  @apply text-[10px] text-neutral-500 mt-0.5;
-}
-
 /* Stats Cards */
 .stat-card {
   @apply flex items-center gap-3 p-4 bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)];
