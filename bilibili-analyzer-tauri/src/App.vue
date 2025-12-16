@@ -127,8 +127,13 @@ async function deleteSavedUp(upMid) {
   }
 }
 
-function handleSaveCookie(newCookie) {
+async function handleSaveCookie(newCookie) {
   cookie.value = newCookie;
+  try {
+    await invoke('set_cookie', { cookie: newCookie });
+  } catch (error) {
+    console.error('保存Cookie失败:', error);
+  }
 }
 
 async function handleStartScrape({ mid: newMid }) {
@@ -145,8 +150,6 @@ async function startScraping() {
   progress.value = { current: 0, total: 0, page: 0, message: '初始化...' };
 
   try {
-    await invoke('set_cookie', { cookie: cookie.value });
-
     progress.value.message = '获取WBI签名...';
     await invoke('init_wbi_keys');
 
@@ -196,11 +199,23 @@ async function exportData() {
   }
 }
 
+async function loadSavedCookie() {
+  try {
+    const savedCookie = await invoke('get_cookie');
+    if (savedCookie) {
+      cookie.value = savedCookie;
+    }
+  } catch (error) {
+    console.error('加载Cookie失败:', error);
+  }
+}
+
 onMounted(async () => {
   await listen('scrape-progress', (event) => {
     progress.value = event.payload;
   });
 
+  await loadSavedCookie();
   await loadSavedUpList();
 });
 </script>

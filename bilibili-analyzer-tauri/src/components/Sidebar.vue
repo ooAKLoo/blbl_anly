@@ -28,7 +28,7 @@
           @click="handleItemClick(up.mid)"
           @contextmenu.prevent="handleContextMenu($event, up.mid)"
         >
-          <img :src="up.face" class="avatar-sm" referrerpolicy="no-referrer" />
+          <img :src="getImageUrl(up.face)" class="avatar-sm" referrerpolicy="no-referrer" />
           <span class="nav-item-text">{{ up.name }}</span>
         </div>
       </div>
@@ -79,6 +79,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { getImageUrl } from '../utils';
 
 // Props
 defineProps({

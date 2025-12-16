@@ -5,3 +5,4 @@ analysis_output
 bilibili-analyzer-tauri/node_modules
 bilibili-analyzer-tauri/src-tauri/target
 bilibili-analyzer-tauri/dist
+bilibili-analyzer-tauri/src-tauri/gen
