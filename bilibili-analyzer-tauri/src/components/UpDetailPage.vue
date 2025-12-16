@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-neutral-50/50">
     <!-- Sticky Header -->
-    <header v-if="upInfo" class="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-black/[0.04]">
+    <header v-if="upInfo" class="sticky top-0 z-40 bg-white/80 backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
       <div class="max-w-[1400px] mx-auto px-6 py-4">
         <div class="flex items-center gap-5">
           <!-- Avatar -->
@@ -62,6 +62,14 @@
 
       <!-- Tab Content: 数据分析 -->
       <div v-show="activeTab === 'analysis'" class="space-y-6">
+        <!-- Data Range Info -->
+        <div class="flex items-center gap-2 text-sm text-neutral-500">
+          <BarChart3 :size="14" class="text-neutral-400" />
+          <span>统计范围：<strong class="text-neutral-700">{{ videos.length }}</strong> 个视频</span>
+          <span class="text-neutral-300">·</span>
+          <span>{{ dataTimeRange }}</span>
+        </div>
+
         <!-- Stats Overview Cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <div class="stat-card">
@@ -212,20 +220,8 @@
 
       <!-- Tab Content: 视频列表 -->
       <div v-show="activeTab === 'videos'" class="space-y-4">
-        <!-- Chart Filter Badge -->
-        <div v-if="chartFilter" class="flex items-center justify-between px-4 py-3 bg-blue-50 rounded-xl border border-blue-100">
-          <span class="text-sm text-blue-600 font-medium flex items-center gap-2">
-            <Filter :size="14" />
-            图表筛选已激活
-          </span>
-          <button class="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1" @click="clearChartFilter">
-            <X :size="14" />
-            清除
-          </button>
-        </div>
-
         <!-- Search & Filter Bar -->
-        <div class="flex flex-wrap items-center gap-3 p-4 bg-white rounded-xl border border-black/[0.04]">
+        <div class="flex flex-wrap items-center gap-3 p-4 bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <div class="flex items-center gap-2 flex-1 min-w-[240px] max-w-md px-3 py-2 bg-neutral-50 rounded-lg">
             <Search :size="16" class="text-neutral-400" />
             <input
@@ -249,7 +245,7 @@
               <ChevronDown :size="14" :class="sortDropdownOpen ? 'rotate-180' : ''" class="transition-transform" />
             </button>
             <Transition name="dropdown">
-              <div v-if="sortDropdownOpen" class="absolute top-full mt-1 right-0 w-44 p-1.5 bg-white rounded-xl border border-black/[0.06] shadow-lg z-50">
+              <div v-if="sortDropdownOpen" class="absolute top-full mt-1 right-0 w-44 p-1.5 bg-white rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.12)] z-50">
                 <button
                   v-for="option in sortOptions"
                   :key="option.value"
@@ -308,101 +304,114 @@
           <span class="text-neutral-500">互动率 <strong class="text-blue-600">{{ filteredEngagementRate }}%</strong></span>
         </div>
 
-        <!-- Video Grid View -->
-        <div v-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" ref="videoListRef">
-          <div
-            v-for="(video, index) in displayedVideos"
-            :key="video.bvid"
-            class="video-card group"
-          >
-            <div class="relative aspect-video rounded-lg overflow-hidden mb-3">
-              <img :src="getVideoCoverUrl(video)" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerpolicy="no-referrer" />
-              <span class="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-xs rounded">
-                {{ video.duration }}
-              </span>
-              <span class="absolute top-2 left-2 px-1.5 py-0.5 bg-blue-500 text-white text-xs font-medium rounded">
-                #{{ index + 1 }}
-              </span>
-            </div>
-            <a :href="video.video_url" target="_blank" class="block text-sm font-medium text-neutral-900 hover:text-blue-600 line-clamp-2 mb-2 transition-colors">
-              {{ video.title }}
-            </a>
-            <div class="flex items-center gap-3 text-xs text-neutral-500">
-              <span class="flex items-center gap-1">
-                <Play :size="12" />
-                {{ formatNumber(video.play_count) }}
-              </span>
-              <span class="flex items-center gap-1">
-                <MessageSquare :size="12" />
-                {{ formatNumber(video.danmu_count) }}
-              </span>
-              <span class="ml-auto">{{ formatDate(video.publish_time) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Video List View -->
-        <div v-else class="bg-white rounded-xl border border-black/[0.04] divide-y divide-neutral-100" ref="videoListRef">
-          <div
-            v-for="(video, index) in displayedVideos"
-            :key="video.bvid"
-            class="flex items-center gap-4 p-4 hover:bg-neutral-50 transition-colors group"
-          >
-            <!-- Rank -->
-            <span class="w-8 text-center font-semibold text-blue-500 text-sm flex-shrink-0">
-              {{ index + 1 }}
-            </span>
-
-            <!-- Thumbnail -->
-            <div class="relative w-[140px] h-[80px] rounded-lg overflow-hidden flex-shrink-0">
-              <img :src="getVideoCoverUrl(video)" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerpolicy="no-referrer" />
-              <span class="absolute bottom-1 right-1 px-1 py-0.5 bg-black/70 text-white text-[10px] rounded">
-                {{ video.duration }}
-              </span>
-            </div>
-
-            <!-- Info -->
-            <div class="flex-1 min-w-0">
-              <a :href="video.video_url" target="_blank" class="block text-sm font-medium text-neutral-900 hover:text-blue-600 truncate mb-2 transition-colors">
-                {{ video.title }}
-              </a>
-              <div class="flex items-center gap-4 text-xs text-neutral-500">
-                <span class="flex items-center gap-1">
-                  <Calendar :size="12" class="opacity-60" />
-                  {{ formatDate(video.publish_time) }}
+        <!-- Video Grid View (Virtual Scroll) -->
+        <VirtualGrid
+          v-if="viewMode === 'grid'"
+          ref="virtualGridRef"
+          :items="filteredVideos"
+          key-field="bvid"
+          :min-column-width="280"
+          :gap="16"
+          :item-height="290"
+          :buffer="3"
+          class="virtual-grid-wrapper"
+        >
+          <template #default="{ item: video, index }">
+            <div class="video-card group h-full flex flex-col">
+              <div class="relative aspect-video rounded-lg overflow-hidden flex-shrink-0">
+                <img :src="getVideoCoverUrl(video)" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerpolicy="no-referrer" loading="lazy" />
+                <span class="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-xs rounded">
+                  {{ video.duration }}
                 </span>
-                <span class="flex items-center gap-1">
-                  <Play :size="12" class="opacity-60" />
-                  {{ formatNumber(video.play_count) }}
-                </span>
-                <span class="flex items-center gap-1">
-                  <MessageSquare :size="12" class="opacity-60" />
-                  {{ formatNumber(video.danmu_count) }}
-                </span>
-                <span class="flex items-center gap-1 text-amber-500">
-                  <Zap :size="12" />
-                  {{ ((video.danmu_count / video.play_count) * 100).toFixed(2) }}%
+                <span class="absolute top-2 left-2 px-1.5 py-0.5 bg-blue-500 text-white text-xs font-medium rounded">
+                  #{{ index + 1 }}
                 </span>
               </div>
+              <div class="flex flex-col flex-1 pt-3">
+                <a :href="video.video_url" target="_blank" class="block text-sm font-medium text-neutral-900 hover:text-blue-600 line-clamp-2 h-10 transition-colors">
+                  {{ video.title }}
+                </a>
+                <div class="flex items-center gap-3 text-xs text-neutral-500 mt-auto">
+                  <span class="flex items-center gap-1">
+                    <Play :size="12" />
+                    {{ formatNumber(video.play_count) }}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <MessageSquare :size="12" />
+                    {{ formatNumber(video.danmu_count) }}
+                  </span>
+                  <span class="ml-auto">{{ formatDate(video.publish_time) }}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </template>
+        </VirtualGrid>
 
-        <!-- Load More -->
-        <div v-if="displayedVideos.length < filteredVideos.length" class="flex justify-center py-6">
-          <button @click="loadMore" class="px-6 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 text-sm font-medium rounded-lg transition-colors">
-            加载更多 ({{ displayedVideos.length }}/{{ filteredVideos.length }})
-          </button>
-        </div>
-        <div v-else-if="filteredVideos.length > 0" class="text-center py-6 text-sm text-neutral-400">
-          已显示全部 {{ filteredVideos.length }} 个视频
+        <!-- Video List View (Virtual Scroll) -->
+        <VirtualGrid
+          v-else
+          ref="virtualListRef"
+          :items="filteredVideos"
+          key-field="bvid"
+          :min-column-width="9999"
+          :gap="8"
+          :item-height="96"
+          :buffer="5"
+          class="virtual-list-wrapper"
+        >
+          <template #default="{ item: video, index }">
+            <div class="flex items-center gap-4 p-4 bg-white rounded-xl hover:bg-neutral-50/80 transition-colors group">
+              <!-- Rank -->
+              <span class="w-8 text-center font-semibold text-blue-500 text-sm flex-shrink-0">
+                {{ index + 1 }}
+              </span>
+
+              <!-- Thumbnail -->
+              <div class="relative w-[140px] h-[80px] rounded-lg overflow-hidden flex-shrink-0">
+                <img :src="getVideoCoverUrl(video)" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerpolicy="no-referrer" loading="lazy" />
+                <span class="absolute bottom-1 right-1 px-1 py-0.5 bg-black/70 text-white text-[10px] rounded">
+                  {{ video.duration }}
+                </span>
+              </div>
+
+              <!-- Info -->
+              <div class="flex-1 min-w-0">
+                <a :href="video.video_url" target="_blank" class="block text-sm font-medium text-neutral-900 hover:text-blue-600 truncate mb-2 transition-colors">
+                  {{ video.title }}
+                </a>
+                <div class="flex items-center gap-4 text-xs text-neutral-500">
+                  <span class="flex items-center gap-1">
+                    <Calendar :size="12" class="opacity-60" />
+                    {{ formatDate(video.publish_time) }}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <Play :size="12" class="opacity-60" />
+                    {{ formatNumber(video.play_count) }}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <MessageSquare :size="12" class="opacity-60" />
+                    {{ formatNumber(video.danmu_count) }}
+                  </span>
+                  <span class="flex items-center gap-1 text-amber-500">
+                    <Zap :size="12" />
+                    {{ ((video.danmu_count / video.play_count) * 100).toFixed(2) }}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </VirtualGrid>
+
+        <!-- Video Count Footer -->
+        <div v-if="filteredVideos.length > 0" class="text-center py-4 text-sm text-neutral-400">
+          共 {{ filteredVideos.length }} 个视频
         </div>
       </div>
 
       <!-- Tab Content: 文本分析 -->
       <div v-show="activeTab === 'text-analysis'" class="space-y-6">
         <!-- Placeholder for future text analysis feature -->
-        <div class="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-black/[0.04]">
+        <div class="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <div class="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center mb-4">
             <FileText :size="28" class="text-neutral-400" />
           </div>
@@ -430,6 +439,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import * as echarts from 'echarts';
 import VideoDetailDrawer from './VideoDetailDrawer.vue';
+import VirtualGrid from './VirtualGrid.vue';
 import { formatNumber, formatAxisNumber, parseDuration, parseDurationMinutes, getImageUrl } from '../utils';
 import { chartTheme, distributionColors, heatmapColors, colors, gradients, highlightColor, secondaryAxis } from '../theme';
 import {
@@ -448,7 +458,6 @@ import {
   Target,
   Award,
   FileText,
-  Filter,
   Zap,
   Flame,
   LayoutGrid,
@@ -487,21 +496,20 @@ const timelineChart = ref(null);
 const hourlyPlayChart = ref(null);
 const durationPlayChart = ref(null);
 const topEngagementChart = ref(null);
-const videoListRef = ref(null);
+const virtualGridRef = ref(null);
+const virtualListRef = ref(null);
 
 // 搜索和排序
 const searchKeyword = ref('');
 const sortBy = ref('time_desc');
 const sortDropdownOpen = ref(false);
 const sortDropdownRef = ref(null);
-const displayCount = ref(20);
 const viewMode = ref('grid'); // 'grid' | 'list'
 
 // 图表交互状态
 const drawerVisible = ref(false);
 const drawerTitle = ref('');
 const drawerVideos = ref([]);
-const chartFilter = ref(null);
 
 let charts = {};
 
@@ -555,16 +563,21 @@ const avgDuration = computed(() => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 });
 
+const dataTimeRange = computed(() => {
+  if (props.videos.length === 0) return '';
+  const dates = props.videos.map(v => new Date(v.publish_time)).sort((a, b) => a - b);
+  const earliest = dates[0];
+  const latest = dates[dates.length - 1];
+  const formatYM = (d) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${formatYM(earliest)} - ${formatYM(latest)}`;
+});
+
 const filteredVideos = computed(() => {
   let result = props.videos;
 
   if (searchKeyword.value.trim()) {
     const keyword = searchKeyword.value.toLowerCase();
     result = result.filter(v => v.title.toLowerCase().includes(keyword));
-  }
-
-  if (chartFilter.value) {
-    result = result.filter(chartFilter.value);
   }
 
   result = [...result].sort((a, b) => {
@@ -583,8 +596,6 @@ const filteredVideos = computed(() => {
 
   return result;
 });
-
-const displayedVideos = computed(() => filteredVideos.value.slice(0, displayCount.value));
 
 const filteredAvgPlays = computed(() => {
   if (filteredVideos.value.length === 0) return 0;
@@ -617,30 +628,16 @@ function openVideoDrawer(title, videosToShow) {
   drawerVisible.value = true;
 }
 
-function applyChartFilter(filterFn) {
-  chartFilter.value = filterFn;
-  displayCount.value = 20;
-  activeTab.value = 'videos'; // 自动切换到视频列表
-}
-
-function clearChartFilter() {
-  chartFilter.value = null;
-}
-
-function loadMore() {
-  if (displayCount.value < filteredVideos.value.length) {
-    displayCount.value += 20;
-  }
-}
-
 function handleClickOutside(e) {
   if (sortDropdownRef.value && !sortDropdownRef.value.contains(e.target)) {
     sortDropdownOpen.value = false;
   }
 }
 
+// 搜索或排序变化时滚动回顶部
 watch([searchKeyword, sortBy], () => {
-  displayCount.value = 20;
+  if (virtualGridRef.value) virtualGridRef.value.scrollToTop();
+  if (virtualListRef.value) virtualListRef.value.scrollToTop();
 });
 
 watch(() => props.videos, (newVideos) => {
@@ -724,7 +721,6 @@ function renderPlayDistChart() {
   chart.on('click', (params) => {
     const idx = params.dataIndex;
     openVideoDrawer(`播放量区间: ${labels[idx]}`, videosByBin[idx]);
-    applyChartFilter((v) => v.play_count >= bins[idx] && v.play_count < bins[idx + 1]);
   });
 }
 
@@ -781,10 +777,6 @@ function renderDurationChart() {
   chart.on('click', (params) => {
     const idx = params.dataIndex;
     openVideoDrawer(`时长区间: ${labels[idx]}`, videosByBin[idx]);
-    applyChartFilter((v) => {
-      const minutes = parseDurationMinutes(v.duration);
-      return minutes >= bins[idx] && minutes < bins[idx + 1];
-    });
   });
 }
 
@@ -839,7 +831,6 @@ function renderMonthlyTrendChart() {
     if (params.seriesType === 'bar') {
       const month = params.name;
       openVideoDrawer(`发布月份: ${month}`, monthlyVideos[month]);
-      applyChartFilter((v) => v.publish_time.startsWith(month));
     }
   });
 }
@@ -890,7 +881,6 @@ function renderHourlyPlayChart() {
   chart.on('click', (params) => {
     const idx = params.dataIndex;
     openVideoDrawer(`发布时间: ${idx}时`, hourlyVideos[idx]);
-    applyChartFilter((v) => new Date(v.publish_time).getHours() === idx);
   });
 }
 
@@ -1003,10 +993,6 @@ function renderHeatmapChart() {
     const vids = videoMap[key] || [];
     if (vids.length > 0) {
       openVideoDrawer(`${weekdays[weekday]} ${hour}时发布的视频`, vids);
-      applyChartFilter((v) => {
-        const date = new Date(v.publish_time);
-        return (date.getDay() + 6) % 7 === weekday && date.getHours() === hour;
-      });
     }
   });
 }
@@ -1128,12 +1114,11 @@ function renderTimelineChart() {
         return `<div style="max-width: 280px;"><strong>${video.title}</strong><br/>发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}</div>`;
       }
     },
-    grid: { left: '8%', right: '4%', bottom: '15%', top: '10%' },
+    grid: { left: '8%', right: '4%', bottom: '22%', top: '10%' },
     dataZoom: [
-      { type: 'slider', show: true, start: 0, end: 100, bottom: 10, height: 20, borderColor: 'transparent', backgroundColor: '#F3F4F6', fillerColor: 'rgba(59, 130, 246, 0.2)', handleStyle: { color: colors.primary } },
-      { type: 'inside', start: 0, end: 100 }
+      { type: 'slider', show: true, start: 0, end: 100, bottom: 8, height: 18, borderColor: 'transparent', backgroundColor: '#F3F4F6', fillerColor: 'rgba(59, 130, 246, 0.2)', handleStyle: { color: colors.primary } }
     ],
-    xAxis: { ...chartTheme.xAxis, type: 'category', data: titles, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: Math.floor(sortedVideos.length / 20), rotate: 0 }, name: '视频序号', nameLocation: 'middle', nameGap: 30 },
+    xAxis: { ...chartTheme.xAxis, type: 'category', data: titles, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: Math.floor(sortedVideos.length / 20), rotate: 0 }, name: '视频序号', nameLocation: 'middle', nameGap: 25 },
     yAxis: { ...chartTheme.yAxis, type: 'value', axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber } },
     series: [{ type: 'bar', data: plays, barMaxWidth: 16, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors.primary }, { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }]), borderRadius: [3, 3, 0, 0] } }]
   });
@@ -1177,7 +1162,7 @@ onUnmounted(() => {
 
 /* Stats Cards */
 .stat-card {
-  @apply flex items-center gap-3 p-4 bg-white rounded-xl border border-black/[0.04];
+  @apply flex items-center gap-3 p-4 bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)];
 }
 
 .stat-icon {
@@ -1199,7 +1184,7 @@ onUnmounted(() => {
 
 /* Chart Card */
 .chart-card {
-  @apply bg-white rounded-xl border border-black/[0.04] p-5;
+  @apply bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5;
 }
 
 .chart-title {
@@ -1208,7 +1193,7 @@ onUnmounted(() => {
 
 /* Video Card */
 .video-card {
-  @apply bg-white rounded-xl border border-black/[0.04] p-3 transition-shadow duration-200 hover:shadow-md;
+  @apply bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-3;
 }
 
 /* Dropdown Animation */
@@ -1229,5 +1214,16 @@ onUnmounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Virtual Scroll Wrapper */
+.virtual-grid-wrapper {
+  height: calc(100vh - 320px);
+  min-height: 400px;
+}
+
+.virtual-list-wrapper {
+  height: calc(100vh - 320px);
+  min-height: 400px;
 }
 </style>

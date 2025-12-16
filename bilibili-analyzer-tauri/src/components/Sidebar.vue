@@ -172,9 +172,9 @@ defineExpose({
 
 <style scoped>
 .sidebar {
-  @apply w-[260px] fixed top-4 left-4 flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-200 z-[100];
+  @apply w-[260px] fixed top-4 left-4 flex flex-col bg-white rounded-2xl overflow-hidden transition-all duration-200 z-[100];
   height: calc(100vh - 32px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .sidebar.collapsed {
@@ -182,7 +182,7 @@ defineExpose({
 }
 
 .sidebar-header {
-  @apply flex items-center justify-between px-4 pt-5 pb-4 border-b border-gray-200 min-h-[56px];
+  @apply flex items-center justify-between px-4 pt-5 pb-4 min-h-[56px];
 }
 
 .logo {
@@ -230,13 +230,13 @@ defineExpose({
 }
 
 .avatar-sm {
-  @apply w-7 h-7 rounded-full object-cover border border-gray-200;
+  @apply w-7 h-7 rounded-full object-cover;
 }
 
 /* Context Menu */
 .context-menu {
-  @apply fixed bg-white border border-gray-200 rounded-lg p-1 z-[1000] min-w-[140px];
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  @apply fixed bg-white rounded-lg p-1 z-[1000] min-w-[140px];
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .context-menu-item {
@@ -256,7 +256,7 @@ defineExpose({
 }
 
 .context-menu-divider {
-  @apply h-px bg-gray-200 my-1;
+  @apply h-px bg-gray-100 my-1 mx-2;
 }
 
 /* Context Menu Transition */
@@ -274,7 +274,7 @@ defineExpose({
 }
 
 .sidebar-footer {
-  @apply px-3 py-3 pb-4 border-t border-gray-200;
+  @apply px-3 py-3 pb-4;
 }
 
 .settings-btn {
@@ -286,7 +286,8 @@ defineExpose({
 }
 
 .collapse-btn {
-  @apply absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center cursor-pointer text-gray-400 transition-all duration-150 z-10;
+  @apply absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-pointer text-gray-400 transition-all duration-150 z-10;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .collapse-btn:hover {
