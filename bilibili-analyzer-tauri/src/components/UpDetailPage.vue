@@ -69,6 +69,14 @@
           @update:time-range="selectedTimeRange = $event"
           @update:duration="selectedDuration = $event"
         />
+
+        <!-- Tab Content: 成长历程 -->
+        <GrowthJourney
+          v-show="activeTab === 'growth'"
+          :videos="videos"
+          :up-name="upInfo?.name"
+          :is-active="activeTab === 'growth'"
+        />
       </main>
 
       <!-- Video Detail Drawer -->
@@ -90,6 +98,7 @@ import { useVideoFilter } from '../composables/useVideoFilter';
 import DataAnalysis from './up-detail/DataAnalysis.vue';
 import VideoList from './up-detail/VideoList.vue';
 import InsightReport from './up-detail/InsightReport.vue';
+import GrowthJourney from './up-detail/GrowthJourney.vue';
 import VideoDetailDrawer from './VideoDetailDrawer.vue';
 
 const props = defineProps({
@@ -108,7 +117,8 @@ const activeTab = ref('analysis');
 const tabs = [
   { id: 'analysis', label: '数据分析' },
   { id: 'videos', label: '视频列表' },
-  { id: 'text-analysis', label: '洞察报告' }
+  { id: 'text-analysis', label: '洞察报告' },
+  { id: 'growth', label: '成长历程' }
 ];
 
 // 使用筛选 composable
