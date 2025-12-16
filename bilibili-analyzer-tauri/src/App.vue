@@ -1,73 +1,28 @@
 <template>
-  <div class="app">
+  <div class="flex h-screen">
     <!-- Sidebar -->
-    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
-      <div class="sidebar-header">
-        <div v-if="!sidebarCollapsed" class="logo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-          </svg>
-          <span>Bilibili Analyzer</span>
-        </div>
-        <button class="icon-btn add-btn" @click="showNewScrapeDialog = true" title="添加UP主">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14m-7-7h14"/>
-          </svg>
-        </button>
-      </div>
-
-      <nav class="sidebar-nav" v-if="!sidebarCollapsed">
-        <div class="nav-section">
-          <div class="nav-section-title">已保存的 UP主</div>
-          <div v-if="savedUpList.length === 0" class="empty-state">
-            <span>暂无数据</span>
-          </div>
-          <div
-            v-for="up in savedUpList"
-            :key="up.mid"
-            class="nav-item"
-            :class="{ active: currentMid === up.mid }"
-            @click="loadSavedUp(up.mid)"
-          >
-            <img :src="up.face" class="avatar-sm" />
-            <span class="nav-item-text">{{ up.name }}</span>
-            <button class="icon-btn icon-btn-sm delete-btn" @click.stop="deleteSavedUp(up.mid)" title="删除">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6L6 18M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <div class="sidebar-footer" v-if="!sidebarCollapsed">
-        <button class="icon-btn settings-btn" @click="showSettingsDialog = true" title="设置">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-          <span>设置</span>
-        </button>
-      </div>
-
-      <button class="collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path :d="sidebarCollapsed ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6'"/>
-        </svg>
-      </button>
-    </aside>
+    <Sidebar
+      ref="sidebarRef"
+      :saved-up-list="savedUpList"
+      :current-mid="currentMid"
+      @add-up="showNewScrapeDialog = true"
+      @load-up="loadSavedUp"
+      @delete-up="deleteSavedUp"
+      @open-settings="showSettingsDialog = true"
+      @export-csv="exportData"
+    />
 
     <!-- Main Content -->
-    <main class="main-content" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+    <main class="flex-1 h-screen overflow-x-hidden overflow-y-auto bg-neutral-100 transition-all duration-200" :class="sidebarRef?.collapsed ? 'ml-[92px]' : 'ml-[292px]'">
       <!-- Empty State -->
-      <div v-if="!upInfo && videos.length === 0" class="empty-main">
-        <div class="empty-main-content">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
+      <div v-if="!upInfo && videos.length === 0" class="flex items-center justify-center min-h-screen p-10">
+        <div class="text-center max-w-md">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-neutral-400 mb-6 mx-auto">
             <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/>
           </svg>
-          <h2>开始分析 UP主数据</h2>
-          <p>点击左上角 "+" 按钮添加 UP主，开始爬取和分析视频数据</p>
-          <button class="btn btn-primary" @click="showNewScrapeDialog = true">
+          <h2 class="text-2xl font-semibold mb-3 text-neutral-900">开始分析 UP主数据</h2>
+          <p class="text-neutral-600 mb-6 text-[0.95rem]">点击左上角 "+" 按钮添加 UP主，开始爬取和分析视频数据</p>
+          <button class="inline-flex items-center justify-center gap-2 px-[18px] py-2.5 border-0 rounded-lg text-sm font-medium cursor-pointer transition-all duration-150 bg-blue-500 text-white hover:bg-blue-600" @click="showNewScrapeDialog = true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 5v14m-7-7h14"/>
             </svg>
@@ -77,183 +32,186 @@
       </div>
 
       <!-- Data View -->
-      <div v-else class="data-view">
+      <div v-else class="px-8 py-6 max-w-[1600px] mx-auto overflow-x-hidden">
         <!-- UP Info Header -->
-        <header v-if="upInfo" class="up-header">
-          <img :src="upInfo.face" class="up-avatar" />
-          <div class="up-info">
-            <h1>{{ upInfo.name }}</h1>
-            <p class="up-sign">{{ upInfo.sign }}</p>
-            <span class="level-badge">Lv.{{ upInfo.level }}</span>
+        <header v-if="upInfo" class="flex flex-wrap items-center gap-6 p-6 bg-white rounded-xl border border-black/[0.06] mb-6 overflow-hidden">
+          <img :src="upInfo.face" class="w-[72px] h-[72px] rounded-full border-2 border-blue-500" referrerpolicy="no-referrer" />
+          <div class="flex-1">
+            <h1 class="text-xl font-semibold mb-1">{{ upInfo.name }}</h1>
+            <p class="text-neutral-600 text-sm max-w-xs overflow-hidden text-ellipsis whitespace-nowrap mb-2">{{ upInfo.sign }}</p>
+            <span class="inline-block bg-gradient-to-br from-amber-400 to-orange-500 text-neutral-900 px-2.5 py-0.5 rounded-[10px] text-xs font-semibold">Lv.{{ upInfo.level }}</span>
           </div>
-          <div class="stats-grid">
-            <div class="stat-card">
-              <span class="stat-value">{{ videos.length }}</span>
-              <span class="stat-label">视频数</span>
+          <div class="flex flex-wrap gap-3">
+            <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
+              <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ videos.length }}</span>
+              <span class="text-xs text-neutral-400">视频数</span>
             </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ formatNumber(totalPlays) }}</span>
-              <span class="stat-label">总播放</span>
+            <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
+              <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ formatNumber(totalPlays) }}</span>
+              <span class="text-xs text-neutral-400">总播放</span>
             </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ formatNumber(totalDanmu) }}</span>
-              <span class="stat-label">总弹幕</span>
+            <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
+              <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ formatNumber(totalDanmu) }}</span>
+              <span class="text-xs text-neutral-400">总弹幕</span>
             </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ formatNumber(avgPlays) }}</span>
-              <span class="stat-label">平均播放</span>
+            <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
+              <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ formatNumber(avgPlays) }}</span>
+              <span class="text-xs text-neutral-400">平均播放</span>
             </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ avgEngagementRate }}%</span>
-              <span class="stat-label">平均互动率</span>
+            <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
+              <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ avgEngagementRate }}%</span>
+              <span class="text-xs text-neutral-400">平均互动率</span>
             </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ hitRate }}%</span>
-              <span class="stat-label">爆款率</span>
+            <div class="text-center py-2.5 px-4 bg-neutral-50 rounded-lg min-w-[80px]">
+              <span class="block text-xl font-semibold text-blue-500 mb-0.5">{{ hitRate }}%</span>
+              <span class="text-xs text-neutral-400">爆款率</span>
             </div>
           </div>
-          <button class="btn btn-ghost export-btn" @click="exportData" :disabled="videos.length === 0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3"/>
-            </svg>
-            导出 CSV
-          </button>
         </header>
 
         <!-- Charts Grid -->
-        <div v-if="videos.length > 0" class="charts-grid">
-          <div class="chart-card">
-            <h3>播放量分布</h3>
-            <div ref="playDistChart" class="chart"></div>
+        <div v-if="videos.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">播放量分布 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击柱子查看视频</span></h3>
+            <div ref="playDistChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card">
-            <h3>视频时长分布</h3>
-            <div ref="durationChart" class="chart"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">视频时长分布 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击扇区查看视频</span></h3>
+            <div ref="durationChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card span-2">
-            <h3>月度发布趋势与播放量</h3>
-            <div ref="monthlyTrendChart" class="chart"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5 lg:col-span-2">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">月度发布趋势与播放量 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击柱子查看该月视频</span></h3>
+            <div ref="monthlyTrendChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card">
-            <h3>发布小时 vs 平均播放量（黄金时间）</h3>
-            <div ref="hourlyPlayChart" class="chart"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">发布小时 vs 平均播放量（黄金时间） <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击查看该时段视频</span></h3>
+            <div ref="hourlyPlayChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card">
-            <h3>视频时长 vs 平均播放量</h3>
-            <div ref="durationPlayChart" class="chart"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">视频时长 vs 平均播放量</h3>
+            <div ref="durationPlayChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card">
-            <h3>播放量 vs 弹幕数（互动深度）</h3>
-            <div ref="scatterChart" class="chart"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">播放量 vs 弹幕数（互动深度）</h3>
+            <div ref="scatterChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card">
-            <h3>发布时间热力图</h3>
-            <div ref="heatmapChart" class="chart"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">发布时间热力图 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击格子查看视频</span></h3>
+            <div ref="heatmapChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card span-2">
-            <h3>TOP15 播放量视频</h3>
-            <div ref="topVideosChart" class="chart chart-tall"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5 lg:col-span-2">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">TOP15 播放量视频 <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击直接打开视频</span></h3>
+            <div ref="topVideosChart" class="h-[380px]"></div>
           </div>
-          <div class="chart-card span-2">
-            <h3>TOP15 高互动视频（弹幕/播放比）</h3>
-            <div ref="topEngagementChart" class="chart chart-tall"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5 lg:col-span-2">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">TOP15 高互动视频（弹幕/播放比） <span class="text-[0.7rem] font-normal text-neutral-400 opacity-0 hover:opacity-100 transition-opacity duration-200">💡 点击直接打开视频</span></h3>
+            <div ref="topEngagementChart" class="h-[380px]"></div>
           </div>
-          <div class="chart-card">
-            <h3>年度发布数量</h3>
-            <div ref="yearlyCountChart" class="chart"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">年度发布数量</h3>
+            <div ref="yearlyCountChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card">
-            <h3>年度平均播放量</h3>
-            <div ref="yearlyAvgChart" class="chart"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">年度平均播放量</h3>
+            <div ref="yearlyAvgChart" class="h-[280px]"></div>
           </div>
-          <div class="chart-card span-2">
-            <h3>全部视频播放量时间线</h3>
-            <div ref="timelineChart" class="chart chart-tall"></div>
+          <div class="bg-white rounded-xl border border-black/[0.06] p-5 lg:col-span-2">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">全部视频播放量时间线</h3>
+            <div ref="timelineChart" class="h-[380px]"></div>
           </div>
         </div>
 
         <!-- Video List -->
-        <section v-if="videos.length > 0" class="video-list-section">
-          <div class="section-header">
-            <h3>视频列表</h3>
-            <div class="search-box">
-              <Search :size="16" />
+        <section v-if="videos.length > 0" class="bg-white rounded-xl border border-black/[0.06] p-5">
+          <!-- Chart Filter Badge -->
+          <div v-if="chartFilter" class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-500/10 to-blue-600/10 rounded-lg border border-blue-500/20 mb-3 text-sm text-blue-500 font-medium">
+            <span>📊 图表筛选已激活</span>
+            <button class="flex items-center gap-1.5 px-3 py-1.5 bg-white/80 border border-blue-500/30 rounded-md text-blue-500 text-xs cursor-pointer transition-all duration-150 hover:bg-white hover:border-blue-500 hover:scale-[1.02]" @click="clearChartFilter">
+              <X :size="14" />
+              清除筛选
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <h3 class="text-sm font-semibold mr-auto">视频列表</h3>
+            <div class="flex items-center gap-2 px-3 py-2 bg-neutral-50 rounded-lg border border-black/[0.06] flex-1 max-w-md mx-4">
+              <Search :size="16" class="text-neutral-400 flex-shrink-0" />
               <input
                 type="text"
                 v-model="searchKeyword"
                 placeholder="搜索标题关键词（如：张三、死刑）"
-                class="search-input"
+                class="flex-1 border-0 bg-transparent text-neutral-900 text-sm outline-none placeholder:text-neutral-400"
               />
-              <button v-if="searchKeyword" class="clear-btn" @click="searchKeyword = ''">
+              <button v-if="searchKeyword" class="bg-transparent border-0 text-neutral-400 cursor-pointer p-0.5 flex items-center justify-center rounded-full transition-all duration-150 hover:bg-neutral-200 hover:text-neutral-900" @click="searchKeyword = ''">
                 <X :size="14" />
               </button>
             </div>
-            <div class="sort-dropdown" ref="sortDropdownRef">
-              <button class="sort-trigger" @click="sortDropdownOpen = !sortDropdownOpen">
+            <div class="relative" ref="sortDropdownRef">
+              <button class="flex items-center gap-2 px-3 py-2 bg-neutral-50 border border-black/[0.06] rounded-lg text-neutral-900 text-sm cursor-pointer transition-all duration-150 hover:bg-neutral-100 hover:border-black/10" @click="sortDropdownOpen = !sortDropdownOpen">
                 <ArrowUpDown :size="14" />
                 <span>{{ sortOptions.find(o => o.value === sortBy)?.label }}</span>
-                <ChevronDown :size="14" :class="{ 'rotate': sortDropdownOpen }" />
+                <ChevronDown :size="14" :class="sortDropdownOpen ? 'rotate-180' : ''" class="text-neutral-400 transition-transform duration-150" />
               </button>
               <Transition name="dropdown">
-                <div v-if="sortDropdownOpen" class="sort-menu">
+                <div v-if="sortDropdownOpen" class="absolute top-[calc(100%_+_4px)] right-0 min-w-[160px] p-1.5 bg-white border border-black/[0.06] rounded-lg shadow-lg z-[100]">
                   <div
                     v-for="option in sortOptions"
                     :key="option.value"
-                    class="sort-option"
-                    :class="{ active: sortBy === option.value }"
+                    class="flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-600 cursor-pointer rounded-md transition-all duration-150"
+                    :class="sortBy === option.value ? 'bg-blue-500/10 text-blue-500' : 'hover:bg-neutral-100 hover:text-neutral-900'"
                     @click="selectSort(option.value)"
                   >
                     <component :is="option.icon" :size="14" />
                     <span>{{ option.label }}</span>
-                    <Check v-if="sortBy === option.value" :size="14" class="check-icon" />
+                    <Check v-if="sortBy === option.value" :size="14" class="ml-auto text-blue-500" />
                   </div>
                 </div>
               </Transition>
             </div>
-            <span class="video-count">{{ filteredVideos.length }} / {{ videos.length }} 个视频</span>
+            <span class="text-xs text-neutral-400 bg-neutral-50 px-2.5 py-1 rounded-xl">{{ filteredVideos.length }} / {{ videos.length }} 个视频</span>
           </div>
-          <div v-if="searchKeyword && filteredVideos.length > 0" class="search-stats">
-            <span>关键词 "<strong>{{ searchKeyword }}</strong>" 的视频：</span>
-            <span>平均播放 <strong>{{ formatNumber(filteredAvgPlays) }}</strong></span>
-            <span>平均互动率 <strong>{{ filteredEngagementRate }}%</strong></span>
+          <div v-if="searchKeyword && filteredVideos.length > 0" class="flex gap-4 px-4 py-3 bg-gradient-to-r from-blue-500/10 to-blue-600/10 rounded-lg mb-3 text-sm text-neutral-600">
+            <span>关键词 "<strong class="text-blue-500">{{ searchKeyword }}</strong>" 的视频：</span>
+            <span>平均播放 <strong class="text-blue-500">{{ formatNumber(filteredAvgPlays) }}</strong></span>
+            <span>平均互动率 <strong class="text-blue-500">{{ filteredEngagementRate }}%</strong></span>
           </div>
-          <div class="video-list" ref="videoListRef" @scroll="handleVideoListScroll">
+          <div class="flex flex-col gap-2 max-h-[600px] overflow-y-auto" ref="videoListRef" @scroll="handleVideoListScroll">
             <div
               v-for="(video, index) in displayedVideos"
               :key="video.bvid"
-              class="video-item"
+              class="flex items-center gap-4 p-3 bg-neutral-50 rounded-lg transition-colors duration-150 hover:bg-neutral-100"
             >
-              <span class="video-rank">{{ index + 1 }}</span>
-              <img :src="video.cover_url" class="video-cover" />
-              <div class="video-meta">
-                <a :href="video.video_url" target="_blank" class="video-title">
+              <span class="w-8 text-center font-semibold text-blue-500 text-sm">{{ index + 1 }}</span>
+              <img :src="video.cover_url" class="w-[120px] h-[68px] object-cover rounded-md" referrerpolicy="no-referrer" />
+              <div class="flex-1 min-w-0">
+                <a :href="video.video_url" target="_blank" class="block text-neutral-900 no-underline font-medium text-[0.9rem] mb-1.5 overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-150 hover:text-blue-500">
                   {{ video.title }}
                 </a>
-                <div class="video-stats">
-                  <span class="stat-item" title="发布时间">
-                    <Calendar :size="14" />
+                <div class="flex flex-wrap gap-3 text-xs text-neutral-400">
+                  <span class="inline-flex items-center gap-1" title="发布时间">
+                    <Calendar :size="14" class="opacity-70" />
                     {{ video.publish_time }}
                   </span>
-                  <span class="stat-item" title="视频时长">
-                    <Clock :size="14" />
+                  <span class="inline-flex items-center gap-1" title="视频时长">
+                    <Clock :size="14" class="opacity-70" />
                     {{ video.duration }}
                   </span>
-                  <span class="stat-item" title="播放量">
-                    <Play :size="14" />
+                  <span class="inline-flex items-center gap-1" title="播放量">
+                    <Play :size="14" class="opacity-70" />
                     {{ formatNumber(video.play_count) }}
                   </span>
-                  <span class="stat-item" title="弹幕数">
-                    <MessageSquare :size="14" />
+                  <span class="inline-flex items-center gap-1" title="弹幕数">
+                    <MessageSquare :size="14" class="opacity-70" />
                     {{ formatNumber(video.danmu_count) }}
                   </span>
                 </div>
               </div>
             </div>
           </div>
-          <div v-if="displayedVideos.length < filteredVideos.length" class="loading-indicator">
+          <div v-if="displayedVideos.length < filteredVideos.length" class="text-center py-4 text-neutral-400 text-sm">
             <span>加载中... ({{ displayedVideos.length }}/{{ filteredVideos.length }})</span>
           </div>
-          <div v-else class="loading-indicator">
+          <div v-else class="text-center py-4 text-neutral-400 text-sm">
             <span>已加载全部 {{ filteredVideos.length }} 个视频</span>
           </div>
         </section>
@@ -275,6 +233,64 @@
       :cookie="cookie"
       @save="handleSaveCookie"
     />
+
+    <!-- Video Drawer -->
+    <Transition name="drawer">
+      <div v-if="drawerVisible" class="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[1000] flex items-center justify-center p-5" @click="drawerVisible = false">
+        <div class="w-full max-w-[900px] max-h-[85vh] bg-white rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden" @click.stop>
+          <div class="flex items-center gap-4 px-6 py-5 border-b border-black/[0.06] bg-neutral-50">
+            <h3 class="text-lg font-semibold text-neutral-900 m-0">{{ drawerTitle }}</h3>
+            <div class="flex gap-4 text-sm text-neutral-600 mr-auto">
+              <span>共 {{ drawerVideos.length }} 个视频</span>
+              <span v-if="drawerVideos.length > 0">
+                平均播放: {{ formatNumber(Math.round(drawerVideos.reduce((sum, v) => sum + v.play_count, 0) / drawerVideos.length)) }}
+              </span>
+            </div>
+            <button class="ml-auto inline-flex items-center justify-center gap-2 px-[18px] py-2.5 border-0 rounded-lg text-sm font-medium cursor-pointer transition-all duration-150 bg-transparent text-neutral-600 border border-black/10 hover:bg-neutral-100 hover:text-neutral-900" @click="drawerVisible = false">
+              <X :size="20" />
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto p-4">
+            <div v-if="drawerVideos.length === 0" class="text-center py-[60px] px-5 text-neutral-400">
+              <span>暂无视频</span>
+            </div>
+            <div v-else class="flex flex-col gap-2">
+              <div
+                v-for="(video, index) in drawerVideos"
+                :key="video.bvid"
+                class="flex items-center gap-4 p-3 bg-neutral-50 rounded-lg transition-all duration-150 border border-transparent hover:bg-neutral-100 hover:border-blue-500/20 hover:translate-x-1"
+              >
+                <span class="w-8 text-center font-semibold text-blue-500 text-sm flex-shrink-0">{{ index + 1 }}</span>
+                <img :src="video.cover_url" class="w-[140px] h-[79px] object-cover rounded-md flex-shrink-0" referrerpolicy="no-referrer" />
+                <div class="flex-1 min-w-0">
+                  <a :href="video.video_url" target="_blank" class="block text-neutral-900 no-underline font-medium text-[0.95rem] mb-2 leading-snug transition-colors duration-150 hover:text-blue-500">
+                    {{ video.title }}
+                  </a>
+                  <div class="flex flex-wrap gap-3 text-xs text-neutral-400">
+                    <span class="inline-flex items-center gap-1" title="发布时间">
+                      <Calendar :size="14" class="opacity-70" />
+                      {{ video.publish_time }}
+                    </span>
+                    <span class="inline-flex items-center gap-1" title="视频时长">
+                      <Clock :size="14" class="opacity-70" />
+                      {{ video.duration }}
+                    </span>
+                    <span class="inline-flex items-center gap-1" title="播放量">
+                      <Play :size="14" class="opacity-70" />
+                      {{ formatNumber(video.play_count) }}
+                    </span>
+                    <span class="inline-flex items-center gap-1" title="弹幕数">
+                      <MessageSquare :size="14" class="opacity-70" />
+                      {{ formatNumber(video.danmu_count) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -283,6 +299,7 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import * as echarts from 'echarts';
+import Sidebar from './components/Sidebar.vue';
 import NewScrapeDialog from './components/NewScrapeDialog.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
 import {
@@ -322,7 +339,7 @@ const progress = ref({ current: 0, total: 0, page: 0, message: '' });
 const displayCount = ref(20);
 
 // Sidebar states
-const sidebarCollapsed = ref(false);
+const sidebarRef = ref(null);
 const savedUpList = ref([]);
 const currentMid = ref(null);
 
@@ -347,6 +364,12 @@ const sortBy = ref('time_desc');
 const sortDropdownOpen = ref(false);
 const sortDropdownRef = ref(null);
 
+// 图表交互状态
+const drawerVisible = ref(false);
+const drawerTitle = ref('');
+const drawerVideos = ref([]);
+const chartFilter = ref(null); // 用于图表筛选联动
+
 const sortOptions = [
   { value: 'time_desc', label: '最新发布', icon: Calendar },
   { value: 'time_asc', label: '最早发布', icon: Calendar },
@@ -362,6 +385,34 @@ const sortOptions = [
 function selectSort(value) {
   sortBy.value = value;
   sortDropdownOpen.value = false;
+}
+
+// 图表交互 - 打开抽屉显示视频明细
+function openVideoDrawer(title, videosToShow) {
+  drawerTitle.value = title;
+  drawerVideos.value = videosToShow;
+  drawerVisible.value = true;
+}
+
+// 图表交互 - 联动筛选视频列表
+function applyChartFilter(filterFn, scrollToList = true) {
+  chartFilter.value = filterFn;
+  displayCount.value = 20;
+
+  // 滚动到视频列表区域
+  if (scrollToList) {
+    nextTick(() => {
+      const listSection = document.querySelector('.video-list-section');
+      if (listSection) {
+        listSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }
+}
+
+// 清除图表筛选
+function clearChartFilter() {
+  chartFilter.value = null;
 }
 
 // 点击外部关闭下拉菜单
@@ -389,6 +440,11 @@ const filteredVideos = computed(() => {
   if (searchKeyword.value.trim()) {
     const keyword = searchKeyword.value.toLowerCase();
     result = result.filter(v => v.title.toLowerCase().includes(keyword));
+  }
+
+  // 图表筛选联动
+  if (chartFilter.value) {
+    result = result.filter(chartFilter.value);
   }
 
   // 排序
@@ -597,28 +653,65 @@ async function exportData() {
   }
 }
 
-// Chart theme for light mode
+// 现代大厂风格图表主题配置
 const chartTheme = {
   backgroundColor: 'transparent',
-  textStyle: { color: '#666666' },
-  title: { textStyle: { color: '#1a1a1a' } },
-  legend: { textStyle: { color: '#666666' } },
+  textStyle: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  },
+  // 标题样式：更深，更细
+  title: {
+    textStyle: { color: '#111827', fontSize: 14, fontWeight: 600 }
+  },
+  // 图例：底部或顶部，圆形图标，灰色文字
+  legend: {
+    bottom: 0,
+    icon: 'circle',
+    itemWidth: 8,
+    itemHeight: 8,
+    textStyle: { color: '#6B7280', fontSize: 12 }
+  },
+  // 提示框：毛玻璃效果，软阴影，无边框
   tooltip: {
-    backgroundColor: '#ffffff',
-    borderColor: 'rgba(0,0,0,0.1)',
-    textStyle: { color: '#1a1a1a' }
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderColor: 'transparent',
+    padding: [12, 16],
+    textStyle: { color: '#374151', fontSize: 12 },
+    extraCssText: 'box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); backdrop-filter: blur(8px); border-radius: 8px;'
   },
+  // 网格：去掉边框，留出更多空间
+  grid: {
+    top: 40,
+    right: 20,
+    bottom: 30,
+    left: 20,
+    containLabel: true
+  },
+  // X轴：去掉轴线，仅保留文字
   xAxis: {
-    axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
-    axisLabel: { color: '#666666' },
-    splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: '#9CA3AF', fontSize: 11, margin: 12 },
+    splitLine: { show: false }
   },
+  // Y轴：去掉轴线，虚线网格
   yAxis: {
-    axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
-    axisLabel: { color: '#666666' },
-    splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: '#9CA3AF', fontSize: 11, margin: 12 },
+    splitLine: {
+      show: true,
+      lineStyle: { type: 'dashed', color: '#F3F4F6' } // 极淡的虚线
+    }
   }
 };
+
+// 专门用于坐标轴的紧凑格式化
+function formatAxisNumber(value) {
+  if (value >= 100000000) return (value / 100000000).toFixed(1) + '亿';
+  if (value >= 10000) return (value / 10000).toFixed(0) + '万';
+  return value;
+}
 
 function renderAllCharts() {
   if (videos.value.length === 0) return;
@@ -651,32 +744,103 @@ function renderPlayDistChart() {
   const bins = [0, 500000, 1000000, 1500000, 2000000, 3000000, 5000000, Infinity];
   const labels = ['<50万', '50-100万', '100-150万', '150-200万', '200-300万', '300-500万', '>500万'];
 
-  const counts = labels.map(() => 0);
-  plays.forEach(p => {
+  // 将视频按区间分组
+  const videosByBin = labels.map(() => []);
+  videos.value.forEach(v => {
     for (let i = 0; i < bins.length - 1; i++) {
-      if (p >= bins[i] && p < bins[i + 1]) {
-        counts[i]++;
+      if (v.play_count >= bins[i] && v.play_count < bins[i + 1]) {
+        videosByBin[i].push(v);
         break;
       }
     }
   });
 
+  const counts = videosByBin.map(arr => arr.length);
+
   chart.setOption({
     ...chartTheme,
-    tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
-    xAxis: { ...chartTheme.xAxis, type: 'category', data: labels, axisLabel: { ...chartTheme.xAxis.axisLabel, rotate: 30 } },
-    yAxis: { ...chartTheme.yAxis, type: 'value', name: '视频数量' },
+    grid: { ...chartTheme.grid, bottom: 50 },
+    tooltip: {
+      ...chartTheme.tooltip,
+      trigger: 'axis',
+      confine: true,
+      formatter: (params) => {
+        const idx = params[0].dataIndex;
+        const binVideos = videosByBin[idx];
+        const count = counts[idx];
+
+        let html = `<div style="max-width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #111827; font-size: 13px;">${labels[idx]}</div>
+          <div style="color: #6B7280; font-size: 12px; margin-bottom: 8px;">共 <span style="color: #3B82F6; font-weight: 600;">${count}</span> 个视频</div>`;
+
+        if (binVideos.length > 0) {
+          html += '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">';
+          html += '<div style="font-size: 11px; color: #9CA3AF; margin-bottom: 4px;">前5个视频:</div>';
+
+          const topVideos = binVideos.slice(0, 5);
+          topVideos.forEach(v => {
+            html += `<div style="margin: 4px 0; font-size: 11px; color: #6B7280;">• ${v.title.length > 30 ? v.title.slice(0, 30) + '...' : v.title}</div>`;
+          });
+
+          if (binVideos.length > 5) {
+            html += `<div style="margin-top: 6px; font-size: 11px; color: #3B82F6;">还有 ${binVideos.length - 5} 个视频...</div>`;
+          }
+
+          html += '<div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击查看全部</div>';
+          html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+      }
+    },
+    xAxis: {
+      ...chartTheme.xAxis,
+      type: 'category',
+      data: labels,
+      axisLabel: { ...chartTheme.xAxis.axisLabel, rotate: 0, interval: 0 }
+    },
+    yAxis: {
+      ...chartTheme.yAxis,
+      type: 'value',
+      name: '',
+      axisLabel: {
+        ...chartTheme.yAxis.axisLabel,
+        formatter: formatAxisNumber
+      }
+    },
     series: [{
       type: 'bar',
       data: counts,
+      barMaxWidth: 32,
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: '#7c4dff' },
-          { offset: 1, color: '#5c6bc0' }
+          { offset: 0, color: '#3B82F6' },
+          { offset: 1, color: 'rgba(59, 130, 246, 0.2)' }
         ]),
-        borderRadius: [4, 4, 0, 0]
+        borderRadius: [6, 6, 0, 0]
+      },
+      emphasis: {
+        itemStyle: {
+          color: '#2563EB'
+        }
       }
     }]
+  });
+
+  // 添加点击事件
+  chart.off('click');
+  chart.on('click', (params) => {
+    const idx = params.dataIndex;
+    const binVideos = videosByBin[idx];
+
+    // 方式1: 打开抽屉显示明细
+    openVideoDrawer(`播放量区间: ${labels[idx]}`, binVideos);
+
+    // 方式2: 同时联动筛选视频列表
+    applyChartFilter((v) => {
+      return v.play_count >= bins[idx] && v.play_count < bins[idx + 1];
+    });
   });
 }
 
@@ -684,38 +848,108 @@ function renderDurationChart() {
   const chart = initChart(durationChart, 'duration');
   if (!chart) return;
 
-  const durations = videos.value.map(v => {
-    const parts = v.duration.split(':');
-    if (parts.length === 2) return parseInt(parts[0]);
-    if (parts.length === 3) return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-    return 0;
-  });
-
   const bins = [0, 5, 10, 15, 20, 30, 60, Infinity];
   const labels = ['<5分', '5-10分', '10-15分', '15-20分', '20-30分', '30-60分', '>60分'];
 
-  const counts = labels.map(() => 0);
-  durations.forEach(d => {
+  // 将视频按时长区间分组
+  const videosByBin = labels.map(() => []);
+  videos.value.forEach(v => {
+    const parts = v.duration.split(':');
+    let minutes = 0;
+    if (parts.length === 2) minutes = parseInt(parts[0]);
+    if (parts.length === 3) minutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+
     for (let i = 0; i < bins.length - 1; i++) {
-      if (d >= bins[i] && d < bins[i + 1]) {
-        counts[i]++;
+      if (minutes >= bins[i] && minutes < bins[i + 1]) {
+        videosByBin[i].push(v);
         break;
       }
     }
   });
 
+  const counts = videosByBin.map(arr => arr.length);
+
   chart.setOption({
     ...chartTheme,
-    tooltip: { ...chartTheme.tooltip, trigger: 'item' },
+    tooltip: {
+      ...chartTheme.tooltip,
+      trigger: 'item',
+      confine: true,
+      formatter: (params) => {
+        const idx = params.dataIndex;
+        const binVideos = videosByBin[idx];
+
+        let html = `<div style="max-width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #111827; font-size: 13px;">${params.name}</div>
+          <div style="color: #6B7280; font-size: 12px; margin-bottom: 8px;">共 <span style="color: #3B82F6; font-weight: 600;">${params.value}</span> 个视频 (${params.percent}%)</div>`;
+
+        if (binVideos.length > 0) {
+          html += '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">';
+          html += '<div style="font-size: 11px; color: #9CA3AF; margin-bottom: 4px;">前5个视频:</div>';
+
+          const topVideos = binVideos.slice(0, 5);
+          topVideos.forEach(v => {
+            html += `<div style="margin: 4px 0; font-size: 11px; color: #6B7280;">• ${v.title.length > 30 ? v.title.slice(0, 30) + '...' : v.title} (${v.duration})</div>`;
+          });
+
+          if (binVideos.length > 5) {
+            html += `<div style="margin-top: 6px; font-size: 11px; color: #3B82F6;">还有 ${binVideos.length - 5} 个视频...</div>`;
+          }
+
+          html += '<div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击查看全部</div>';
+          html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+      }
+    },
     series: [{
       type: 'pie',
-      radius: ['40%', '70%'],
+      radius: ['55%', '75%'],
       avoidLabelOverlap: true,
-      itemStyle: { borderRadius: 8, borderColor: '#ffffff', borderWidth: 2 },
-      label: { show: true, formatter: '{b}: {c}', color: '#666666' },
+      itemStyle: {
+        borderRadius: 6,
+        borderColor: '#ffffff',
+        borderWidth: 3
+      },
+      label: {
+        show: true,
+        formatter: '{b}: {c}',
+        color: '#6B7280',
+        fontSize: 11
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.15)'
+        },
+        label: {
+          fontWeight: 600,
+          color: '#111827'
+        }
+      },
       data: labels.map((name, i) => ({ name, value: counts[i] })),
-      color: ['#5c6bc0', '#7c4dff', '#448aff', '#00bcd4', '#26a69a', '#66bb6a', '#ffca28']
+      color: ['#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#DBEAFE', '#EFF6FF', '#9CA3AF']
     }]
+  });
+
+  // 添加点击事件
+  chart.off('click');
+  chart.on('click', (params) => {
+    const idx = params.dataIndex;
+    const binVideos = videosByBin[idx];
+
+    openVideoDrawer(`时长区间: ${labels[idx]}`, binVideos);
+
+    applyChartFilter((v) => {
+      const parts = v.duration.split(':');
+      let minutes = 0;
+      if (parts.length === 2) minutes = parseInt(parts[0]);
+      if (parts.length === 3) minutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+      return minutes >= bins[idx] && minutes < bins[idx + 1];
+    });
   });
 }
 
@@ -724,11 +958,17 @@ function renderMonthlyTrendChart() {
   if (!chart) return;
 
   const monthlyData = {};
+  const monthlyVideos = {};
+
   videos.value.forEach(v => {
     const month = v.publish_time.slice(0, 7);
-    if (!monthlyData[month]) monthlyData[month] = { count: 0, totalPlays: 0 };
+    if (!monthlyData[month]) {
+      monthlyData[month] = { count: 0, totalPlays: 0 };
+      monthlyVideos[month] = [];
+    }
     monthlyData[month].count++;
     monthlyData[month].totalPlays += v.play_count;
+    monthlyVideos[month].push(v);
   });
 
   const months = Object.keys(monthlyData).sort();
@@ -737,7 +977,41 @@ function renderMonthlyTrendChart() {
 
   chart.setOption({
     ...chartTheme,
-    tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
+    grid: { ...chartTheme.grid, bottom: 60 },
+    tooltip: {
+      ...chartTheme.tooltip,
+      trigger: 'axis',
+      confine: true,
+      formatter: params => {
+        const month = params[0].axisValue;
+        const monthVids = monthlyVideos[month];
+
+        let html = `<div style="max-width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #111827; font-size: 13px;">${month}</div>
+          <div style="color: #6B7280; font-size: 12px;">发布数量: <span style="color: #3B82F6; font-weight: 600;">${params[0].value}</span></div>
+          <div style="color: #6B7280; font-size: 12px;">平均播放: <span style="color: #8B5CF6; font-weight: 600;">${formatNumber(params[1].value)}</span></div>`;
+
+        if (monthVids && monthVids.length > 0) {
+          html += '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">';
+          html += '<div style="font-size: 11px; color: #9CA3AF; margin-bottom: 4px;">该月视频:</div>';
+
+          const topVideos = monthVids.slice(0, 3);
+          topVideos.forEach(v => {
+            html += `<div style="margin: 4px 0; font-size: 11px; color: #6B7280;">• ${v.title.length > 28 ? v.title.slice(0, 28) + '...' : v.title}</div>`;
+          });
+
+          if (monthVids.length > 3) {
+            html += `<div style="margin-top: 6px; font-size: 11px; color: #3B82F6;">还有 ${monthVids.length - 3} 个...</div>`;
+          }
+
+          html += '<div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击查看全部</div>';
+          html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+      }
+    },
     legend: { ...chartTheme.legend, data: ['发布数量', '平均播放量'] },
     xAxis: {
       ...chartTheme.xAxis,
@@ -746,26 +1020,76 @@ function renderMonthlyTrendChart() {
       axisLabel: { ...chartTheme.xAxis.axisLabel, rotate: 45, interval: Math.floor(months.length / 12) }
     },
     yAxis: [
-      { ...chartTheme.yAxis, type: 'value', name: '发布数量', position: 'left' },
-      { ...chartTheme.yAxis, type: 'value', name: '平均播放量', position: 'right' }
+      {
+        ...chartTheme.yAxis,
+        type: 'value',
+        name: '',
+        position: 'left',
+        axisLabel: {
+          ...chartTheme.yAxis.axisLabel,
+          formatter: formatAxisNumber
+        }
+      },
+      {
+        ...chartTheme.yAxis,
+        type: 'value',
+        name: '',
+        position: 'right',
+        axisLabel: {
+          ...chartTheme.yAxis.axisLabel,
+          formatter: formatAxisNumber
+        }
+      }
     ],
     series: [
       {
         name: '发布数量',
         type: 'bar',
         data: counts,
-        itemStyle: { color: '#5c6bc0', borderRadius: [4, 4, 0, 0] }
+        barMaxWidth: 32,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#3B82F6' },
+            { offset: 1, color: 'rgba(59, 130, 246, 0.2)' }
+          ]),
+          borderRadius: [6, 6, 0, 0]
+        },
+        emphasis: {
+          itemStyle: { color: '#2563EB' }
+        }
       },
       {
         name: '平均播放量',
         type: 'line',
         yAxisIndex: 1,
         data: avgPlaysData,
-        smooth: true,
-        itemStyle: { color: '#7c4dff' },
-        lineStyle: { width: 2 }
+        smooth: 0.4,
+        showSymbol: false,
+        itemStyle: { color: '#8B5CF6' },
+        lineStyle: { width: 2.5 },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(139, 92, 246, 0.15)' },
+            { offset: 1, color: 'rgba(139, 92, 246, 0)' }
+          ])
+        }
       }
     ]
+  });
+
+  // 添加点击事件 (只对柱状图生效)
+  chart.off('click');
+  chart.on('click', (params) => {
+    if (params.seriesType === 'bar') {
+      const month = params.name;
+      const monthVids = monthlyVideos[month];
+
+      openVideoDrawer(`发布月份: ${month}`, monthVids);
+
+      applyChartFilter((v) => {
+        return v.publish_time.startsWith(month);
+      });
+    }
   });
 }
 
@@ -775,14 +1099,17 @@ function renderHourlyPlayChart() {
 
   // 按小时统计
   const hourlyData = {};
+  const hourlyVideos = {};
   for (let i = 0; i < 24; i++) {
     hourlyData[i] = { count: 0, totalPlays: 0 };
+    hourlyVideos[i] = [];
   }
 
   videos.value.forEach(v => {
     const hour = new Date(v.publish_time).getHours();
     hourlyData[hour].count++;
     hourlyData[hour].totalPlays += v.play_count;
+    hourlyVideos[hour].push(v);
   });
 
   const hours = Array.from({ length: 24 }, (_, i) => i + '时');
@@ -802,33 +1129,85 @@ function renderHourlyPlayChart() {
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'axis',
-      formatter: p => `${p[0].name}<br/>发布数: ${counts[p[0].dataIndex]}<br/>平均播放: ${formatNumber(p[0].value)}`
+      confine: true,
+      formatter: p => {
+        const idx = p[0].dataIndex;
+        const hourVids = hourlyVideos[idx];
+        const isGolden = sortedHours.includes(idx);
+
+        let html = `<div style="max-width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: ${isGolden ? '#F59E0B' : '#111827'}; font-size: 13px;">
+            ${p[0].name} ${isGolden ? '⭐ 黄金时段' : ''}
+          </div>
+          <div style="color: #6B7280; font-size: 12px;">发布数: <span style="font-weight: 600;">${counts[idx]}</span></div>
+          <div style="color: #6B7280; font-size: 12px;">平均播放: <span style="color: ${isGolden ? '#F59E0B' : '#3B82F6'}; font-weight: 600;">${formatNumber(p[0].value)}</span></div>`;
+
+        if (hourVids.length > 0) {
+          html += '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">';
+          html += '<div style="font-size: 11px; color: #9CA3AF; margin-bottom: 4px;">前3个视频:</div>';
+
+          const topVideos = hourVids.slice(0, 3);
+          topVideos.forEach(v => {
+            html += `<div style="margin: 4px 0; font-size: 11px; color: #6B7280;">• ${v.title.length > 28 ? v.title.slice(0, 28) + '...' : v.title}</div>`;
+          });
+
+          if (hourVids.length > 3) {
+            html += `<div style="margin-top: 6px; font-size: 11px; color: ${isGolden ? '#F59E0B' : '#3B82F6'};">还有 ${hourVids.length - 3} 个...</div>`;
+          }
+
+          html += '<div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击查看全部</div>';
+          html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+      }
     },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: hours },
     yAxis: {
       ...chartTheme.yAxis,
       type: 'value',
-      name: '平均播放量',
-      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: v => formatNumber(v) }
+      name: '',
+      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
     },
     series: [{
       type: 'bar',
+      barMaxWidth: 32,
       data: avgPlaysData.map((v, i) => ({
         value: v,
         itemStyle: {
           color: sortedHours.includes(i)
             ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: '#ffca28' },
-                { offset: 1, color: '#ff9800' }
+                { offset: 0, color: '#F59E0B' },
+                { offset: 1, color: 'rgba(245, 158, 11, 0.2)' }
               ])
-            : '#5c6bc0',
-          borderRadius: [4, 4, 0, 0]
+            : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#3B82F6' },
+                { offset: 1, color: 'rgba(59, 130, 246, 0.2)' }
+              ]),
+          borderRadius: [6, 6, 0, 0]
         }
       })),
-      label: {
-        show: false
+      emphasis: {
+        itemStyle: {
+          color: (params) => sortedHours.includes(params.dataIndex) ? '#D97706' : '#2563EB'
+        }
       }
     }]
+  });
+
+  // 添加点击事件
+  chart.off('click');
+  chart.on('click', (params) => {
+    const idx = params.dataIndex;
+    const hourVids = hourlyVideos[idx];
+
+    openVideoDrawer(`发布时间: ${idx}时`, hourVids);
+
+    applyChartFilter((v) => {
+      const hour = new Date(v.publish_time).getHours();
+      return hour === idx;
+    });
   });
 }
 
@@ -868,29 +1247,45 @@ function renderDurationPlayChart() {
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'axis',
-      formatter: p => `${p[0].name}<br/>视频数: ${durationData[p[0].dataIndex].count}<br/>平均播放: ${formatNumber(p[0].value)}`
+      formatter: p => {
+        const isBest = p[0].dataIndex === bestIndex;
+        return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 6px; color: #111827; font-size: 13px;">${p[0].name} ${isBest ? '⭐ 最佳时长' : ''}</div>
+          <div style="color: #6B7280; font-size: 12px;">视频数: <span style="font-weight: 600;">${durationData[p[0].dataIndex].count}</span></div>
+          <div style="color: #6B7280; font-size: 12px;">平均播放: <span style="color: ${isBest ? '#10B981' : '#3B82F6'}; font-weight: 600;">${formatNumber(p[0].value)}</span></div>
+        </div>`;
+      }
     },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: labels },
     yAxis: {
       ...chartTheme.yAxis,
       type: 'value',
-      name: '平均播放量',
-      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: v => formatNumber(v) }
+      name: '',
+      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
     },
     series: [{
       type: 'bar',
+      barMaxWidth: 32,
       data: avgPlaysData.map((v, i) => ({
         value: v,
         itemStyle: {
           color: i === bestIndex
             ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: '#26a69a' },
-                { offset: 1, color: '#00897b' }
+                { offset: 0, color: '#10B981' },
+                { offset: 1, color: 'rgba(16, 185, 129, 0.2)' }
               ])
-            : '#5c6bc0',
-          borderRadius: [4, 4, 0, 0]
+            : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#3B82F6' },
+                { offset: 1, color: 'rgba(59, 130, 246, 0.2)' }
+              ]),
+          borderRadius: [6, 6, 0, 0]
         }
-      }))
+      })),
+      emphasis: {
+        itemStyle: {
+          color: (params) => params.dataIndex === bestIndex ? '#059669' : '#2563EB'
+        }
+      }
     }]
   });
 }
@@ -906,25 +1301,43 @@ function renderScatterChart() {
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'item',
-      formatter: p => `播放: ${formatNumber(p.value[0])}<br/>弹幕: ${formatNumber(p.value[1])}`
+      formatter: p => `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="color: #6B7280; font-size: 12px;">播放: <span style="color: #3B82F6; font-weight: 600;">${formatNumber(p.value[0])}</span></div>
+        <div style="color: #6B7280; font-size: 12px;">弹幕: <span style="color: #10B981; font-weight: 600;">${formatNumber(p.value[1])}</span></div>
+      </div>`
     },
     xAxis: {
       ...chartTheme.xAxis,
       type: 'value',
       name: '播放量',
-      axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: v => formatNumber(v) }
+      nameTextStyle: { color: '#9CA3AF', fontSize: 11 },
+      axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: formatAxisNumber }
     },
     yAxis: {
       ...chartTheme.yAxis,
       type: 'value',
       name: '弹幕数',
-      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: v => formatNumber(v) }
+      nameTextStyle: { color: '#9CA3AF', fontSize: 11 },
+      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
     },
     series: [{
       type: 'scatter',
-      symbolSize: 8,
+      symbolSize: 6,
       data: data,
-      itemStyle: { color: '#26a69a', opacity: 0.7 }
+      itemStyle: {
+        color: '#10B981',
+        opacity: 0.6,
+        borderWidth: 1,
+        borderColor: '#ffffff'
+      },
+      emphasis: {
+        itemStyle: {
+          color: '#059669',
+          opacity: 1,
+          shadowBlur: 10,
+          shadowColor: 'rgba(16, 185, 129, 0.5)'
+        }
+      }
     }]
   });
 }
@@ -938,6 +1351,7 @@ function renderHeatmapChart() {
 
   const data = [];
   const countMap = {};
+  const videoMap = {};
 
   videos.value.forEach(v => {
     const date = new Date(v.publish_time);
@@ -945,6 +1359,8 @@ function renderHeatmapChart() {
     const hour = date.getHours();
     const key = `${weekday}-${hour}`;
     countMap[key] = (countMap[key] || 0) + 1;
+    if (!videoMap[key]) videoMap[key] = [];
+    videoMap[key].push(v);
   });
 
   for (let w = 0; w < 7; w++) {
@@ -957,27 +1373,102 @@ function renderHeatmapChart() {
 
   chart.setOption({
     ...chartTheme,
+    grid: { ...chartTheme.grid, bottom: 60 },
     tooltip: {
       ...chartTheme.tooltip,
-      formatter: p => `${weekdays[p.value[1]]} ${p.value[0]}时: ${p.value[2]}个视频`
+      confine: true,
+      formatter: p => {
+        const weekday = p.value[1];
+        const hour = p.value[0];
+        const count = p.value[2];
+        const key = `${weekday}-${hour}`;
+        const vids = videoMap[key] || [];
+
+        let html = `<div style="max-width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #111827; font-size: 13px;">${weekdays[weekday]} ${hour}时</div>
+          <div style="color: #6B7280; font-size: 12px; margin-bottom: 8px;">共 <span style="color: #3B82F6; font-weight: 600;">${count}</span> 个视频</div>`;
+
+        if (vids.length > 0) {
+          html += '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">';
+          html += '<div style="font-size: 11px; color: #9CA3AF; margin-bottom: 4px;">视频列表:</div>';
+
+          const topVideos = vids.slice(0, 3);
+          topVideos.forEach(v => {
+            html += `<div style="margin: 4px 0; font-size: 11px; color: #6B7280;">• ${v.title.length > 28 ? v.title.slice(0, 28) + '...' : v.title}</div>`;
+          });
+
+          if (vids.length > 3) {
+            html += `<div style="margin-top: 6px; font-size: 11px; color: #3B82F6;">还有 ${vids.length - 3} 个...</div>`;
+          }
+
+          html += '<div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击查看全部</div>';
+          html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+      }
     },
-    xAxis: { ...chartTheme.xAxis, type: 'category', data: hours, splitArea: { show: true, areaStyle: { color: ['transparent', 'rgba(0,0,0,0.02)'] } } },
-    yAxis: { ...chartTheme.yAxis, type: 'category', data: weekdays, splitArea: { show: true, areaStyle: { color: ['transparent', 'rgba(0,0,0,0.02)'] } } },
+    xAxis: {
+      ...chartTheme.xAxis,
+      type: 'category',
+      data: hours,
+      splitArea: { show: true, areaStyle: { color: ['transparent', '#FAFAFA'] } }
+    },
+    yAxis: {
+      ...chartTheme.yAxis,
+      type: 'category',
+      data: weekdays,
+      splitArea: { show: true, areaStyle: { color: ['transparent', '#FAFAFA'] } }
+    },
     visualMap: {
       min: 0,
       max: maxCount,
       calculable: true,
       orient: 'horizontal',
       left: 'center',
-      bottom: 0,
-      textStyle: { color: '#666666' },
-      inRange: { color: ['#f0f4ff', '#c5cae9', '#9fa8da', '#7986cb', '#5c6bc0'] }
+      bottom: 5,
+      textStyle: { color: '#9CA3AF', fontSize: 11 },
+      inRange: { color: ['#F3F4F6', '#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6'] }
     },
     series: [{
       type: 'heatmap',
       data: data,
-      label: { show: false }
+      label: { show: false },
+      itemStyle: {
+        borderRadius: 4,
+        borderWidth: 3,
+        borderColor: '#ffffff'
+      },
+      emphasis: {
+        itemStyle: {
+          borderColor: '#3B82F6',
+          borderWidth: 2,
+          shadowBlur: 10,
+          shadowColor: 'rgba(59, 130, 246, 0.5)'
+        }
+      }
     }]
+  });
+
+  // 添加点击事件
+  chart.off('click');
+  chart.on('click', (params) => {
+    const weekday = params.value[1];
+    const hour = params.value[0];
+    const key = `${weekday}-${hour}`;
+    const vids = videoMap[key] || [];
+
+    if (vids.length > 0) {
+      openVideoDrawer(`${weekdays[weekday]} ${hour}时发布的视频`, vids);
+
+      applyChartFilter((v) => {
+        const date = new Date(v.publish_time);
+        const vWeekday = (date.getDay() + 6) % 7;
+        const vHour = date.getHours();
+        return vWeekday === weekday && vHour === hour;
+      });
+    }
   });
 }
 
@@ -997,16 +1488,30 @@ function renderTopVideosChart() {
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'axis',
+      confine: true,
       formatter: p => {
         const video = topVideosData[14 - p[0].dataIndex];
-        return `${video.title}<br/>播放量: ${formatNumber(video.play_count)}`;
+        return `<div style="max-width: 350px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #111827; font-size: 13px;">${video.title}</div>
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 12px;">
+            <span style="color: #9CA3AF;">播放量:</span>
+            <span style="font-weight: 600; color: #3B82F6;">${formatNumber(video.play_count)}</span>
+            <span style="color: #9CA3AF;">弹幕数:</span>
+            <span style="color: #6B7280;">${formatNumber(video.danmu_count)}</span>
+            <span style="color: #9CA3AF;">发布时间:</span>
+            <span style="color: #6B7280;">${video.publish_time}</span>
+            <span style="color: #9CA3AF;">视频时长:</span>
+            <span style="color: #6B7280;">${video.duration}</span>
+          </div>
+          <div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击打开视频链接</div>
+        </div>`;
       }
     },
-    grid: { left: '22%', right: '10%' },
+    grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
     xAxis: {
       ...chartTheme.xAxis,
       type: 'value',
-      axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: v => formatNumber(v) }
+      axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: formatAxisNumber }
     },
     yAxis: {
       ...chartTheme.yAxis,
@@ -1017,14 +1522,30 @@ function renderTopVideosChart() {
     series: [{
       type: 'bar',
       data: plays.reverse(),
+      barMaxWidth: 24,
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-          { offset: 0, color: '#5c6bc0' },
-          { offset: 1, color: '#7c4dff' }
+          { offset: 0, color: '#2563EB' },
+          { offset: 1, color: '#60A5FA' }
         ]),
-        borderRadius: [0, 4, 4, 0]
+        borderRadius: [0, 6, 6, 0]
+      },
+      emphasis: {
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#1D4ED8' },
+            { offset: 1, color: '#3B82F6' }
+          ])
+        }
       }
     }]
+  });
+
+  // 添加点击事件 - 打开视频链接
+  chart.off('click');
+  chart.on('click', (params) => {
+    const video = topVideosData[14 - params.dataIndex];
+    window.open(video.video_url, '_blank');
   });
 }
 
@@ -1050,16 +1571,30 @@ function renderTopEngagementChart() {
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'axis',
+      confine: true,
       formatter: p => {
         const video = videosWithEngagement[14 - p[0].dataIndex];
-        return `${video.title}<br/>互动率: ${video.engagementRate.toFixed(2)}%<br/>播放: ${formatNumber(video.play_count)}<br/>弹幕: ${formatNumber(video.danmu_count)}`;
+        return `<div style="max-width: 350px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #111827; font-size: 13px;">${video.title}</div>
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 12px;">
+            <span style="color: #9CA3AF;">互动率:</span>
+            <span style="font-weight: 600; color: #EC4899;">${video.engagementRate.toFixed(2)}%</span>
+            <span style="color: #9CA3AF;">播放量:</span>
+            <span style="color: #6B7280;">${formatNumber(video.play_count)}</span>
+            <span style="color: #9CA3AF;">弹幕数:</span>
+            <span style="color: #6B7280;">${formatNumber(video.danmu_count)}</span>
+            <span style="color: #9CA3AF;">发布时间:</span>
+            <span style="color: #6B7280;">${video.publish_time}</span>
+          </div>
+          <div style="margin-top: 8px; font-size: 11px; color: #9CA3AF;">💡 点击打开视频链接</div>
+        </div>`;
       }
     },
-    grid: { left: '22%', right: '10%' },
+    grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
     xAxis: {
       ...chartTheme.xAxis,
       type: 'value',
-      name: '互动率 (%)',
+      name: '',
       axisLabel: { ...chartTheme.xAxis.axisLabel, formatter: v => v + '%' }
     },
     yAxis: {
@@ -1071,14 +1606,30 @@ function renderTopEngagementChart() {
     series: [{
       type: 'bar',
       data: rates.reverse(),
+      barMaxWidth: 24,
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-          { offset: 0, color: '#26a69a' },
-          { offset: 1, color: '#00bcd4' }
+          { offset: 0, color: '#DB2777' },
+          { offset: 1, color: '#F472B6' }
         ]),
-        borderRadius: [0, 4, 4, 0]
+        borderRadius: [0, 6, 6, 0]
+      },
+      emphasis: {
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#BE185D' },
+            { offset: 1, color: '#EC4899' }
+          ])
+        }
       }
     }]
+  });
+
+  // 添加点击事件 - 打开视频链接
+  chart.off('click');
+  chart.on('click', (params) => {
+    const video = videosWithEngagement[14 - params.dataIndex];
+    window.open(video.video_url, '_blank');
   });
 }
 
@@ -1099,12 +1650,33 @@ function renderYearlyCountChart() {
     ...chartTheme,
     tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
-    yAxis: { ...chartTheme.yAxis, type: 'value', name: '视频数量' },
+    yAxis: {
+      ...chartTheme.yAxis,
+      type: 'value',
+      name: '',
+      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
+    },
     series: [{
       type: 'bar',
       data: counts,
-      itemStyle: { color: '#448aff', borderRadius: [4, 4, 0, 0] },
-      label: { show: true, position: 'top', color: '#666666' }
+      barMaxWidth: 48,
+      itemStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#6366F1' },
+          { offset: 1, color: 'rgba(99, 102, 241, 0.2)' }
+        ]),
+        borderRadius: [6, 6, 0, 0]
+      },
+      label: {
+        show: true,
+        position: 'top',
+        color: '#6B7280',
+        fontSize: 11,
+        fontWeight: 600
+      },
+      emphasis: {
+        itemStyle: { color: '#4F46E5' }
+      }
     }]
   });
 }
@@ -1129,27 +1701,31 @@ function renderYearlyAvgChart() {
     tooltip: {
       ...chartTheme.tooltip,
       trigger: 'axis',
-      formatter: p => `${p[0].name}年<br/>平均播放: ${formatNumber(p[0].value)}`
+      formatter: p => `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="font-weight: 600; margin-bottom: 6px; color: #111827; font-size: 13px;">${p[0].name}年</div>
+        <div style="color: #6B7280; font-size: 12px;">平均播放: <span style="color: #6366F1; font-weight: 600;">${formatNumber(p[0].value)}</span></div>
+      </div>`
     },
     xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
     yAxis: {
       ...chartTheme.yAxis,
       type: 'value',
-      name: '平均播放量',
-      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: v => formatNumber(v) }
+      name: '',
+      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
     },
     series: [{
       type: 'line',
       data: avgPlaysData,
-      smooth: true,
+      smooth: 0.4,
+      showSymbol: false,
       areaStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: 'rgba(124, 77, 255, 0.4)' },
-          { offset: 1, color: 'rgba(124, 77, 255, 0.05)' }
+          { offset: 0, color: 'rgba(99, 102, 241, 0.15)' },
+          { offset: 1, color: 'rgba(99, 102, 241, 0)' }
         ])
       },
-      itemStyle: { color: '#7c4dff' },
-      lineStyle: { width: 2 }
+      itemStyle: { color: '#6366F1' },
+      lineStyle: { width: 2.5 }
     }]
   });
 }
@@ -1173,10 +1749,10 @@ function renderTimelineChart() {
       trigger: 'axis',
       formatter: p => {
         const video = sortedVideos[p[0].dataIndex];
-        return `<div style="max-width: 300px;">
-          <div style="font-weight: 600; margin-bottom: 4px;">${video.title}</div>
-          <div style="color: #666;">发布时间: ${video.publish_time}</div>
-          <div style="color: #7c4dff; font-weight: 600;">播放量: ${formatNumber(video.play_count)}</div>
+        return `<div style="max-width: 300px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-weight: 600; margin-bottom: 6px; color: #111827; font-size: 13px;">${video.title}</div>
+          <div style="color: #6B7280; font-size: 12px;">发布时间: ${video.publish_time}</div>
+          <div style="color: #3B82F6; font-weight: 600; font-size: 12px; margin-top: 4px;">播放量: ${formatNumber(video.play_count)}</div>
         </div>`;
       }
     },
@@ -1190,10 +1766,10 @@ function renderTimelineChart() {
         bottom: 10,
         height: 20,
         borderColor: 'transparent',
-        backgroundColor: 'rgba(0,0,0,0.05)',
-        fillerColor: 'rgba(92, 107, 192, 0.2)',
-        handleStyle: { color: '#5c6bc0' },
-        textStyle: { color: '#666666' }
+        backgroundColor: '#F3F4F6',
+        fillerColor: 'rgba(59, 130, 246, 0.2)',
+        handleStyle: { color: '#3B82F6' },
+        textStyle: { color: '#9CA3AF', fontSize: 11 }
       },
       {
         type: 'inside',
@@ -1213,30 +1789,30 @@ function renderTimelineChart() {
       name: '视频序号（按发布时间排序）',
       nameLocation: 'middle',
       nameGap: 30,
-      nameTextStyle: { color: '#666666', fontSize: 12 }
+      nameTextStyle: { color: '#9CA3AF', fontSize: 11 }
     },
     yAxis: {
       ...chartTheme.yAxis,
       type: 'value',
-      name: '播放量',
-      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: v => formatNumber(v) }
+      name: '',
+      axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
     },
     series: [{
       type: 'bar',
       data: plays,
-      barMaxWidth: 20,
+      barMaxWidth: 16,
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: '#7c4dff' },
-          { offset: 1, color: '#5c6bc0' }
+          { offset: 0, color: '#3B82F6' },
+          { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }
         ]),
-        borderRadius: [2, 2, 0, 0]
+        borderRadius: [3, 3, 0, 0]
       },
       emphasis: {
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#9c7cff' },
-            { offset: 1, color: '#7c8bd0' }
+            { offset: 0, color: '#2563EB' },
+            { offset: 1, color: '#3B82F6' }
           ])
         }
       }
@@ -1263,38 +1839,7 @@ onMounted(async () => {
 </script>
 
 <style>
-/* CSS Variables - Linear/Notion inspired light theme */
-:root {
-  --bg-primary: #f4f4f4;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #fafafa;
-  --bg-hover: #f0f0f0;
-  --bg-active: #e8e8e8;
-
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-default: rgba(0, 0, 0, 0.1);
-
-  --text-primary: #1a1a1a;
-  --text-secondary: #666666;
-  --text-muted: #999999;
-
-  --accent-primary: #5c6bc0;
-  --accent-secondary: #7c4dff;
-  --accent-success: #26a69a;
-  --accent-danger: #ff5252;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-
-  --transition-fast: 0.15s ease;
-  --transition-base: 0.2s ease;
-}
-
+/* Global Styles */
 * {
   margin: 0;
   padding: 0;
@@ -1302,636 +1847,67 @@ onMounted(async () => {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #F9FAFB;
+  color: #111827;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.app {
-  display: flex;
-  min-height: 100vh;
+/* 优化卡片样式 */
+.bg-white.rounded-xl.border {
+  border-color: rgba(229, 231, 235, 0.6) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02), 0 1px 3px 0 rgba(0, 0, 0, 0.01) !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-/* Sidebar */
-.sidebar {
-  width: 260px;
-  height: 100vh;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0;
-  left: 0;
-  transition: width var(--transition-base);
-  z-index: 100;
+.bg-white.rounded-xl.border:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(229, 231, 235, 0.8) !important;
 }
 
-.sidebar.collapsed {
-  width: 60px;
+/* 优化主内容区域的滚动条 */
+main::-webkit-scrollbar {
+  width: 6px;
 }
 
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  border-bottom: 1px solid var(--border-subtle);
-  min-height: 56px;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.logo svg {
-  color: var(--accent-primary);
-}
-
-.sidebar-nav {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 8px;
-}
-
-.nav-section {
-  margin-bottom: 16px;
-}
-
-.nav-section-title {
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  padding: 8px 12px;
-}
-
-.empty-state {
-  padding: 16px 12px;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-  margin-bottom: 2px;
-}
-
-.nav-item:hover {
-  background: var(--bg-hover);
-}
-
-.nav-item.active {
-  background: var(--bg-active);
-}
-
-.nav-item-text {
-  flex: 1;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nav-item.active .nav-item-text {
-  color: var(--text-primary);
-}
-
-.avatar-sm {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--border-subtle);
-}
-
-.delete-btn {
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.nav-item:hover .delete-btn {
-  opacity: 1;
-}
-
-.sidebar-footer {
-  padding: 12px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.settings-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.settings-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.collapse-btn {
-  position: absolute;
-  right: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 24px;
-  height: 24px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: all var(--transition-fast);
-  z-index: 10;
-}
-
-.collapse-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-/* Icon Button */
-.icon-btn {
+main::-webkit-scrollbar-track {
   background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 8px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition-fast);
 }
 
-.icon-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+main::-webkit-scrollbar-thumb {
+  background-color: #E5E7EB;
+  border-radius: 3px;
+  transition: background-color 0.2s;
 }
 
-.icon-btn-sm {
-  padding: 4px;
+main::-webkit-scrollbar-thumb:hover {
+  background-color: #D1D5DB;
 }
 
-.add-btn {
-  background: var(--accent-primary);
-  color: white;
+/* 优化视频列表滚动条 */
+.flex.flex-col.gap-2::-webkit-scrollbar {
+  width: 6px;
 }
 
-.add-btn:hover {
-  background: #6d7cd0;
-  color: white;
-}
-
-/* Main Content */
-.main-content {
-  flex: 1;
-  margin-left: 260px;
-  min-height: 100vh;
-  overflow-x: hidden;
-  overflow-y: auto;
-  background: var(--bg-primary);
-  transition: margin-left var(--transition-base);
-}
-
-.main-content.sidebar-collapsed {
-  margin-left: 60px;
-}
-
-/* Empty Main */
-.empty-main {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 40px;
-}
-
-.empty-main-content {
-  text-align: center;
-  max-width: 400px;
-}
-
-.empty-icon {
-  color: var(--text-muted);
-  margin-bottom: 24px;
-}
-
-.empty-main-content h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--text-primary);
-}
-
-.empty-main-content p {
-  color: var(--text-secondary);
-  margin-bottom: 24px;
-  font-size: 0.95rem;
-}
-
-/* Data View */
-.data-view {
-  padding: 24px 32px;
-  max-width: 1600px;
-  margin: 0 auto;
-  overflow-x: hidden;
-}
-
-/* UP Header */
-.up-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 24px;
-  padding: 24px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  margin-bottom: 24px;
-  overflow: hidden;
-}
-
-.up-avatar {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-primary);
-}
-
-.up-info {
-  flex: 1;
-}
-
-.up-info h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.up-sign {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-bottom: 8px;
-}
-
-.level-badge {
-  display: inline-block;
-  background: linear-gradient(135deg, #ffca28, #ff9800);
-  color: #1a1a1a;
-  padding: 2px 10px;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.stats-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.stat-card {
-  text-align: center;
-  padding: 10px 16px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  min-width: 80px;
-}
-
-.stat-value {
-  display: block;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--accent-primary);
-  margin-bottom: 2px;
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.export-btn {
-  margin-left: auto;
-}
-
-/* Charts Grid */
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.chart-card {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  padding: 20px;
-}
-
-.chart-card.span-2 {
-  grid-column: span 2;
-}
-
-.chart-card h3 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 16px;
-}
-
-.chart {
-  height: 280px;
-}
-
-.chart-tall {
-  height: 380px;
-}
-
-/* Video List */
-.video-list-section {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  padding: 20px;
-}
-
-.section-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.section-header h3 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin-right: auto;
-}
-
-.video-count {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
-  padding: 4px 10px;
-  border-radius: 12px;
-}
-
-.video-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 600px;
-  overflow-y: auto;
-}
-
-.video-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
-}
-
-.video-item:hover {
-  background: var(--bg-hover);
-}
-
-.video-rank {
-  width: 32px;
-  text-align: center;
-  font-weight: 600;
-  color: var(--accent-primary);
-  font-size: 0.875rem;
-}
-
-.video-cover {
-  width: 120px;
-  height: 68px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-}
-
-.video-meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.video-title {
-  display: block;
-  color: var(--text-primary);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.9rem;
-  margin-bottom: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color var(--transition-fast);
-}
-
-.video-title:hover {
-  color: var(--accent-primary);
-}
-
-.video-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.stat-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.stat-item svg {
-  opacity: 0.7;
-}
-
-.loading-indicator {
-  text-align: center;
-  padding: 16px;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  flex: 1;
-  max-width: 400px;
-  margin: 0 16px;
-}
-
-.search-box svg {
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.search-input {
-  flex: 1;
-  border: none;
+.flex.flex-col.gap-2::-webkit-scrollbar-track {
   background: transparent;
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  outline: none;
 }
 
-.search-input::placeholder {
-  color: var(--text-muted);
+.flex.flex-col.gap-2::-webkit-scrollbar-thumb {
+  background-color: #E5E7EB;
+  border-radius: 3px;
 }
 
-.clear-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all var(--transition-fast);
-}
-
-.clear-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.search-stats {
-  display: flex;
-  gap: 16px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(92, 107, 192, 0.1), rgba(124, 77, 255, 0.1));
-  border-radius: var(--radius-md);
-  margin-bottom: 12px;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.search-stats strong {
-  color: var(--accent-primary);
-}
-
-.sort-dropdown {
-  position: relative;
-}
-
-.sort-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.sort-trigger:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-default);
-}
-
-.sort-trigger svg.rotate {
-  transform: rotate(180deg);
-}
-
-.sort-trigger svg {
-  color: var(--text-muted);
-  transition: transform var(--transition-fast);
-}
-
-.sort-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  min-width: 160px;
-  padding: 6px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  z-index: 100;
-}
-
-.sort-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-}
-
-.sort-option:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.sort-option.active {
-  background: rgba(92, 107, 192, 0.1);
-  color: var(--accent-primary);
-}
-
-.sort-option .check-icon {
-  margin-left: auto;
-  color: var(--accent-primary);
+.flex.flex-col.gap-2::-webkit-scrollbar-thumb:hover {
+  background-color: #D1D5DB;
 }
 
 /* Dropdown transition */
 .dropdown-enter-active,
 .dropdown-leave-active {
-  transition: all 0.15s ease;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dropdown-enter-from,
@@ -1940,84 +1916,36 @@ body {
   transform: translateY(-8px);
 }
 
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-fast);
+/* Drawer transition */
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.drawer-enter-active > div,
+.drawer-leave-active > div {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-primary {
-  background: var(--accent-primary);
-  color: white;
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: #6d7cd0;
+.drawer-enter-from > div {
+  transform: scale(0.96) translateY(16px);
 }
 
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-default);
+.drawer-leave-to > div {
+  transform: scale(0.96) translateY(16px);
 }
 
-.btn-ghost:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+/* 优化背景色 */
+.bg-neutral-100 {
+  background-color: #F9FAFB !important;
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .chart-card.span-2 {
-    grid-column: span 1;
-  }
-}
-
-@media (max-width: 768px) {
-  .up-header {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .stats-grid {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .export-btn {
-    margin-left: 0;
-  }
-
-  .video-cover {
-    width: 80px;
-    height: 45px;
-  }
-
-  .video-stats {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .data-view {
-    padding: 16px;
-  }
+.bg-neutral-50 {
+  background-color: #FAFAFA !important;
 }
 </style>
