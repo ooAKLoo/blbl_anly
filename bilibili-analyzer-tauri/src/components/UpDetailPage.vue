@@ -5,7 +5,7 @@
       <header v-if="upInfo" class="sticky top-0 z-40 bg-neutral-50 pt-4 pb-2">
         <!-- UP Info Row -->
         <div class="flex items-center gap-4 mb-3">
-          <img :src="upFaceUrl" class="w-10 h-10 rounded-full" referrerpolicy="no-referrer" />
+          <img :src="getImageUrl(upInfo.face)" class="w-10 h-10 rounded-full" referrerpolicy="no-referrer" />
           <div class="min-w-0">
             <div class="flex items-center gap-2">
               <h1 class="text-base font-semibold text-neutral-900 truncate">{{ upInfo.name }}</h1>
@@ -44,12 +44,10 @@
         <!-- Tab Content: 数据分析 -->
         <DataAnalysis
           v-show="activeTab === 'analysis'"
-          :analysis-videos="analysisVideos"
+          :analysis-videos="filteredVideos"
           :all-videos="videos"
           :time-range="selectedTimeRange"
           :duration="selectedDuration"
-          :time-range-options="timeRangeOptions"
-          :duration-options="durationOptions"
           @update:time-range="selectedTimeRange = $event"
           @update:duration="selectedDuration = $event"
           @open-drawer="openDrawer"
@@ -84,8 +82,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { getImageUrl, parseDurationMinutes } from '../utils';
+import { ref, toRef } from 'vue';
+import { getImageUrl } from '../utils';
+import { useVideoFilter } from '../composables/useVideoFilter';
 
 // Sub-components
 import DataAnalysis from './up-detail/DataAnalysis.vue';
@@ -112,83 +111,17 @@ const tabs = [
   { id: 'text-analysis', label: '洞察报告' }
 ];
 
-// 数据分析筛选
-const selectedTimeRange = ref('all');
-const timeRangeOptions = [
-  { value: 'all', label: '全部' },
-  { value: '30d', label: '近30天' },
-  { value: '90d', label: '近90天' },
-  { value: '1y', label: '近1年' },
-  { value: 'thisYear', label: '今年' }
-];
-
-const selectedDuration = ref('all');
-const durationOptions = [
-  { value: 'all', label: '全部时长' },
-  { value: 'short', label: '<5分钟' },
-  { value: 'medium', label: '5-20分钟' },
-  { value: 'long', label: '>20分钟' }
-];
+// 使用筛选 composable
+const {
+  selectedTimeRange,
+  selectedDuration,
+  filteredVideos
+} = useVideoFilter(toRef(props, 'videos'));
 
 // 图表交互状态（Drawer）
 const drawerVisible = ref(false);
 const drawerTitle = ref('');
 const drawerVideos = ref([]);
-
-// UP 头像 URL
-const upFaceUrl = computed(() => {
-  if (!props.upInfo) return '';
-  return getImageUrl(props.upInfo.face);
-});
-
-// Computed - 数据分析筛选后的视频
-const analysisVideos = computed(() => {
-  let result = props.videos;
-
-  // 时间范围筛选
-  if (selectedTimeRange.value !== 'all') {
-    const now = new Date();
-    let startDate;
-
-    switch (selectedTimeRange.value) {
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '90d':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case '1y':
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      case 'thisYear':
-        startDate = new Date(now.getFullYear(), 0, 1);
-        break;
-    }
-
-    if (startDate) {
-      result = result.filter(v => new Date(v.publish_time) >= startDate);
-    }
-  }
-
-  // 时长筛选
-  if (selectedDuration.value !== 'all') {
-    result = result.filter(v => {
-      const minutes = parseDurationMinutes(v.duration);
-      switch (selectedDuration.value) {
-        case 'short':
-          return minutes < 5;
-        case 'medium':
-          return minutes >= 5 && minutes <= 20;
-        case 'long':
-          return minutes > 20;
-        default:
-          return true;
-      }
-    });
-  }
-
-  return result;
-});
 
 // Drawer 操作函数
 function openDrawer({ title, videos }) {
@@ -197,9 +130,3 @@ function openDrawer({ title, videos }) {
   drawerVisible.value = true;
 }
 </script>
-
-<style scoped>
-.section-title {
-  @apply flex items-center gap-2 text-sm font-medium text-neutral-600 mb-3;
-}
-</style>

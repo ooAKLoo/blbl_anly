@@ -193,7 +193,8 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import VirtualGrid from '../VirtualGrid.vue';
-import { formatNumber, parseDuration, getImageUrl } from '../../utils';
+import { formatNumber, getImageUrl, formatDate, sortVideos } from '../../utils';
+import { SORT_OPTIONS } from '../../constants';
 import {
   Calendar,
   Play,
@@ -211,6 +212,10 @@ import {
   Star
 } from 'lucide-vue-next';
 
+// Icon 映射
+const iconMap = { Calendar, TrendingUp, ArrowDownWideNarrow, MessageSquare, Timer };
+const sortOptions = SORT_OPTIONS.map(opt => ({ ...opt, icon: iconMap[opt.icon] || Calendar }));
+
 const props = defineProps({
   videos: {
     type: Array,
@@ -227,17 +232,6 @@ const viewMode = ref('grid'); // 'grid' | 'list'
 const virtualGridRef = ref(null);
 const virtualListRef = ref(null);
 
-const sortOptions = [
-  { value: 'time_desc', label: '最新发布', icon: Calendar },
-  { value: 'time_asc', label: '最早发布', icon: Calendar },
-  { value: 'play_desc', label: '播放最高', icon: TrendingUp },
-  { value: 'play_asc', label: '播放最低', icon: ArrowDownWideNarrow },
-  { value: 'danmu_desc', label: '弹幕最多', icon: MessageSquare },
-  { value: 'engagement_desc', label: '互动率最高', icon: TrendingUp },
-  { value: 'duration_desc', label: '时长最长', icon: Timer },
-  { value: 'duration_asc', label: '时长最短', icon: Timer },
-];
-
 function selectSort(value) {
   sortBy.value = value;
   sortDropdownOpen.value = false;
@@ -253,11 +247,6 @@ function getVideoCoverUrl(video) {
   return getImageUrl(video.cover);
 }
 
-function formatDate(dateStr) {
-  const date = new Date(dateStr);
-  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-}
-
 const filteredVideos = computed(() => {
   let result = props.videos;
 
@@ -266,25 +255,7 @@ const filteredVideos = computed(() => {
     result = result.filter(v => v.title.toLowerCase().includes(keyword));
   }
 
-  result = [...result].sort((a, b) => {
-    switch (sortBy.value) {
-      case 'time_desc': return new Date(b.publish_time) - new Date(a.publish_time);
-      case 'time_asc': return new Date(a.publish_time) - new Date(b.publish_time);
-      case 'play_desc': return b.play_count - a.play_count;
-      case 'play_asc': return a.play_count - b.play_count;
-      case 'danmu_desc': return b.danmu_count - a.danmu_count;
-      case 'engagement_desc': {
-        const engA = (a.danmu_count + (a.comment_count || 0) + (a.favorite_count || 0)) / a.play_count;
-        const engB = (b.danmu_count + (b.comment_count || 0) + (b.favorite_count || 0)) / b.play_count;
-        return engB - engA;
-      }
-      case 'duration_desc': return parseDuration(b.duration) - parseDuration(a.duration);
-      case 'duration_asc': return parseDuration(a.duration) - parseDuration(b.duration);
-      default: return 0;
-    }
-  });
-
-  return result;
+  return sortVideos(result, sortBy.value);
 });
 
 const filteredAvgPlays = computed(() => {
@@ -318,6 +289,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.video-card {
+  @apply bg-white rounded-xl p-3;
+}
+
 .virtual-grid-wrapper :deep(.vue-recycle-scroller__item-wrapper) {
   padding-bottom: 24px;
 }

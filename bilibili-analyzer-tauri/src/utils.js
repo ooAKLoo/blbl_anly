@@ -60,3 +60,63 @@ export function parseDurationMinutes(duration) {
   if (parts.length === 3) return parseInt(parts[0]) * 60 + parseInt(parts[1]);
   return 0;
 }
+
+/**
+ * 格式化日期为 YYYY-MM-DD 格式
+ * @param {string|Date} dateStr - 日期字符串或 Date 对象
+ * @returns {string} 格式化后的日期字符串
+ */
+export function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+}
+
+/**
+ * 复制文本到剪贴板
+ * @param {string} text - 要复制的文本
+ * @returns {Promise<boolean>} 是否成功
+ */
+export async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    console.error('复制失败', e);
+    return false;
+  }
+}
+
+// ============ 视频排序函数 ============
+
+/**
+ * 计算视频互动率
+ */
+export function getEngagementRate(video) {
+  const engagement = video.danmu_count + (video.comment_count || 0) + (video.favorite_count || 0);
+  return video.play_count > 0 ? engagement / video.play_count : 0;
+}
+
+/**
+ * 视频排序器映射
+ */
+export const videoSorters = {
+  time_desc: (a, b) => new Date(b.publish_time) - new Date(a.publish_time),
+  time_asc: (a, b) => new Date(a.publish_time) - new Date(b.publish_time),
+  play_desc: (a, b) => b.play_count - a.play_count,
+  play_asc: (a, b) => a.play_count - b.play_count,
+  danmu_desc: (a, b) => b.danmu_count - a.danmu_count,
+  engagement_desc: (a, b) => getEngagementRate(b) - getEngagementRate(a),
+  duration_desc: (a, b) => parseDuration(b.duration) - parseDuration(a.duration),
+  duration_asc: (a, b) => parseDuration(a.duration) - parseDuration(b.duration),
+};
+
+/**
+ * 排序视频列表
+ * @param {Array} videos - 视频数组
+ * @param {string} sortKey - 排序键
+ * @returns {Array} 排序后的视频数组
+ */
+export function sortVideos(videos, sortKey) {
+  const sorter = videoSorters[sortKey];
+  return sorter ? [...videos].sort(sorter) : videos;
+}
