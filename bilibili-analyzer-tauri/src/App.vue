@@ -5,17 +5,36 @@
       ref="sidebarRef"
       :saved-up-list="savedUpList"
       :current-mid="currentMid"
+      :current-view="currentView"
       @add-up="showNewScrapeDialog = true"
       @load-up="loadSavedUp"
       @delete-up="deleteSavedUp"
       @open-settings="showSettingsDialog = true"
       @export-csv="exportData"
+      @go-home="goToHome"
     />
 
     <!-- Main Content -->
     <main class="flex-1 h-screen overflow-x-hidden overflow-y-auto bg-neutral-100 transition-all duration-200" :class="sidebarRef?.collapsed ? 'ml-[92px]' : 'ml-[292px]'">
-      <!-- Empty State -->
-      <div v-if="!upInfo && videos.length === 0" class="flex items-center justify-center min-h-screen p-10">
+      <!-- Home Page (对比分析) -->
+      <HomePage
+        v-if="currentView === 'home'"
+        :saved-up-list="savedUpList"
+        :up-data-map="upDataMap"
+        @load-up-data="loadUpDataForCompare"
+        @view-up-detail="loadSavedUp"
+      />
+
+      <!-- UP Detail Page -->
+      <UpDetailPage
+        v-else-if="currentView === 'detail' && upInfo"
+        ref="detailPageRef"
+        :up-info="upInfo"
+        :videos="videos"
+      />
+
+      <!-- Empty State (当详情页没有数据时) -->
+      <div v-else class="flex items-center justify-center min-h-screen p-10">
         <div class="text-center max-w-md">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-neutral-400 mb-6 mx-auto">
             <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/>
@@ -30,14 +49,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Data View -->
-      <UpDetailPage
-        v-else
-        ref="detailPageRef"
-        :up-info="upInfo"
-        :videos="videos"
-      />
     </main>
 
     <!-- Dialogs -->
@@ -66,10 +77,14 @@ import Sidebar from './components/Sidebar.vue';
 import NewScrapeDialog from './components/NewScrapeDialog.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
 import UpDetailPage from './components/UpDetailPage.vue';
+import HomePage from './components/HomePage.vue';
 
 // Dialog states
 const showNewScrapeDialog = ref(false);
 const showSettingsDialog = ref(false);
+
+// View state: 'home' | 'detail'
+const currentView = ref('home');
 
 // Data states
 const mid = ref('');
@@ -86,6 +101,9 @@ const currentMid = ref(null);
 
 // Detail page ref
 const detailPageRef = ref(null);
+
+// 用于对比功能的UP主数据缓存
+const upDataMap = ref({});
 
 // Methods
 async function loadSavedUpList() {
@@ -104,10 +122,40 @@ async function loadSavedUp(upMid) {
       upInfo.value = result.up_info;
       currentMid.value = upMid;
       mid.value = upMid;
+      currentView.value = 'detail';
+
+      // 同时缓存到 upDataMap
+      upDataMap.value[upMid] = {
+        up_info: result.up_info,
+        videos: result.videos
+      };
     }
   } catch (error) {
     alert('加载失败: ' + error);
   }
+}
+
+// 为对比功能加载UP主数据（不切换视图）
+async function loadUpDataForCompare(upMid) {
+  if (upDataMap.value[upMid]) return; // 已缓存
+
+  try {
+    const result = await invoke('load_up_videos', { mid: upMid });
+    if (result.success) {
+      upDataMap.value[upMid] = {
+        up_info: result.up_info,
+        videos: result.videos
+      };
+    }
+  } catch (error) {
+    console.error('加载UP主数据失败:', error);
+  }
+}
+
+// 返回首页
+function goToHome() {
+  currentView.value = 'home';
+  currentMid.value = null;
 }
 
 async function deleteSavedUp(upMid) {
@@ -210,6 +258,25 @@ async function loadSavedCookie() {
   }
 }
 
+// 加载所有已保存UP主的数据（用于首页TOP榜单）
+async function loadAllUpData() {
+  for (const up of savedUpList.value) {
+    if (!upDataMap.value[up.mid]) {
+      try {
+        const result = await invoke('load_up_videos', { mid: up.mid });
+        if (result.success) {
+          upDataMap.value[up.mid] = {
+            up_info: result.up_info,
+            videos: result.videos
+          };
+        }
+      } catch (error) {
+        console.error(`加载UP主 ${up.mid} 数据失败:`, error);
+      }
+    }
+  }
+}
+
 onMounted(async () => {
   await listen('scrape-progress', (event) => {
     progress.value = event.payload;
@@ -217,6 +284,9 @@ onMounted(async () => {
 
   await loadSavedCookie();
   await loadSavedUpList();
+
+  // 加载所有UP主数据用于首页
+  await loadAllUpData();
 });
 </script>
 

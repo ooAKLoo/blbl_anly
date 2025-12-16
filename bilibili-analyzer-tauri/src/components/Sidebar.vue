@@ -1,40 +1,81 @@
 <template>
-  <aside class="sidebar" :class="{ collapsed: collapsed }">
-    <div class="sidebar-header">
-      <div v-if="!collapsed" class="logo">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-        </svg>
-        <span>Bilibili Analyzer</span>
-      </div>
-      <button class="icon-btn add-btn" @click="$emit('add-up')" title="添加UP主">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 5v14m-7-7h14"/>
-        </svg>
-      </button>
-    </div>
+  <!-- Floating Toggle Button (always visible) -->
+  <button
+    class="sidebar-toggle"
+    :class="{ active: !collapsed }"
+    @click="toggleCollapse"
+    title="切换侧边栏"
+  >
+    <svg v-if="collapsed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="3" ry="3"/>
+      <line x1="9" y1="3" x2="9" y2="21"/>
+    </svg>
+    <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="18" height="18" rx="3" ry="3" stroke="currentColor" stroke-width="2"/>
+      <path d="M9 3H6C4.34315 3 3 4.34315 3 6V18C3 19.6569 4.34315 21 6 21H9V3Z" fill="currentColor"/>
+      <line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" stroke-width="2"/>
+    </svg>
+  </button>
 
-    <nav class="sidebar-nav" v-if="!collapsed">
-      <div class="nav-section">
-        <div class="nav-section-title">已保存的 UP主</div>
-        <div v-if="savedUpList.length === 0" class="empty-state">
-          <span>暂无数据</span>
+  <Transition name="sidebar">
+    <aside v-show="!collapsed" class="sidebar">
+      <!-- Header -->
+      <div class="sidebar-header">
+        <div class="logo" @click="$emit('go-home')" :class="{ active: currentView === 'home' }">
+          <div class="logo-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <polyline points="9,22 9,12 15,12 15,22"/>
+            </svg>
+          </div>
+          <span class="logo-text">首页</span>
         </div>
-        <div
-          v-for="up in savedUpList"
-          :key="up.mid"
-          class="nav-item"
-          :class="{ active: currentMid === up.mid }"
-          @click="handleItemClick(up.mid)"
-          @contextmenu.prevent="handleContextMenu($event, up.mid)"
-        >
-          <img :src="getImageUrl(up.face)" class="avatar-sm" referrerpolicy="no-referrer" />
-          <span class="nav-item-text">{{ up.name }}</span>
+      </div>
+
+    <!-- Divider -->
+    <div class="divider"></div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-header">
+          <span class="nav-section-title">UP主列表</span>
+          <span class="nav-section-count" v-if="savedUpList.length > 0">{{ savedUpList.length }}</span>
+        </div>
+
+        <div v-if="savedUpList.length === 0" class="empty-state">
+          <div class="empty-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <span>暂无UP主</span>
+          <span class="empty-hint">点击下方按钮添加</span>
+        </div>
+
+        <div class="up-list" v-else>
+          <div
+            v-for="up in savedUpList"
+            :key="up.mid"
+            class="nav-item"
+            :class="{ active: currentMid === up.mid && currentView === 'detail' }"
+            @click="handleItemClick(up.mid)"
+            @contextmenu.prevent="handleContextMenu($event, up.mid)"
+          >
+            <div class="avatar-wrapper">
+              <img :src="getImageUrl(up.face)" class="avatar" referrerpolicy="no-referrer" />
+              <div class="avatar-ring"></div>
+            </div>
+            <span class="nav-item-text">{{ up.name }}</span>
+          </div>
         </div>
       </div>
     </nav>
 
-    <!-- Context Menu (using Teleport to avoid overflow issues) -->
+    <!-- Context Menu -->
     <Teleport to="body">
       <Transition name="context-menu">
         <div
@@ -59,22 +100,26 @@
       </Transition>
     </Teleport>
 
-    <div class="sidebar-footer" v-if="!collapsed">
-      <button class="icon-btn settings-btn" @click="$emit('open-settings')" title="设置">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-        <span>设置</span>
-      </button>
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <div class="divider"></div>
+      <div class="footer-actions">
+        <button class="action-btn primary" @click="$emit('add-up')" title="添加UP主">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 5v14m-7-7h14"/>
+          </svg>
+          <span>添加UP主</span>
+        </button>
+        <button class="action-btn secondary" @click="$emit('open-settings')" title="设置">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
     </div>
-
-    <button class="collapse-btn" @click="toggleCollapse">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path :d="collapsed ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6'"/>
-      </svg>
-    </button>
-  </aside>
+    </aside>
+  </Transition>
 </template>
 
 <script setup>
@@ -91,10 +136,14 @@ defineProps({
     type: Number,
     default: null,
   },
+  currentView: {
+    type: String,
+    default: 'home',
+  },
 });
 
 // Emits
-const emit = defineEmits(['add-up', 'load-up', 'delete-up', 'open-settings', 'export-csv']);
+const emit = defineEmits(['add-up', 'load-up', 'delete-up', 'open-settings', 'export-csv', 'go-home']);
 
 // Local state
 const collapsed = ref(false);
@@ -116,9 +165,7 @@ function handleItemClick(mid) {
 
 function handleContextMenu(event, mid) {
   event.stopPropagation();
-  // Close any existing menu first
   closeContextMenu();
-  // Open new menu on next tick to avoid immediate close
   setTimeout(() => {
     contextMenu.value = {
       visible: true,
@@ -156,7 +203,6 @@ function handleClickOutside(event) {
 
 // Lifecycle
 onMounted(() => {
-  // Use capture phase to ensure we catch the click before other handlers
   document.addEventListener('click', handleClickOutside, true);
 });
 
@@ -171,148 +217,262 @@ defineExpose({
 </script>
 
 <style scoped>
+/* Floating Toggle Button */
+.sidebar-toggle {
+  @apply fixed w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer z-[101] border-0;
+  @apply bg-white text-neutral-500;
+  /* 与首页图标水平对齐: sidebar top(12px) + header pt(12px) + logo py(8px) = 32px */
+  top: 32px;
+  /* 与设置按钮竖直对齐: sidebar left(12px) + sidebar width(240px) - padding right(12px) - button width(40px) + (40-32)/2 = 204px */
+  left: 204px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: left 0.2s ease, top 0.2s ease;
+}
+
+.sidebar-toggle:not(.active) {
+  top: 16px;
+  left: 16px;
+}
+
+.sidebar-toggle:hover {
+  @apply bg-neutral-50 text-neutral-700;
+}
+
+/* Sidebar Container */
 .sidebar {
-  @apply w-[260px] fixed top-4 left-4 flex flex-col bg-white rounded-2xl overflow-hidden transition-all duration-200 z-[100];
-  height: calc(100vh - 32px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  @apply w-[240px] fixed top-3 left-3 bottom-3 flex flex-col bg-white/80 backdrop-blur-xl rounded-2xl overflow-hidden z-[100];
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 2px 4px rgba(0, 0, 0, 0.02),
+    0 8px 16px rgba(0, 0, 0, 0.04);
 }
 
-.sidebar.collapsed {
-  @apply w-[60px];
+/* Sidebar Transition */
+.sidebar-enter-active,
+.sidebar-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.sidebar-enter-from,
+.sidebar-leave-to {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+
+/* Header */
 .sidebar-header {
-  @apply flex items-center justify-between px-4 pt-5 pb-4 min-h-[56px];
+  @apply px-3 pt-3 pb-2;
 }
 
 .logo {
-  @apply flex items-center gap-2.5 text-gray-900 font-semibold text-[0.9rem];
+  @apply flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all duration-200;
 }
 
-.logo svg {
-  @apply text-blue-500;
+.logo:hover {
+  @apply bg-neutral-100/80;
 }
 
+.logo.active {
+  @apply bg-blue-50;
+}
+
+.logo-icon {
+  @apply w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center transition-all duration-200;
+}
+
+.logo.active .logo-icon {
+  @apply bg-blue-100;
+}
+
+.logo-icon svg {
+  @apply text-neutral-500 transition-colors duration-200;
+}
+
+.logo.active .logo-icon svg {
+  @apply text-blue-600;
+}
+
+.logo-text {
+  @apply text-sm font-semibold text-neutral-700 tracking-tight transition-colors duration-200;
+}
+
+.logo.active .logo-text {
+  @apply text-blue-700;
+}
+
+/* Divider */
+.divider {
+  @apply h-px bg-neutral-100 mx-4;
+}
+
+/* Navigation */
 .sidebar-nav {
-  @apply flex-1 overflow-y-auto p-3 px-2;
+  @apply flex-1 overflow-y-auto px-3 py-3;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.1) transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
 }
 
 .nav-section {
-  @apply mb-4;
+  @apply space-y-1;
+}
+
+.nav-section-header {
+  @apply flex items-center justify-between px-3 py-2;
 }
 
 .nav-section-title {
-  @apply text-[0.7rem] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2;
+  @apply text-[11px] font-semibold uppercase tracking-wider text-neutral-400;
 }
 
+.nav-section-count {
+  @apply text-[10px] font-medium text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded-md;
+}
+
+/* Empty State */
 .empty-state {
-  @apply px-3 py-4 text-gray-400 text-sm text-center;
+  @apply flex flex-col items-center justify-center py-8 text-center;
+}
+
+.empty-icon {
+  @apply w-12 h-12 rounded-xl bg-neutral-50 flex items-center justify-center mb-3;
+}
+
+.empty-icon svg {
+  @apply text-neutral-300;
+}
+
+.empty-state > span:first-of-type {
+  @apply text-sm font-medium text-neutral-400;
+}
+
+.empty-hint {
+  @apply text-xs text-neutral-300 mt-1;
+}
+
+/* UP List */
+.up-list {
+  @apply space-y-0.5;
 }
 
 .nav-item {
-  @apply flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-colors duration-150 mb-0.5 relative;
+  @apply flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all duration-200 relative;
 }
 
 .nav-item:hover {
-  @apply bg-gray-50;
+  @apply bg-neutral-50;
 }
 
 .nav-item.active {
   @apply bg-blue-50;
 }
 
+.avatar-wrapper {
+  @apply relative flex-shrink-0;
+}
+
+.avatar {
+  @apply w-8 h-8 rounded-lg object-cover transition-transform duration-200;
+}
+
+.nav-item:hover .avatar {
+  @apply scale-105;
+}
+
+.avatar-ring {
+  @apply absolute inset-0 rounded-lg ring-2 ring-transparent transition-all duration-200;
+}
+
+.nav-item.active .avatar-ring {
+  @apply ring-blue-200;
+}
+
 .nav-item-text {
-  @apply flex-1 text-sm text-gray-600 overflow-hidden text-ellipsis whitespace-nowrap;
+  @apply flex-1 text-[13px] font-medium text-neutral-600 truncate transition-colors duration-200;
 }
 
 .nav-item.active .nav-item-text {
-  @apply text-gray-900 font-medium;
+  @apply text-blue-700 font-semibold;
 }
 
-.avatar-sm {
-  @apply w-7 h-7 rounded-full object-cover;
-}
 
 /* Context Menu */
 .context-menu {
-  @apply fixed bg-white rounded-lg p-1 z-[1000] min-w-[140px];
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  @apply fixed bg-white/95 backdrop-blur-lg rounded-xl p-1.5 z-[1000] min-w-[160px];
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.04),
+    0 16px 32px rgba(0, 0, 0, 0.08);
 }
 
 .context-menu-item {
-  @apply flex items-center gap-2.5 px-3 py-2 rounded-md cursor-pointer transition-colors duration-150 text-gray-600 text-sm;
+  @apply flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-all duration-150 text-neutral-600 text-[13px] font-medium;
 }
 
 .context-menu-item:hover {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-neutral-100 text-neutral-900;
 }
 
 .context-menu-item-danger:hover {
-  @apply bg-red-50 text-red-500;
+  @apply bg-red-50 text-red-600;
 }
 
 .context-menu-item svg {
-  @apply flex-shrink-0;
+  @apply flex-shrink-0 opacity-60;
 }
 
 .context-menu-divider {
-  @apply h-px bg-gray-100 my-1 mx-2;
+  @apply h-px bg-neutral-100 my-1;
 }
 
 /* Context Menu Transition */
 .context-menu-enter-active,
 .context-menu-leave-active {
-  @apply transition-all duration-150 ease-in-out;
+  @apply transition-all duration-150 ease-out;
 }
 
-.context-menu-enter-from {
-  @apply opacity-0 scale-95;
-}
-
+.context-menu-enter-from,
 .context-menu-leave-to {
-  @apply opacity-0 scale-95;
+  @apply opacity-0 scale-95 translate-y-1;
 }
 
+/* Footer */
 .sidebar-footer {
-  @apply px-3 py-3 pb-4;
+  @apply px-3 pb-3 pt-0;
 }
 
-.settings-btn {
-  @apply flex items-center gap-2.5 w-full px-3 py-2.5 text-gray-600 text-sm rounded-lg transition-colors duration-150;
+.footer-actions {
+  @apply flex items-center gap-2 pt-3;
 }
 
-.settings-btn:hover {
-  @apply text-gray-900 bg-gray-50;
+.action-btn {
+  @apply flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 border-0 cursor-pointer;
 }
 
-.collapse-btn {
-  @apply absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-pointer text-gray-400 transition-all duration-150 z-10;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+.action-btn.primary {
+  @apply flex-1 bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 active:scale-[0.98];
 }
 
-.collapse-btn:hover {
-  @apply bg-gray-50 text-gray-900;
+.action-btn.secondary {
+  @apply w-10 h-10 bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700;
 }
 
-/* Icon Button */
-.icon-btn {
-  @apply bg-transparent border-0 text-gray-600 cursor-pointer p-2 rounded-lg flex items-center justify-center transition-all duration-150;
+.action-btn svg {
+  @apply flex-shrink-0;
 }
 
-.icon-btn:hover {
-  @apply bg-gray-50 text-gray-900;
-}
-
-.icon-btn-sm {
-  @apply p-1;
-}
-
-.add-btn {
-  @apply bg-blue-500 text-white;
-}
-
-.add-btn:hover {
-  @apply bg-blue-600 text-white;
-}
 </style>
-
