@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 
 /**
  * 处理成长数据的 hook
@@ -53,7 +53,7 @@ export function useGrowthData(videos) {
   }, [growthData]);
 
   // 根据时间进度获取数据的函数
-  const getPlayProgressAtTime = (timeProgress) => {
+  const getPlayProgressAtTime = useCallback((timeProgress) => {
     if (timeToDataMap.length < 2) {
       return { playProgress: 0, cumulative: 0, videoCount: 0, date: new Date() };
     }
@@ -74,13 +74,13 @@ export function useGrowthData(videos) {
     }
 
     const last = timeToDataMap[timeToDataMap.length - 1];
-    return { 
-      playProgress: last.playProgress, 
-      cumulative: last.cumulative, 
-      videoCount: last.videoCount, 
-      date: last.date 
+    return {
+      playProgress: last.playProgress,
+      cumulative: last.cumulative,
+      videoCount: last.videoCount,
+      date: last.date
     };
-  };
+  }, [timeToDataMap]);
 
   // 计算里程碑
   const milestones = useMemo(() => {

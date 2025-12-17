@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { formatNumber, getImageUrl, formatDateCN } from '../../../utils';
 import {
   Play, CalendarDays, Flag, Trophy,
   PartyPopper, Crown, PenTool, Milestone, MessageSquare, Flame
 } from 'lucide-react';
-
-// ============ 配置常量 ============
 
 const PLAY_MILESTONES = [100000, 500000, 1000000, 5000000, 10000000];
 const VIDEO_COUNT_MILESTONES = [10, 50, 100, 200, 500];
@@ -13,12 +12,6 @@ const NODE_PRIORITY = { start: 0, breakthrough: 1, current: 2, silence: 3, cumul
 const MAX_NODES = 15;
 const MIN_SILENCE_DAYS = 60;
 
-const MILESTONE_LABELS = {
-  10000: '1万', 100000: '10万', 500000: '50万',
-  1000000: '100万', 5000000: '500万', 10000000: '1000万',
-};
-
-// 颜色映射
 const MARKER_COLORS = {
   'marker-blue': 'text-blue-500',
   'marker-amber': 'text-amber-500',
@@ -161,18 +154,7 @@ const createCurrentNode = (video, totalCount) => ({
 
 // ============ 主组件 ============
 
-const StoryTimeline = forwardRef(({ videos = [], upName = 'UP主' }, ref) => {
-  const storyStreamRef = useRef(null);
-  const timelineRef = useRef(null);
-  const nodeRefs = useRef([]);
-
-  const [visibleNodes, setVisibleNodes] = useState(new Set());
-  const [timelineProgress, setTimelineProgress] = useState(0);
-
-  const observersRef = useRef([]);
-
-  // ============ 基础计算 ============
-
+const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
   const sortedVideos = useMemo(() => {
     return [...videos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
   }, [videos]);
@@ -303,182 +285,55 @@ const StoryTimeline = forwardRef(({ videos = [], upName = 'UP主' }, ref) => {
     return sorted;
   }, [videos, sortedVideos, upName]);
 
-  // ============ Observer 和滚动 ============
-
-  const setupObservers = useCallback(() => {
-    observersRef.current.forEach(obs => obs.disconnect());
-    observersRef.current = [];
-
-    const nodeObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          const index = nodeRefs.current.indexOf(entry.target);
-          if (index !== -1 && entry.isIntersecting) {
-            setVisibleNodes(prev => new Set([...prev, index]));
-          }
-        });
-      },
-      { threshold: 0.2, rootMargin: '0px 0px -10% 0px' }
-    );
-
-    nodeRefs.current.forEach(el => {
-      if (el) nodeObserver.observe(el);
-    });
-    observersRef.current.push(nodeObserver);
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    const scrollTop = window.scrollY;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
-    setTimelineProgress(Math.min(scrollPercent * 1.2, 100));
-  }, []);
-
-  const updateTimelinePosition = useCallback(() => {
-    if (!timelineRef.current || nodeRefs.current.length === 0) return;
-
-    const container = timelineRef.current.parentElement;
-    if (!container) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const firstNode = nodeRefs.current[0];
-    const lastNode = nodeRefs.current[nodeRefs.current.length - 1];
-
-    if (!firstNode || !lastNode) return;
-
-    const firstRect = firstNode.getBoundingClientRect();
-    const lastRect = lastNode.getBoundingClientRect();
-
-    const firstCenter = firstRect.top + firstRect.height / 2 - containerRect.top;
-    const lastCenter = lastRect.top + lastRect.height / 2 - containerRect.top;
-
-    container.style.setProperty('--timeline-top', `${firstCenter}px`);
-    container.style.setProperty('--timeline-bottom', `${containerRect.height - lastCenter}px`);
-  }, []);
-
-  const openVideo = useCallback((video) => {
-    if (video?.video_url) {
-      window.open(video.video_url, '_blank');
-    }
-  }, []);
-
-  // ============ 暴露方法 ============
-
-  const reset = useCallback(() => {
-    setVisibleNodes(new Set());
-    nodeRefs.current = [];
-  }, []);
-
-  const init = useCallback(() => {
-    setTimeout(() => {
-      setupObservers();
-      updateTimelinePosition();
-      window.addEventListener('scroll', handleScroll, { passive: true });
-      window.addEventListener('resize', updateTimelinePosition);
-      handleScroll();
-    }, 0);
-  }, [setupObservers, updateTimelinePosition, handleScroll]);
-
-  useEffect(() => {
-    return () => {
-      observersRef.current.forEach(obs => obs.disconnect());
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', updateTimelinePosition);
-    };
-  }, [handleScroll, updateTimelinePosition]);
-
-  useImperativeHandle(ref, () => ({
-    reset,
-    init,
-    setupObservers,
-    updateTimelinePosition
-  }), [reset, init, setupObservers, updateTimelinePosition]);
-
-  // ============ 渲染 ============
+  const openVideo = (video) => {
+    if (video?.video_url) window.open(video.video_url, '_blank');
+  };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 relative" ref={storyStreamRef}>
-      <div className="relative flex flex-col gap-20 py-20">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 relative">
+      <div className="relative flex flex-col gap-16 py-16">
         {/* 时间轴中线 */}
-        <div
-          ref={timelineRef}
-          className="absolute left-6 sm:left-1/2 w-px bg-slate-200/80 pointer-events-none -translate-x-1/2"
-          style={{
-            top: 'var(--timeline-top, 5rem)',
-            bottom: 'var(--timeline-bottom, 5rem)',
-          }}
-        >
-          <div
-            className="absolute top-0 left-0 right-0 bg-gradient-to-b from-blue-400 to-blue-500 transition-[height] duration-100"
-            style={{ height: `${timelineProgress}%` }}
-          />
-        </div>
+        <div className="absolute left-6 sm:left-1/2 w-px bg-slate-200/80 -translate-x-1/2 top-20 bottom-20" />
 
         {/* 故事节点 */}
         {storyNodes.map((node, index) => {
           const IconComponent = node.icon;
           const isRight = index % 2 !== 0;
-          const isVisible = visibleNodes.has(index);
 
           return (
-            <div
+            <motion.div
               key={node.id}
-              ref={el => nodeRefs.current[index] = el}
-              className={`
-                relative pl-16 sm:pl-0 sm:flex sm:items-center
-                transition-all duration-700 ease-out
-                ${isVisible ? 'opacity-100 translate-x-0' : `opacity-0 ${isRight ? 'translate-x-12' : '-translate-x-12'} sm:${isRight ? 'translate-x-12' : '-translate-x-12'}`}
-              `}
+              className="relative pl-16 sm:pl-0 sm:flex sm:items-center"
+              initial={{ opacity: 0, x: isRight ? 40 : -40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
             >
               {/* 时间轴节点标记 */}
-              <div
-                className={`
-                  absolute w-4 h-4 rounded-full flex items-center justify-center z-10
-                  left-0 sm:left-1/2 top-1/2
-                  transition-all duration-500 ease-out delay-200
-                  ${isVisible ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}
-                  ${MARKER_COLORS[node.markerColor]}
-                `}
-                style={{ transform: `translate(-50%, -50%) ${isVisible ? 'scale(1)' : 'scale(0.5)'}` }}
+              <motion.div
+                className={`absolute w-4 h-4 rounded-full flex items-center justify-center z-10 left-0 sm:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${MARKER_COLORS[node.markerColor]}`}
+                initial={{ scale: 0 }}
+                whileInView={{ scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2, duration: 0.3 }}
               >
-                <div
-                  className="w-3 h-3 rounded-full bg-current"
-                  style={{ boxShadow: '0 0 0 4px rgba(255, 255, 255, 0.9), 0 0 0 5px currentColor' }}
-                />
-              </div>
+                <div className="w-3 h-3 rounded-full bg-current" style={{ boxShadow: '0 0 0 4px rgba(255,255,255,0.9), 0 0 0 5px currentColor' }} />
+              </motion.div>
 
               {/* 日期显示 */}
-              <div
-                className={`
-                  text-sm text-slate-400 mb-3 font-serif italic
-                  sm:absolute sm:w-[45%] sm:mb-0 sm:top-1/2 sm:-translate-y-1/2
-                  ${isRight ? 'sm:text-left sm:pl-10 sm:left-auto sm:right-0' : 'sm:text-right sm:pr-10 sm:left-0'}
-                `}
-              >
+              <div className={`text-sm text-slate-400 mb-3 font-serif italic sm:absolute sm:w-[45%] sm:mb-0 sm:top-1/2 sm:-translate-y-1/2 ${isRight ? 'sm:text-left sm:pl-10 sm:right-0' : 'sm:text-right sm:pr-10 sm:left-0'}`}>
                 {node.dateDisplay}
               </div>
 
               {/* 内容卡片 */}
               <div
-                className={`
-                  bg-white/80 backdrop-blur rounded-2xl border border-slate-200/60
-                  relative overflow-hidden transition-all duration-300
-                  hover:bg-white hover:border-slate-300/80 hover:-translate-y-0.5
-                  sm:w-[45%]
-                  ${isRight ? 'sm:mr-[55%] sm:ml-0' : 'sm:ml-[55%]'}
-                  ${node.video ? 'cursor-pointer' : ''}
-                `}
-                onClick={node.video ? () => openVideo(node.video) : null}
+                className={`bg-white/80 backdrop-blur rounded-2xl border border-slate-200/60 relative overflow-hidden transition-all duration-300 hover:bg-white hover:-translate-y-0.5 sm:w-[45%] ${isRight ? 'sm:mr-[55%]' : 'sm:ml-[55%]'} ${node.video ? 'cursor-pointer' : ''}`}
+                onClick={node.video ? () => openVideo(node.video) : undefined}
               >
                 {/* 视频封面 */}
                 {node.video && node.showCover && (
                   <div className="relative w-full aspect-video overflow-hidden">
-                    <img
-                      src={getImageUrl(node.video.cover)}
-                      alt={node.video.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      referrerPolicy="no-referrer"
-                    />
+                    <img src={getImageUrl(node.video.cover)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                       <Play size={32} className="text-white" fill="currentColor" />
                     </div>
@@ -489,57 +344,44 @@ const StoryTimeline = forwardRef(({ videos = [], upName = 'UP主' }, ref) => {
                   </div>
                 )}
 
-                {/* 装饰性背景图标 */}
-                {!node.showCover && (
-                  <IconComponent className="absolute -right-4 -bottom-4 text-slate-100 rotate-12 opacity-50" size={80} />
-                )}
+                {!node.showCover && <IconComponent className="absolute -right-4 -bottom-4 text-slate-100 rotate-12 opacity-50" size={80} />}
 
                 <div className="relative z-10 p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <IconComponent size={18} className={node.iconColor} />
                     <h3 className="font-bold text-slate-800">{node.title}</h3>
                   </div>
-
                   <p className="text-sm text-slate-600 leading-relaxed">{node.description}</p>
 
-                  {/* 关联视频（无封面时显示） */}
                   {node.video && !node.showCover && (
-                    <div className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 hover:bg-blue-100/60 hover:translate-x-1 transition-all cursor-pointer">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white bg-gradient-to-br from-blue-500 to-blue-600">
+                    <div className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 hover:bg-blue-100/60 transition-colors">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-gradient-to-br from-blue-500 to-blue-600">
                         <Play size={12} fill="currentColor" />
                       </div>
-                      <div className="min-w-0 text-left">
+                      <div className="min-w-0">
                         <div className="text-xs font-medium text-slate-700 truncate">{node.video.title}</div>
                         <div className="text-[10px] text-slate-400">播放: {formatNumber(node.video.play_count)}</div>
                       </div>
                     </div>
                   )}
 
-                  {/* 视频标题（有封面时显示） */}
                   {node.video && node.showCover && (
-                    <div className="mt-3 text-sm font-medium text-slate-800 line-clamp-2">
-                      {node.video.title}
-                    </div>
+                    <div className="mt-3 text-sm font-medium text-slate-800 line-clamp-2">{node.video.title}</div>
                   )}
 
-                  {/* 额外统计 */}
                   {node.stats && (
                     <div className="flex items-center gap-3 mt-3 text-xs text-slate-500">
-                      {node.stats.map((stat, i) => (
-                        <span key={i} className="px-2 py-1 bg-slate-50 rounded">{stat}</span>
-                      ))}
+                      {node.stats.map((stat, i) => <span key={i} className="px-2 py-1 bg-slate-50 rounded">{stat}</span>)}
                     </div>
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
     </div>
   );
-});
-
-StoryTimeline.displayName = 'StoryTimeline';
+};
 
 export default StoryTimeline;

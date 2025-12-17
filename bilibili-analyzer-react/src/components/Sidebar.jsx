@@ -11,7 +11,8 @@ const Sidebar = forwardRef(function Sidebar({
   onDeleteUp,
   onOpenSettings,
   onExportCsv,
-  onGoHome
+  onGoHome,
+  onCollapseChange
 }, ref) {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -44,7 +45,9 @@ const Sidebar = forwardRef(function Sidebar({
   }, [contextMenu.visible]);
 
   const toggleCollapse = () => {
-    setCollapsed(!collapsed);
+    const newCollapsed = !collapsed;
+    setCollapsed(newCollapsed);
+    onCollapseChange?.(newCollapsed);
   };
 
   const handleItemClick = (mid) => {

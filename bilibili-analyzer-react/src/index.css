@@ -776,11 +776,14 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .growth-close-btn {
-  @apply fixed top-6 right-6 z-[60];
+  @apply fixed z-[60];
   @apply w-9 h-9 flex items-center justify-center;
   @apply text-neutral-300 hover:text-neutral-500;
   @apply rounded-full transition-all duration-300;
   @apply hover:bg-neutral-100/80;
+  /* 与 sidebar-toggle 收起时同一水平线 */
+  top: 16px;
+  right: 16px;
   opacity: 0.6;
 }
 
@@ -849,6 +852,31 @@ main::-webkit-scrollbar-thumb:hover {
 @keyframes toast-out {
   0% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+/* Apple-style Ending Section - 直接完整显示，无渐入效果 */
+.ending-section-wrapper {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.ending-section {
+  /* 确保内容始终可见 */
+  opacity: 1 !important;
+  visibility: visible !important;
+  /* Apple 风格的纯净背景 */
+  background: transparent;
+}
+
+/* 平滑滚动过渡 */
+.growth-journey-overlay {
+  scroll-snap-type: y proximity;
+}
+
+.ending-section-wrapper {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
 }
 
 /* Problem Data Diagnosis Styles (问题数据诊断) */
