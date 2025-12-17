@@ -52,30 +52,189 @@
               </div>
               <div class="flex-1 min-w-0">
                 <h3 class="text-sm font-medium text-neutral-900">{{ finding.title }}</h3>
-                <p class="text-sm text-neutral-500 mt-0.5 leading-relaxed">{{ finding.description }}</p>
+                <!-- 带 HoverCard 的描述 -->
+                <template v-if="finding.detailKey && findingDetails[finding.detailKey]">
+                  <HoverCardRoot :open-delay="200" :close-delay="100">
+                    <HoverCardTrigger as-child>
+                      <p class="text-sm text-neutral-500 mt-0.5 leading-relaxed cursor-pointer border-b border-dashed border-neutral-300 hover:border-neutral-500 inline-flex items-center gap-1 transition-colors">
+                        {{ finding.description }}
+                        <Info :size="12" class="text-neutral-400" />
+                      </p>
+                    </HoverCardTrigger>
+                    <HoverCardPortal>
+                      <HoverCardContent
+                        :side-offset="8"
+                        side="bottom"
+                        align="start"
+                        class="z-50 w-80 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                      >
+                        <!-- 黄金发布时间详情 -->
+                        <template v-if="finding.detailKey === 'publishTime'">
+                          <div class="p-3 border-b border-neutral-100 bg-neutral-50">
+                            <span class="text-sm font-medium text-neutral-700">黄金发布时间分析</span>
+                            <p class="text-xs text-neutral-500 mt-1">基于播放量 TOP 30% 的视频统计</p>
+                          </div>
+                          <div class="p-3">
+                            <div class="mb-3">
+                              <div class="text-xs text-neutral-500 mb-2">高播放时段分布</div>
+                              <div class="flex flex-wrap gap-1.5">
+                                <span
+                                  v-for="(count, slot) in findingDetails.publishTime.slots"
+                                  :key="slot"
+                                  class="px-2 py-1 rounded-md text-xs font-medium"
+                                  :class="count >= 3 ? 'bg-emerald-100 text-emerald-700' : count >= 2 ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-600'"
+                                >
+                                  {{ slot }} ({{ count }})
+                                </span>
+                              </div>
+                            </div>
+                            <div>
+                              <div class="text-xs text-neutral-500 mb-2">代表视频</div>
+                              <div class="space-y-2 max-h-40 overflow-y-auto">
+                                <div
+                                  v-for="video in findingDetails.publishTime.topVideos"
+                                  :key="video.bvid"
+                                  class="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
+                                  @click="openVideo(video)"
+                                >
+                                  <img
+                                    :src="getImageUrl(video.cover)"
+                                    class="w-16 h-9 rounded object-cover flex-shrink-0"
+                                    referrerpolicy="no-referrer"
+                                  />
+                                  <div class="flex-1 min-w-0">
+                                    <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                                    <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                      <span class="flex items-center gap-0.5"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                                      <span>{{ formatPublishSlot(video.publish_time) }}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+
+                        <!-- 最佳内容时长详情 -->
+                        <template v-else-if="finding.detailKey === 'duration'">
+                          <div class="p-3 border-b border-neutral-100 bg-neutral-50">
+                            <span class="text-sm font-medium text-neutral-700">最佳时长分析</span>
+                            <p class="text-xs text-neutral-500 mt-1">各时长区间的视频表现对比</p>
+                          </div>
+                          <div class="p-3">
+                            <div class="mb-3">
+                              <div class="text-xs text-neutral-500 mb-2">时长区间对比</div>
+                              <div class="space-y-1.5">
+                                <div
+                                  v-for="bin in findingDetails.duration.bins"
+                                  :key="bin.label"
+                                  class="flex items-center gap-2"
+                                >
+                                  <span class="text-xs text-neutral-600 w-20">{{ bin.label }}</span>
+                                  <div class="flex-1 h-4 bg-neutral-100 rounded-full overflow-hidden">
+                                    <div
+                                      class="h-full rounded-full transition-all"
+                                      :class="bin.isBest ? 'bg-emerald-500' : 'bg-blue-300'"
+                                      :style="{ width: (bin.avgPlay / findingDetails.duration.maxAvgPlay * 100) + '%' }"
+                                    ></div>
+                                  </div>
+                                  <span class="text-xs font-medium text-neutral-700 w-16 text-right">{{ formatNumber(bin.avgPlay) }}</span>
+                                  <span class="text-[10px] text-neutral-400 w-8">({{ bin.count }}个)</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <div class="text-xs text-neutral-500 mb-2">该时长代表视频</div>
+                              <div class="space-y-2 max-h-32 overflow-y-auto">
+                                <div
+                                  v-for="video in findingDetails.duration.topVideos"
+                                  :key="video.bvid"
+                                  class="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
+                                  @click="openVideo(video)"
+                                >
+                                  <img
+                                    :src="getImageUrl(video.cover)"
+                                    class="w-16 h-9 rounded object-cover flex-shrink-0"
+                                    referrerpolicy="no-referrer"
+                                  />
+                                  <div class="flex-1 min-w-0">
+                                    <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                                    <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                      <span class="flex items-center gap-0.5"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                                      <span>{{ video.duration }}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+
+                        <!-- 爆款视频详情 -->
+                        <template v-else-if="finding.detailKey === 'hitVideos'">
+                          <div class="p-3 border-b border-neutral-100 bg-neutral-50">
+                            <span class="text-sm font-medium text-neutral-700">爆款视频分析</span>
+                            <p class="text-xs text-neutral-500 mt-1">播放量超过均值 2 倍的视频</p>
+                          </div>
+                          <div class="p-3">
+                            <div class="space-y-2 max-h-48 overflow-y-auto">
+                              <div
+                                v-for="video in findingDetails.hitVideos.videos"
+                                :key="video.bvid"
+                                class="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
+                                @click="openVideo(video)"
+                              >
+                                <img
+                                  :src="getImageUrl(video.cover)"
+                                  class="w-16 h-9 rounded object-cover flex-shrink-0"
+                                  referrerpolicy="no-referrer"
+                                />
+                                <div class="flex-1 min-w-0">
+                                  <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                                  <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                    <span class="flex items-center gap-0.5 text-amber-600 font-medium"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                                    <span>{{ video.duration }}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+
+                        <!-- 趋势详情 -->
+                        <template v-else-if="finding.detailKey === 'trend'">
+                          <div class="p-3 border-b border-neutral-100 bg-neutral-50">
+                            <span class="text-sm font-medium text-neutral-700">趋势分析</span>
+                            <p class="text-xs text-neutral-500 mt-1">前后期视频表现对比</p>
+                          </div>
+                          <div class="p-3">
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                              <div class="p-2 bg-neutral-50 rounded-lg">
+                                <div class="text-xs text-neutral-500">前期均播放</div>
+                                <div class="text-lg font-semibold text-neutral-700">{{ formatNumber(findingDetails.trend.firstAvg) }}</div>
+                                <div class="text-[10px] text-neutral-400">{{ findingDetails.trend.firstCount }} 个视频</div>
+                              </div>
+                              <div class="p-2 rounded-lg" :class="findingDetails.trend.changeRate > 0 ? 'bg-emerald-50' : 'bg-rose-50'">
+                                <div class="text-xs text-neutral-500">后期均播放</div>
+                                <div class="text-lg font-semibold" :class="findingDetails.trend.changeRate > 0 ? 'text-emerald-600' : 'text-rose-600'">{{ formatNumber(findingDetails.trend.secondAvg) }}</div>
+                                <div class="text-[10px]" :class="findingDetails.trend.changeRate > 0 ? 'text-emerald-500' : 'text-rose-500'">
+                                  {{ findingDetails.trend.changeRate > 0 ? '+' : '' }}{{ findingDetails.trend.changeRate.toFixed(0) }}%
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+                      </HoverCardContent>
+                    </HoverCardPortal>
+                  </HoverCardRoot>
+                </template>
+                <!-- 普通描述 -->
+                <p v-else class="text-sm text-neutral-500 mt-0.5 leading-relaxed">{{ finding.description }}</p>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- 行动建议 -->
-        <section class="report-card">
-          <h2 class="section-title">
-            <Target :size="16" class="text-blue-500" />
-            行动建议
-          </h2>
-          <div class="space-y-4">
-            <div v-for="(rec, index) in reportRecommendations" :key="index" class="flex items-start gap-3">
-              <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                {{ index + 1 }}
-              </div>
-              <div class="flex-1 min-w-0">
-                <h4 class="text-sm font-medium text-neutral-900">{{ rec.title }}</h4>
-                <p class="text-sm text-neutral-500 mt-0.5 leading-relaxed">{{ rec.description }}</p>
-              </div>
-            </div>
-          </div>
-        </section>
       </div>
 
       <!-- ==================== 第三层：数据洞察详情 ==================== -->
@@ -106,6 +265,358 @@
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- ==================== 问题数据诊断 ==================== -->
+      <section v-if="problemDataAnalysis" class="report-card border border-amber-100">
+        <h2 class="section-title">
+          <AlertTriangle :size="16" class="text-amber-500" />
+          问题数据诊断
+        </h2>
+        <p class="text-xs text-neutral-500 -mt-2 mb-4">以下数据需要特别关注，可能是内容策略的改进方向</p>
+
+        <div class="space-y-6">
+          <!-- 低于平均表现分析 -->
+          <div v-if="problemDataAnalysis.belowAvg" class="problem-block">
+            <div class="problem-header">
+              <div class="problem-icon amber">
+                <TrendingDown :size="16" />
+              </div>
+              <div>
+                <h3 class="problem-title">低于平均表现</h3>
+                <HoverCardRoot :open-delay="200" :close-delay="100">
+                  <HoverCardTrigger as-child>
+                    <p class="problem-subtitle cursor-pointer border-b border-dashed border-neutral-300 hover:border-amber-500 inline-flex items-center gap-1 transition-colors">
+                      <strong>{{ problemDataAnalysis.belowAvg.count }}</strong> 个视频 ({{ problemDataAnalysis.belowAvg.ratio }}%) 播放量低于均值
+                      <Info :size="12" class="text-neutral-400" />
+                    </p>
+                  </HoverCardTrigger>
+                  <HoverCardPortal>
+                    <HoverCardContent
+                      :side-offset="8"
+                      side="bottom"
+                      align="start"
+                      class="z-50 w-96 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                    >
+                      <div class="p-3 border-b border-neutral-100 bg-amber-50">
+                        <span class="text-sm font-medium text-amber-800">低于平均表现的视频</span>
+                        <p class="text-xs text-amber-600 mt-1">共 {{ problemDataAnalysis.belowAvg.count }} 个，播放量 &lt; {{ formatNumber(problemDataAnalysis.belowAvg.threshold) }}</p>
+                      </div>
+                      <div class="p-3 max-h-64 overflow-y-auto">
+                        <div class="space-y-2">
+                          <div
+                            v-for="video in problemDataAnalysis.belowAvg.videos"
+                            :key="video.bvid"
+                            class="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
+                            @click="openVideo(video)"
+                          >
+                            <img
+                              :src="getImageUrl(video.cover)"
+                              class="w-16 h-9 rounded object-cover flex-shrink-0"
+                              referrerpolicy="no-referrer"
+                            />
+                            <div class="flex-1 min-w-0">
+                              <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                              <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                <span class="flex items-center gap-0.5 text-amber-600"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                                <span>{{ video.publish_time.slice(0, 10) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCardPortal>
+                </HoverCardRoot>
+              </div>
+              <div class="ml-auto text-right">
+                <div class="text-lg font-bold text-amber-600 tabular-nums">{{ problemDataAnalysis.belowAvg.ratio }}%</div>
+                <div class="text-xs text-neutral-400">占比</div>
+              </div>
+            </div>
+
+            <div class="problem-stats">
+              <div class="stat-item">
+                <span class="stat-label">阈值</span>
+                <span class="stat-value">&lt; {{ formatNumber(problemDataAnalysis.belowAvg.threshold) }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">播放量贡献</span>
+                <span class="stat-value text-amber-600">仅 {{ problemDataAnalysis.belowAvg.playContribution }}%</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">平均播放</span>
+                <span class="stat-value">{{ formatNumber(problemDataAnalysis.belowAvg.avgPlay) }}</span>
+              </div>
+            </div>
+
+            <!-- 共性特征 -->
+            <div v-if="problemDataAnalysis.belowAvg.features.length > 0" class="problem-features">
+              <p class="text-xs text-neutral-500 mb-2">可能的共性特征：</p>
+              <div class="flex flex-wrap gap-2">
+                <span v-for="(feature, i) in problemDataAnalysis.belowAvg.features" :key="i" class="feature-tag amber">
+                  {{ feature }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 数据波动分析 -->
+          <div v-if="problemDataAnalysis.volatility" class="problem-block">
+            <div class="problem-header">
+              <div class="problem-icon blue">
+                <Activity :size="16" />
+              </div>
+              <div>
+                <h3 class="problem-title">数据波动分析</h3>
+                <p class="problem-subtitle">
+                  波动{{ problemDataAnalysis.volatility.level === 'high' ? '较大' : problemDataAnalysis.volatility.level === 'medium' ? '适中' : '较小' }}，
+                  变异系数 {{ problemDataAnalysis.volatility.cv }}%
+                </p>
+              </div>
+              <div class="ml-auto">
+                <span :class="[
+                  'px-2 py-1 rounded-full text-xs font-medium',
+                  problemDataAnalysis.volatility.level === 'high' ? 'bg-amber-100 text-amber-700' :
+                  problemDataAnalysis.volatility.level === 'medium' ? 'bg-blue-100 text-blue-700' :
+                  'bg-emerald-100 text-emerald-700'
+                ]">
+                  {{ problemDataAnalysis.volatility.level === 'high' ? '高波动' : problemDataAnalysis.volatility.level === 'medium' ? '中等波动' : '低波动' }}
+                </span>
+              </div>
+            </div>
+
+            <div class="problem-stats">
+              <div class="stat-item">
+                <span class="stat-label">最高播放</span>
+                <span class="stat-value text-emerald-600">{{ formatNumber(problemDataAnalysis.volatility.max) }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">最低播放</span>
+                <span class="stat-value text-rose-600">{{ formatNumber(problemDataAnalysis.volatility.min) }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">极差倍数</span>
+                <span class="stat-value">{{ problemDataAnalysis.volatility.range }}x</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">中位数</span>
+                <span class="stat-value">{{ formatNumber(problemDataAnalysis.volatility.median) }}</span>
+              </div>
+            </div>
+
+            <p class="text-xs text-neutral-500 mt-3 leading-relaxed">
+              {{ problemDataAnalysis.volatility.interpretation }}
+            </p>
+          </div>
+
+          <!-- 极端异常数据点 -->
+          <div v-if="problemDataAnalysis.outliers && problemDataAnalysis.outliers.low.length > 0" class="problem-block">
+            <div class="problem-header">
+              <div class="problem-icon rose">
+                <AlertCircle :size="16" />
+              </div>
+              <div>
+                <h3 class="problem-title">极端低值视频</h3>
+                <HoverCardRoot :open-delay="200" :close-delay="100">
+                  <HoverCardTrigger as-child>
+                    <p class="problem-subtitle cursor-pointer border-b border-dashed border-neutral-300 hover:border-rose-500 inline-flex items-center gap-1 transition-colors">
+                      <strong>{{ problemDataAnalysis.outliers.low.length }}</strong> 个视频播放量显著低于正常范围
+                      <Info :size="12" class="text-neutral-400" />
+                    </p>
+                  </HoverCardTrigger>
+                  <HoverCardPortal>
+                    <HoverCardContent
+                      :side-offset="8"
+                      side="bottom"
+                      align="start"
+                      class="z-50 w-96 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                    >
+                      <div class="p-3 border-b border-neutral-100 bg-rose-50">
+                        <span class="text-sm font-medium text-rose-800">极端低值视频</span>
+                        <p class="text-xs text-rose-600 mt-1">低于 Q1 - 1.5×IQR 的异常数据点</p>
+                      </div>
+                      <div class="p-3 max-h-64 overflow-y-auto">
+                        <div class="space-y-2">
+                          <div
+                            v-for="video in problemDataAnalysis.outliers.low"
+                            :key="video.bvid"
+                            class="flex items-start gap-2 p-2 rounded-lg bg-rose-50 hover:bg-rose-100 cursor-pointer transition-colors"
+                            @click="openVideo(video)"
+                          >
+                            <img
+                              :src="getImageUrl(video.cover)"
+                              class="w-16 h-9 rounded object-cover flex-shrink-0"
+                              referrerpolicy="no-referrer"
+                            />
+                            <div class="flex-1 min-w-0">
+                              <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                              <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                <span class="flex items-center gap-0.5 text-rose-600"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                                <span>{{ video.publish_time.slice(0, 10) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCardPortal>
+                </HoverCardRoot>
+              </div>
+              <div class="ml-auto text-right">
+                <div class="text-lg font-bold text-rose-600 tabular-nums">{{ problemDataAnalysis.outliers.low.length }}</div>
+                <div class="text-xs text-neutral-400">个视频</div>
+              </div>
+            </div>
+
+            <p v-if="problemDataAnalysis.outliers.lowFeatures.length > 0" class="text-xs text-neutral-500 mt-3">
+              这些视频的共性：{{ problemDataAnalysis.outliers.lowFeatures.join('、') }}
+            </p>
+          </div>
+
+          <!-- 低互动高播放（流量陷阱） -->
+          <div v-if="problemDataAnalysis.lowEngagement && problemDataAnalysis.lowEngagement.count > 0" class="problem-block">
+            <div class="problem-header">
+              <div class="problem-icon purple">
+                <MessageSquareOff :size="16" />
+              </div>
+              <div>
+                <h3 class="problem-title">流量陷阱内容</h3>
+                <HoverCardRoot :open-delay="200" :close-delay="100">
+                  <HoverCardTrigger as-child>
+                    <p class="problem-subtitle cursor-pointer border-b border-dashed border-neutral-300 hover:border-purple-500 inline-flex items-center gap-1 transition-colors">
+                      <strong>{{ problemDataAnalysis.lowEngagement.count }}</strong> 个视频高播放但低互动
+                      <Info :size="12" class="text-neutral-400" />
+                    </p>
+                  </HoverCardTrigger>
+                  <HoverCardPortal>
+                    <HoverCardContent
+                      :side-offset="8"
+                      side="bottom"
+                      align="start"
+                      class="z-50 w-96 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                    >
+                      <div class="p-3 border-b border-neutral-100 bg-purple-50">
+                        <span class="text-sm font-medium text-purple-800">流量陷阱内容</span>
+                        <p class="text-xs text-purple-600 mt-1">播放量高于均值但互动率低于均值的 50%</p>
+                      </div>
+                      <div class="p-3 max-h-64 overflow-y-auto">
+                        <div class="space-y-2">
+                          <div
+                            v-for="video in problemDataAnalysis.lowEngagement.videos"
+                            :key="video.bvid"
+                            class="flex items-start gap-2 p-2 rounded-lg bg-purple-50 hover:bg-purple-100 cursor-pointer transition-colors"
+                            @click="openVideo(video)"
+                          >
+                            <img
+                              :src="getImageUrl(video.cover)"
+                              class="w-16 h-9 rounded object-cover flex-shrink-0"
+                              referrerpolicy="no-referrer"
+                            />
+                            <div class="flex-1 min-w-0">
+                              <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                              <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                <span class="flex items-center gap-0.5"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                                <span class="text-purple-600">互动率 {{ video.engagementRate.toFixed(2) }}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCardPortal>
+                </HoverCardRoot>
+              </div>
+              <div class="ml-auto text-right">
+                <div class="text-lg font-bold text-purple-600 tabular-nums">{{ problemDataAnalysis.lowEngagement.count }}</div>
+                <div class="text-xs text-neutral-400">个视频</div>
+              </div>
+            </div>
+
+            <div class="problem-stats">
+              <div class="stat-item">
+                <span class="stat-label">平均播放</span>
+                <span class="stat-value">{{ formatNumber(problemDataAnalysis.lowEngagement.avgPlay) }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">平均互动率</span>
+                <span class="stat-value text-purple-600">{{ problemDataAnalysis.lowEngagement.avgEngRate }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 连续低迷期 -->
+          <div v-if="problemDataAnalysis.lowPeriod" class="problem-block">
+            <div class="problem-header">
+              <div class="problem-icon slate">
+                <CalendarX :size="16" />
+              </div>
+              <div>
+                <h3 class="problem-title">低迷时期</h3>
+                <HoverCardRoot :open-delay="200" :close-delay="100">
+                  <HoverCardTrigger as-child>
+                    <p class="problem-subtitle cursor-pointer border-b border-dashed border-neutral-300 hover:border-slate-500 inline-flex items-center gap-1 transition-colors">
+                      {{ problemDataAnalysis.lowPeriod.period }} 期间 <strong>{{ problemDataAnalysis.lowPeriod.count }}</strong> 个视频表现较差
+                      <Info :size="12" class="text-neutral-400" />
+                    </p>
+                  </HoverCardTrigger>
+                  <HoverCardPortal>
+                    <HoverCardContent
+                      :side-offset="8"
+                      side="bottom"
+                      align="start"
+                      class="z-50 w-96 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                    >
+                      <div class="p-3 border-b border-neutral-100 bg-slate-50">
+                        <span class="text-sm font-medium text-slate-800">{{ problemDataAnalysis.lowPeriod.period }} 低迷期视频</span>
+                        <p class="text-xs text-slate-600 mt-1">该时期均播放 {{ formatNumber(problemDataAnalysis.lowPeriod.avgPlay) }}，对比整体 {{ problemDataAnalysis.lowPeriod.vsAvg }}%</p>
+                      </div>
+                      <div class="p-3 max-h-64 overflow-y-auto">
+                        <div class="space-y-2">
+                          <div
+                            v-for="video in problemDataAnalysis.lowPeriod.videos"
+                            :key="video.bvid"
+                            class="flex items-start gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors"
+                            @click="openVideo(video)"
+                          >
+                            <img
+                              :src="getImageUrl(video.cover)"
+                              class="w-16 h-9 rounded object-cover flex-shrink-0"
+                              referrerpolicy="no-referrer"
+                            />
+                            <div class="flex-1 min-w-0">
+                              <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                              <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                <span class="flex items-center gap-0.5 text-slate-600"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                                <span>{{ video.publish_time.slice(0, 10) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCardPortal>
+                </HoverCardRoot>
+              </div>
+            </div>
+
+            <div class="problem-stats">
+              <div class="stat-item">
+                <span class="stat-label">该时期视频数</span>
+                <span class="stat-value">{{ problemDataAnalysis.lowPeriod.count }} 个</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">该时期均播放</span>
+                <span class="stat-value text-rose-600">{{ formatNumber(problemDataAnalysis.lowPeriod.avgPlay) }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">对比整体均值</span>
+                <span class="stat-value text-rose-600">{{ problemDataAnalysis.lowPeriod.vsAvg }}%</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -182,57 +693,216 @@
 
             <div class="grid grid-cols-2 gap-3">
               <!-- 明星内容 -->
-              <div class="p-3 rounded-xl bg-amber-50 border border-amber-100">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs font-medium text-amber-700">明星内容</span>
-                  <span class="text-lg font-bold text-amber-600 tabular-nums">{{ quadrantAnalysis.quadrants.star.count }}</span>
-                </div>
-                <p class="text-[11px] text-amber-600/70">高播放 · 高互动</p>
-              </div>
+              <HoverCardRoot :open-delay="200" :close-delay="100">
+                <HoverCardTrigger as-child>
+                  <div class="p-3 rounded-xl bg-amber-50 border border-amber-100 cursor-pointer hover:border-amber-300 transition-colors">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-medium text-amber-700">明星内容</span>
+                      <span class="text-lg font-bold text-amber-600 tabular-nums flex items-center gap-1">
+                        {{ quadrantAnalysis.quadrants.star.count }}
+                        <Info :size="12" class="text-amber-400" />
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-amber-600/70">高播放 · 高互动</p>
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardPortal>
+                  <HoverCardContent
+                    :side-offset="8"
+                    side="top"
+                    align="start"
+                    class="z-50 w-96 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                  >
+                    <div class="p-3 border-b border-neutral-100 bg-amber-50">
+                      <span class="text-sm font-medium text-amber-800">明星内容</span>
+                      <p class="text-xs text-amber-600 mt-1">高播放高互动，最优质的内容</p>
+                    </div>
+                    <div class="p-3 max-h-64 overflow-y-auto">
+                      <div v-if="quadrantAnalysis.quadrants.star.videos.length > 0" class="space-y-2">
+                        <div
+                          v-for="video in quadrantAnalysis.quadrants.star.videos"
+                          :key="video.bvid"
+                          class="flex items-start gap-2 p-2 rounded-lg bg-amber-50 hover:bg-amber-100 cursor-pointer transition-colors"
+                          @click="openVideo(video)"
+                        >
+                          <img
+                            :src="getImageUrl(video.cover)"
+                            class="w-16 h-9 rounded object-cover flex-shrink-0"
+                            referrerpolicy="no-referrer"
+                          />
+                          <div class="flex-1 min-w-0">
+                            <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                            <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                              <span class="flex items-center gap-0.5 text-amber-600"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <p v-else class="text-xs text-neutral-400 text-center py-4">暂无明星内容</p>
+                    </div>
+                  </HoverCardContent>
+                </HoverCardPortal>
+              </HoverCardRoot>
 
               <!-- 利基宝藏 -->
-              <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100 relative">
-                <div class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] rounded font-medium">
-                  蓝海
-                </div>
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs font-medium text-emerald-700">利基宝藏</span>
-                  <span class="text-lg font-bold text-emerald-600 tabular-nums">{{ quadrantAnalysis.quadrants.niche.count }}</span>
-                </div>
-                <p class="text-[11px] text-emerald-600/70">低播放 · 高互动</p>
-              </div>
+              <HoverCardRoot :open-delay="200" :close-delay="100">
+                <HoverCardTrigger as-child>
+                  <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100 relative cursor-pointer hover:border-emerald-300 transition-colors">
+                    <div class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] rounded font-medium">
+                      蓝海
+                    </div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-medium text-emerald-700">利基宝藏</span>
+                      <span class="text-lg font-bold text-emerald-600 tabular-nums flex items-center gap-1">
+                        {{ quadrantAnalysis.quadrants.niche.count }}
+                        <Info :size="12" class="text-emerald-400" />
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-emerald-600/70">低播放 · 高互动</p>
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardPortal>
+                  <HoverCardContent
+                    :side-offset="8"
+                    side="top"
+                    align="end"
+                    class="z-50 w-96 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                  >
+                    <div class="p-3 border-b border-neutral-100 bg-emerald-50">
+                      <span class="text-sm font-medium text-emerald-800">利基宝藏</span>
+                      <p class="text-xs text-emerald-600 mt-1">低播放高互动，值得深挖的蓝海选题</p>
+                    </div>
+                    <div class="p-3 max-h-64 overflow-y-auto">
+                      <div v-if="quadrantAnalysis.quadrants.niche.videos.length > 0" class="space-y-2">
+                        <div
+                          v-for="video in quadrantAnalysis.quadrants.niche.videos"
+                          :key="video.bvid"
+                          class="flex items-start gap-2 p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 cursor-pointer transition-colors"
+                          @click="openVideo(video)"
+                        >
+                          <img
+                            :src="getImageUrl(video.cover)"
+                            class="w-16 h-9 rounded object-cover flex-shrink-0"
+                            referrerpolicy="no-referrer"
+                          />
+                          <div class="flex-1 min-w-0">
+                            <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                            <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                              <span class="flex items-center gap-0.5"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                              <span class="text-emerald-600">互动率 {{ video.engagementRate?.toFixed(2) || '-' }}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <p v-else class="text-xs text-neutral-400 text-center py-4">暂无利基宝藏内容</p>
+                    </div>
+                  </HoverCardContent>
+                </HoverCardPortal>
+              </HoverCardRoot>
 
               <!-- 流量内容 -->
-              <div class="p-3 rounded-xl bg-blue-50 border border-blue-100">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs font-medium text-blue-700">流量内容</span>
-                  <span class="text-lg font-bold text-blue-600 tabular-nums">{{ quadrantAnalysis.quadrants.traffic.count }}</span>
-                </div>
-                <p class="text-[11px] text-blue-600/70">高播放 · 低互动</p>
-              </div>
+              <HoverCardRoot :open-delay="200" :close-delay="100">
+                <HoverCardTrigger as-child>
+                  <div class="p-3 rounded-xl bg-blue-50 border border-blue-100 cursor-pointer hover:border-blue-300 transition-colors">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-medium text-blue-700">流量内容</span>
+                      <span class="text-lg font-bold text-blue-600 tabular-nums flex items-center gap-1">
+                        {{ quadrantAnalysis.quadrants.traffic.count }}
+                        <Info :size="12" class="text-blue-400" />
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-blue-600/70">高播放 · 低互动</p>
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardPortal>
+                  <HoverCardContent
+                    :side-offset="8"
+                    side="bottom"
+                    align="start"
+                    class="z-50 w-96 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                  >
+                    <div class="p-3 border-b border-neutral-100 bg-blue-50">
+                      <span class="text-sm font-medium text-blue-800">流量内容</span>
+                      <p class="text-xs text-blue-600 mt-1">高播放低互动，吸引眼球但粘性不足</p>
+                    </div>
+                    <div class="p-3 max-h-64 overflow-y-auto">
+                      <div v-if="quadrantAnalysis.quadrants.traffic.videos.length > 0" class="space-y-2">
+                        <div
+                          v-for="video in quadrantAnalysis.quadrants.traffic.videos"
+                          :key="video.bvid"
+                          class="flex items-start gap-2 p-2 rounded-lg bg-blue-50 hover:bg-blue-100 cursor-pointer transition-colors"
+                          @click="openVideo(video)"
+                        >
+                          <img
+                            :src="getImageUrl(video.cover)"
+                            class="w-16 h-9 rounded object-cover flex-shrink-0"
+                            referrerpolicy="no-referrer"
+                          />
+                          <div class="flex-1 min-w-0">
+                            <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                            <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                              <span class="flex items-center gap-0.5 text-blue-600"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <p v-else class="text-xs text-neutral-400 text-center py-4">暂无流量内容</p>
+                    </div>
+                  </HoverCardContent>
+                </HoverCardPortal>
+              </HoverCardRoot>
 
               <!-- 待优化 -->
-              <div class="p-3 rounded-xl bg-neutral-100 border border-neutral-200">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs font-medium text-neutral-600">待优化</span>
-                  <span class="text-lg font-bold text-neutral-500 tabular-nums">{{ quadrantAnalysis.quadrants.weak.count }}</span>
-                </div>
-                <p class="text-[11px] text-neutral-500">低播放 · 低互动</p>
-              </div>
-            </div>
-
-            <!-- 利基内容列表 -->
-            <div v-if="quadrantAnalysis.quadrants.niche.videos.length > 0" class="mt-4 pt-4 border-t border-neutral-100">
-              <p class="text-xs text-neutral-500 mb-2">利基宝藏内容（值得深挖）</p>
-              <div class="space-y-1.5">
-                <div
-                  v-for="(v, i) in quadrantAnalysis.quadrants.niche.videos.slice(0, 2)"
-                  :key="i"
-                  class="text-xs text-neutral-600 truncate"
-                >
-                  · {{ v.title }}
-                </div>
-              </div>
+              <HoverCardRoot :open-delay="200" :close-delay="100">
+                <HoverCardTrigger as-child>
+                  <div class="p-3 rounded-xl bg-neutral-100 border border-neutral-200 cursor-pointer hover:border-neutral-400 transition-colors">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-medium text-neutral-600">待优化</span>
+                      <span class="text-lg font-bold text-neutral-500 tabular-nums flex items-center gap-1">
+                        {{ quadrantAnalysis.quadrants.weak.count }}
+                        <Info :size="12" class="text-neutral-400" />
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-neutral-500">低播放 · 低互动</p>
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardPortal>
+                  <HoverCardContent
+                    :side-offset="8"
+                    side="bottom"
+                    align="end"
+                    class="z-50 w-96 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                  >
+                    <div class="p-3 border-b border-neutral-100 bg-neutral-100">
+                      <span class="text-sm font-medium text-neutral-800">待优化内容</span>
+                      <p class="text-xs text-neutral-600 mt-1">低播放低互动，需要重新审视</p>
+                    </div>
+                    <div class="p-3 max-h-64 overflow-y-auto">
+                      <div v-if="quadrantAnalysis.quadrants.weak.videos.length > 0" class="space-y-2">
+                        <div
+                          v-for="video in quadrantAnalysis.quadrants.weak.videos"
+                          :key="video.bvid"
+                          class="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
+                          @click="openVideo(video)"
+                        >
+                          <img
+                            :src="getImageUrl(video.cover)"
+                            class="w-16 h-9 rounded object-cover flex-shrink-0"
+                            referrerpolicy="no-referrer"
+                          />
+                          <div class="flex-1 min-w-0">
+                            <div class="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{{ video.title }}</div>
+                            <div class="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                              <span class="flex items-center gap-0.5"><Play :size="8" /> {{ formatNumber(video.play_count) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <p v-else class="text-xs text-neutral-400 text-center py-4">暂无待优化内容</p>
+                    </div>
+                  </HoverCardContent>
+                </HoverCardPortal>
+              </HoverCardRoot>
             </div>
           </section>
         </div>
@@ -393,13 +1063,14 @@
 <script setup>
 import { ref, computed } from 'vue';
 import VideoFilterBar from '../VideoFilterBar.vue';
-import { formatNumber, copyToClipboard, parseDurationMinutes } from '../../utils';
+import { formatNumber, copyToClipboard, parseDurationMinutes, getImageUrl } from '../../utils';
 import { useVideoMetrics } from '../../composables/useVideoMetrics';
+import { HoverCardRoot, HoverCardTrigger, HoverCardPortal, HoverCardContent } from 'radix-vue';
+import { open } from '@tauri-apps/plugin-shell';
 import {
   Clock,
   TrendingUp,
   TrendingDown,
-  Target,
   FileText,
   Flame,
   Copy,
@@ -423,7 +1094,13 @@ import {
   Sailboat,
   Radar,
   Search,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle,
+  AlertCircle,
+  MessageSquareOff,
+  CalendarX,
+  Info,
+  Play
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -510,7 +1187,8 @@ const reportFindings = computed(() => {
       title: '最佳内容时长',
       description: `${bestDur.label}的视频表现最好，平均播放 ${formatNumber(Math.round(bestDur.avgPlay))}`,
       type: 'positive',
-      icon: Clock
+      icon: Clock,
+      detailKey: 'duration'
     });
   }
 
@@ -520,7 +1198,8 @@ const reportFindings = computed(() => {
       title: '黄金发布时间',
       description: `推荐时段：${bestTime.topHours.join('、')}`,
       type: 'positive',
-      icon: Calendar
+      icon: Calendar,
+      detailKey: 'publishTime'
     });
   }
 
@@ -530,7 +1209,8 @@ const reportFindings = computed(() => {
       title: trend.trend === 'up' ? '数据上升中' : trend.trend === 'down' ? '数据波动' : '表现稳定',
       description: trend.description,
       type: trend.trend === 'up' ? 'positive' : trend.trend === 'down' ? 'negative' : 'neutral',
-      icon: trend.trend === 'up' ? TrendingUp : trend.trend === 'down' ? TrendingDown : Activity
+      icon: trend.trend === 'up' ? TrendingUp : trend.trend === 'down' ? TrendingDown : Activity,
+      detailKey: 'trend'
     });
   }
 
@@ -540,12 +1220,110 @@ const reportFindings = computed(() => {
       title: `${hitFeatures.count} 个爆款`,
       description: `爆款率 ${hitFeatures.rate}%，平均时长 ${hitFeatures.avgDuration} 分钟`,
       type: 'positive',
-      icon: Flame
+      icon: Flame,
+      detailKey: 'hitVideos'
     });
   }
 
   return findings.slice(0, 4);
 });
+
+// 关键发现详情数据（用于 HoverCard）
+const findingDetails = computed(() => {
+  const videoList = props.videos;
+  if (videoList.length === 0) return {};
+
+  const details = {};
+
+  // 黄金发布时间详情
+  const topVideos = [...videoList].sort((a, b) => b.play_count - a.play_count).slice(0, Math.max(3, Math.ceil(videoList.length * 0.3)));
+  const slots = {};
+  topVideos.forEach(v => {
+    const date = new Date(v.publish_time);
+    const dayType = (date.getDay() === 0 || date.getDay() === 6) ? '周末' : '工作日';
+    const hour = date.getHours();
+    let timeSlot;
+    if (hour >= 6 && hour < 12) timeSlot = '上午';
+    else if (hour >= 12 && hour < 14) timeSlot = '中午';
+    else if (hour >= 14 && hour < 18) timeSlot = '下午';
+    else if (hour >= 18 && hour < 22) timeSlot = '晚间';
+    else timeSlot = '深夜';
+    const key = `${dayType}${timeSlot}`;
+    slots[key] = (slots[key] || 0) + 1;
+  });
+  details.publishTime = { slots, topVideos };
+
+  // 最佳时长详情
+  const durationBins = [
+    { min: 0, max: 5, label: '<5分钟' },
+    { min: 5, max: 10, label: '5-10分钟' },
+    { min: 10, max: 15, label: '10-15分钟' },
+    { min: 15, max: 20, label: '15-20分钟' },
+    { min: 20, max: 30, label: '20-30分钟' },
+    { min: 30, max: Infinity, label: '>30分钟' }
+  ];
+  const binStats = durationBins.map(bin => {
+    const vids = videoList.filter(v => {
+      const mins = parseDurationMinutes(v.duration);
+      return mins >= bin.min && mins < bin.max;
+    });
+    const avgPlay = vids.length > 0 ? Math.round(vids.reduce((s, v) => s + v.play_count, 0) / vids.length) : 0;
+    return { ...bin, count: vids.length, avgPlay, videos: vids };
+  }).filter(b => b.count > 0);
+  const maxAvgPlay = Math.max(...binStats.map(b => b.avgPlay));
+  const bestBin = binStats.find(b => b.avgPlay === maxAvgPlay);
+  details.duration = {
+    bins: binStats.map(b => ({ ...b, isBest: b.avgPlay === maxAvgPlay })),
+    maxAvgPlay,
+    topVideos: bestBin ? bestBin.videos.sort((a, b) => b.play_count - a.play_count).slice(0, 3) : []
+  };
+
+  // 趋势详情
+  const trend = getTrendAnalysis(videoList);
+  if (trend) {
+    const sorted = [...videoList].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
+    const half = Math.floor(sorted.length / 2);
+    details.trend = {
+      firstAvg: trend.firstAvg,
+      secondAvg: trend.secondAvg,
+      changeRate: trend.changeRate,
+      firstCount: half,
+      secondCount: sorted.length - half
+    };
+  }
+
+  // 爆款视频详情
+  const hitThreshold = avgPlays.value * 2;
+  const hitVideos = videoList.filter(v => v.play_count >= hitThreshold).sort((a, b) => b.play_count - a.play_count);
+  if (hitVideos.length > 0) {
+    details.hitVideos = { videos: hitVideos };
+  }
+
+  return details;
+});
+
+// 格式化发布时段
+function formatPublishSlot(publishTime) {
+  const date = new Date(publishTime);
+  const dayType = (date.getDay() === 0 || date.getDay() === 6) ? '周末' : '工作日';
+  const hour = date.getHours();
+  let timeSlot;
+  if (hour >= 6 && hour < 12) timeSlot = '上午';
+  else if (hour >= 12 && hour < 14) timeSlot = '中午';
+  else if (hour >= 14 && hour < 18) timeSlot = '下午';
+  else if (hour >= 18 && hour < 22) timeSlot = '晚间';
+  else timeSlot = '深夜';
+  return `${dayType}${timeSlot} ${hour}:00`;
+}
+
+// 打开视频
+async function openVideo(video) {
+  if (video.video_url) {
+    await open(video.video_url);
+  } else if (video.bvid) {
+    await open(`https://www.bilibili.com/video/${video.bvid}`);
+  }
+}
 
 // 数据洞察
 const reportInsights = computed(() => {
@@ -601,54 +1379,182 @@ const reportInsights = computed(() => {
   return insights;
 });
 
-// 行动建议
-const reportRecommendations = computed(() => {
-  const videoList = props.videos;
-  if (videoList.length === 0) return [];
-
-  const recs = [];
-
-  const bestDur = getBestDuration(videoList);
-  if (bestDur) {
-    recs.push({
-      title: '优化内容时长',
-      description: `${bestDur.label} 的视频表现最佳，建议多产出该时长内容`
-    });
-  }
-
-  const bestTime = getBestPublishTime(videoList);
-  if (bestTime) {
-    recs.push({
-      title: '把握发布时机',
-      description: `推荐在 ${bestTime.topHours.join('、')} 发布视频`
-    });
-  }
-
-  const engRate = parseFloat(avgEngagementRate.value);
-  if (engRate < 2) {
-    recs.push({
-      title: '提升互动引导',
-      description: '建议在视频中增加互动引导，提高观众参与度'
-    });
-  }
-
-  const trend = getTrendAnalysis(videoList);
-  if (trend && trend.trend === 'down') {
-    recs.push({
-      title: '分析下滑原因',
-      description: '建议分析近期内容与之前爆款的差异'
-    });
-  }
-
-  return recs.slice(0, 4);
-});
-
 // 长尾分析
 const undervaluedContent = computed(() => getUndervaluedContent(props.videos));
 const longTailHealth = computed(() => getLongTailHealth(props.videos));
 const blueOceanTiming = computed(() => getBlueOceanTiming(props.videos));
 const blueOceanDuration = computed(() => getBlueOceanDuration(props.videos));
 const quadrantAnalysis = computed(() => getQuadrantAnalysis(props.videos));
+
+// 问题数据分析
+const problemDataAnalysis = computed(() => {
+  const videoList = props.videos;
+  if (videoList.length < 5) return null;
+
+  const avg = avgPlays.value;
+  const totalPlaysVal = totalPlays.value;
+  const result = {};
+
+  // 1. 低于平均表现分析
+  const threshold = avg;
+  const belowAvgVideos = videoList.filter(v => v.play_count < threshold);
+  if (belowAvgVideos.length > 0) {
+    const belowAvgPlays = belowAvgVideos.reduce((s, v) => s + v.play_count, 0);
+    const belowAvgAvg = Math.round(belowAvgPlays / belowAvgVideos.length);
+
+    // 分析共性特征
+    const features = [];
+    const shortVideos = belowAvgVideos.filter(v => parseDurationMinutes(v.duration) < 3);
+    const longVideos = belowAvgVideos.filter(v => parseDurationMinutes(v.duration) > 30);
+    const lateNightVideos = belowAvgVideos.filter(v => {
+      const hour = new Date(v.publish_time).getHours();
+      return hour >= 0 && hour < 6;
+    });
+    const weekendVideos = belowAvgVideos.filter(v => {
+      const day = new Date(v.publish_time).getDay();
+      return day === 0 || day === 6;
+    });
+
+    if (shortVideos.length > belowAvgVideos.length * 0.4) features.push('过短视频多（<3分钟）');
+    if (longVideos.length > belowAvgVideos.length * 0.4) features.push('过长视频多（>30分钟）');
+    if (lateNightVideos.length > belowAvgVideos.length * 0.3) features.push('凌晨发布较多');
+    if (weekendVideos.length > belowAvgVideos.length * 0.6) features.push('多在周末发布');
+
+    result.belowAvg = {
+      count: belowAvgVideos.length,
+      ratio: ((belowAvgVideos.length / videoList.length) * 100).toFixed(1),
+      threshold,
+      playContribution: ((belowAvgPlays / totalPlaysVal) * 100).toFixed(1),
+      avgPlay: belowAvgAvg,
+      features,
+      videos: belowAvgVideos.sort((a, b) => a.play_count - b.play_count),
+      samples: belowAvgVideos.sort((a, b) => a.play_count - b.play_count).slice(0, 3)
+    };
+  }
+
+  // 2. 数据波动分析
+  const plays = videoList.map(v => v.play_count);
+  const variance = plays.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / plays.length;
+  const stdDev = Math.sqrt(variance);
+  const cv = (stdDev / avg) * 100;
+  const sortedPlays = [...plays].sort((a, b) => a - b);
+  const median = sortedPlays[Math.floor(sortedPlays.length / 2)];
+  const maxPlay = Math.max(...plays);
+  const minPlay = Math.min(...plays);
+  const range = minPlay > 0 ? Math.round(maxPlay / minPlay) : maxPlay;
+
+  let level, interpretation;
+  if (cv > 150) {
+    level = 'high';
+    interpretation = '数据波动很大，说明内容表现差异明显。建议分析高播放视频的成功要素，同时审视低播放内容的问题。';
+  } else if (cv > 80) {
+    level = 'medium';
+    interpretation = '数据波动适中，内容表现相对稳定但仍有起伏。可以尝试复制成功经验，提升整体水平。';
+  } else {
+    level = 'low';
+    interpretation = '数据波动较小，内容表现非常稳定。可以考虑尝试突破性选题来寻找新增长点。';
+  }
+
+  result.volatility = {
+    cv: cv.toFixed(0),
+    level,
+    max: maxPlay,
+    min: minPlay,
+    range,
+    median,
+    interpretation
+  };
+
+  // 3. 异常值检测（IQR方法）
+  const q1 = sortedPlays[Math.floor(sortedPlays.length * 0.25)];
+  const q3 = sortedPlays[Math.floor(sortedPlays.length * 0.75)];
+  const iqr = q3 - q1;
+  const lowerBound = q1 - 1.5 * iqr;
+
+  const lowOutliers = videoList.filter(v => v.play_count < lowerBound);
+  if (lowOutliers.length > 0) {
+    // 分析异常低值视频的共性
+    const lowFeatures = [];
+    const avgDurLow = lowOutliers.reduce((s, v) => s + parseDurationMinutes(v.duration), 0) / lowOutliers.length;
+    const avgDurAll = videoList.reduce((s, v) => s + parseDurationMinutes(v.duration), 0) / videoList.length;
+
+    if (avgDurLow < avgDurAll * 0.5) lowFeatures.push('时长偏短');
+    if (avgDurLow > avgDurAll * 2) lowFeatures.push('时长过长');
+
+    result.outliers = {
+      low: lowOutliers.sort((a, b) => a.play_count - b.play_count),
+      lowerBound,
+      lowFeatures
+    };
+  }
+
+  // 4. 流量陷阱（高播放低互动）
+  const avgEngRate = videoList.reduce((s, v) => {
+    const eng = v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0);
+    return s + (v.play_count > 0 ? (eng / v.play_count) * 100 : 0);
+  }, 0) / videoList.length;
+
+  const lowEngVideos = videoList
+    .map(v => {
+      const eng = v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0);
+      return {
+        ...v,
+        engagementRate: v.play_count > 0 ? (eng / v.play_count) * 100 : 0
+      };
+    })
+    .filter(v => v.play_count >= avg && v.engagementRate < avgEngRate * 0.5);
+
+  if (lowEngVideos.length > 0) {
+    const lowEngAvgPlay = Math.round(lowEngVideos.reduce((s, v) => s + v.play_count, 0) / lowEngVideos.length);
+    const lowEngAvgRate = (lowEngVideos.reduce((s, v) => s + v.engagementRate, 0) / lowEngVideos.length).toFixed(2);
+
+    result.lowEngagement = {
+      count: lowEngVideos.length,
+      avgPlay: lowEngAvgPlay,
+      avgEngRate: lowEngAvgRate,
+      videos: lowEngVideos.sort((a, b) => b.play_count - a.play_count),
+      samples: lowEngVideos.sort((a, b) => b.play_count - a.play_count).slice(0, 3)
+    };
+  }
+
+  // 5. 低迷时期分析
+  const monthlyData = {};
+  videoList.forEach(v => {
+    const month = v.publish_time.slice(0, 7);
+    if (!monthlyData[month]) monthlyData[month] = { count: 0, totalPlays: 0, videos: [] };
+    monthlyData[month].count++;
+    monthlyData[month].totalPlays += v.play_count;
+    monthlyData[month].videos.push(v);
+  });
+
+  const monthStats = Object.entries(monthlyData)
+    .filter(([_, d]) => d.count >= 2)
+    .map(([month, d]) => ({
+      month,
+      count: d.count,
+      avgPlay: Math.round(d.totalPlays / d.count),
+      videos: d.videos
+    }));
+
+  if (monthStats.length >= 3) {
+    const worstMonth = monthStats.reduce((worst, curr) => curr.avgPlay < worst.avgPlay ? curr : worst);
+    const vsAvg = ((worstMonth.avgPlay / avg - 1) * 100).toFixed(0);
+
+    if (worstMonth.avgPlay < avg * 0.5) {
+      result.lowPeriod = {
+        period: worstMonth.month,
+        count: worstMonth.count,
+        avgPlay: worstMonth.avgPlay,
+        vsAvg,
+        videos: worstMonth.videos.sort((a, b) => a.play_count - b.play_count)
+      };
+    }
+  }
+
+  // 检查是否有任何问题数据
+  const hasProblems = result.belowAvg || result.outliers || result.lowEngagement || result.lowPeriod;
+  return hasProblems ? result : null;
+});
 
 // AI Prompt 模板
 const aiPromptTemplates = computed(() => {
@@ -732,7 +1638,6 @@ const aiPromptTemplates = computed(() => {
 async function copyAnalysisReport() {
   const summary = reportSummary.value;
   const findings = reportFindings.value;
-  const recs = reportRecommendations.value;
 
   let text = `【${props.upName || 'UP主'} 数据分析报告】\n`;
   text += `数据范围：${dataTimeRange.value}，共 ${props.videos.length} 个视频\n\n`;
@@ -742,12 +1647,6 @@ async function copyAnalysisReport() {
   if (findings.length > 0) {
     text += `关键发现：\n`;
     findings.forEach((f, i) => text += `${i + 1}. ${f.title}：${f.description}\n`);
-    text += '\n';
-  }
-
-  if (recs.length > 0) {
-    text += `行动建议：\n`;
-    recs.forEach((r, i) => text += `${i + 1}. ${r.title}：${r.description}\n`);
   }
 
   const success = await copyToClipboard(text);
@@ -799,5 +1698,94 @@ async function copyPrompt(prompt) {
 @keyframes toast-out {
   0% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+/* 问题数据诊断样式 */
+.problem-block {
+  @apply p-4 bg-neutral-50 rounded-xl;
+}
+
+.problem-header {
+  @apply flex items-start gap-3;
+}
+
+.problem-icon {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0;
+}
+
+.problem-icon.amber {
+  @apply bg-amber-100 text-amber-600;
+}
+
+.problem-icon.blue {
+  @apply bg-blue-100 text-blue-600;
+}
+
+.problem-icon.rose {
+  @apply bg-rose-100 text-rose-600;
+}
+
+.problem-icon.purple {
+  @apply bg-purple-100 text-purple-600;
+}
+
+.problem-icon.slate {
+  @apply bg-slate-100 text-slate-600;
+}
+
+.problem-title {
+  @apply text-sm font-semibold text-neutral-900;
+}
+
+.problem-subtitle {
+  @apply text-xs text-neutral-500 mt-0.5;
+}
+
+.problem-stats {
+  @apply flex flex-wrap gap-x-6 gap-y-2 mt-4 pt-4 border-t border-neutral-200/60;
+}
+
+.stat-item {
+  @apply flex items-center gap-2;
+}
+
+.stat-label {
+  @apply text-xs text-neutral-400;
+}
+
+.stat-value {
+  @apply text-sm font-semibold text-neutral-700 tabular-nums;
+}
+
+.problem-features {
+  @apply mt-4;
+}
+
+.feature-tag {
+  @apply px-2.5 py-1 rounded-full text-xs font-medium;
+}
+
+.feature-tag.amber {
+  @apply bg-amber-100 text-amber-700;
+}
+
+.problem-samples {
+  @apply mt-4;
+}
+
+.sample-item {
+  @apply flex items-center justify-between gap-3 px-3 py-2 bg-white rounded-lg;
+}
+
+.sample-item.rose {
+  @apply bg-rose-50;
+}
+
+.sample-title {
+  @apply text-xs text-neutral-700 truncate flex-1;
+}
+
+.sample-stat {
+  @apply text-xs text-neutral-500 whitespace-nowrap tabular-nums;
 }
 </style>

@@ -278,10 +278,11 @@ const avgPublishDays = computed(() => {
   return Math.round(props.totalDays / sortedVideos.value.length);
 });
 
+// 低于平均播放的视频数（与 InsightReport 保持一致）
 const valleyVideos = computed(() => {
   if (props.videos.length === 0) return 0;
   const avgPlay = props.videos.reduce((s, v) => s + v.play_count, 0) / props.videos.length;
-  return props.videos.filter(v => v.play_count < avgPlay * 0.3).length;
+  return props.videos.filter(v => v.play_count < avgPlay).length;
 });
 
 const breakThroughCount = computed(() => {
