@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { formatNumber, getImageUrl, formatDateCN } from '../../../utils';
 import {
   Play, CalendarDays, Flag, Trophy,
@@ -155,6 +154,10 @@ const createCurrentNode = (video, totalCount) => ({
 // ============ 主组件 ============
 
 const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
+  const containerRef = useRef(null);
+  const nodeRefs = useRef([]);
+  const [visibleNodes, setVisibleNodes] = useState(new Set());
+
   const sortedVideos = useMemo(() => {
     return [...videos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
   }, [videos]);
@@ -285,12 +288,35 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
     return sorted;
   }, [videos, sortedVideos, upName]);
 
+  // 设置 IntersectionObserver
+  useEffect(() => {
+    const scrollContainer = containerRef.current?.closest('.growth-journey-overlay');
+    if (!scrollContainer || storyNodes.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const index = nodeRefs.current.indexOf(entry.target);
+            if (index !== -1) {
+              setVisibleNodes(prev => new Set([...prev, index]));
+            }
+          }
+        });
+      },
+      { root: scrollContainer, threshold: 0.2, rootMargin: '0px 0px -10% 0px' }
+    );
+
+    nodeRefs.current.forEach(el => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, [storyNodes.length]);
+
   const openVideo = (video) => {
     if (video?.video_url) window.open(video.video_url, '_blank');
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 relative">
+    <div ref={containerRef} className="max-w-4xl mx-auto px-4 sm:px-6 relative">
       <div className="relative flex flex-col gap-16 py-16">
         {/* 时间轴中线 */}
         <div className="absolute left-6 sm:left-1/2 w-px bg-slate-200/80 -translate-x-1/2 top-20 bottom-20" />
@@ -299,26 +325,24 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
         {storyNodes.map((node, index) => {
           const IconComponent = node.icon;
           const isRight = index % 2 !== 0;
+          const isVisible = visibleNodes.has(index);
 
           return (
-            <motion.div
+            <div
               key={node.id}
-              className="relative pl-16 sm:pl-0 sm:flex sm:items-center"
-              initial={{ opacity: 0, x: isRight ? 40 : -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
+              ref={el => nodeRefs.current[index] = el}
+              className={`relative pl-16 sm:pl-0 sm:flex sm:items-center transition-all duration-500 ease-out ${
+                isVisible ? 'opacity-100 translate-x-0' : `opacity-0 ${isRight ? 'translate-x-10' : '-translate-x-10'}`
+              }`}
             >
               {/* 时间轴节点标记 */}
-              <motion.div
-                className={`absolute w-4 h-4 rounded-full flex items-center justify-center z-10 left-0 sm:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${MARKER_COLORS[node.markerColor]}`}
-                initial={{ scale: 0 }}
-                whileInView={{ scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2, duration: 0.3 }}
+              <div
+                className={`absolute w-4 h-4 rounded-full flex items-center justify-center z-10 left-0 sm:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 ${
+                  isVisible ? 'scale-100' : 'scale-0'
+                } ${MARKER_COLORS[node.markerColor]}`}
               >
                 <div className="w-3 h-3 rounded-full bg-current" style={{ boxShadow: '0 0 0 4px rgba(255,255,255,0.9), 0 0 0 5px currentColor' }} />
-              </motion.div>
+              </div>
 
               {/* 日期显示 */}
               <div className={`text-sm text-slate-400 mb-3 font-serif italic sm:absolute sm:w-[45%] sm:mb-0 sm:top-1/2 sm:-translate-y-1/2 ${isRight ? 'sm:text-left sm:pl-10 sm:right-0' : 'sm:text-right sm:pr-10 sm:left-0'}`}>
@@ -376,7 +400,7 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
                   )}
                 </div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>

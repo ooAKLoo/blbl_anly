@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { formatNumber } from '../../../utils';
 import { useGrowthData } from '../../../hooks/useGrowthData';
 import { GrowthChart, EndingNarrative } from './ending';
@@ -7,70 +7,59 @@ const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, v
   const endingRef = useRef(null);
   const mainPath = useRef(null);
   const animationRef = useRef(null);
-  const hasAnimatedRef = useRef(false); // 用 ref 防止重复触发
+  const hasStartedRef = useRef(false);
 
   const [state, setState] = useState({ progress: 0, displayDays: '0', displayPlays: '0' });
   const [pathLength, setPathLength] = useState(1000);
 
   const { growthData, milestones, getPlayProgressAtTime, journeyLabels } = useGrowthData(videos);
 
-  // 启动动画的函数
-  const startAnimation = useCallback(() => {
-    if (hasAnimatedRef.current) return;
-    hasAnimatedRef.current = true;
-
-    if (mainPath.current) {
-      setPathLength(mainPath.current.getTotalLength() || 1000);
-    }
-
-    const duration = 5000;
-    const startTime = performance.now();
-
-    const animate = (currentTime) => {
-      const t = Math.min((currentTime - startTime) / duration, 1);
-      const progress = 1 - Math.pow(1 - t, 3); // ease-out cubic
-      const animData = getPlayProgressAtTime(progress);
-
-      setState({
-        progress,
-        displayDays: Math.floor(totalDays * progress).toLocaleString(),
-        displayPlays: formatNumber(animData.cumulative)
-      });
-
-      if (t < 1) {
-        animationRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-  }, [getPlayProgressAtTime, totalDays]);
-
-  // 使用 IntersectionObserver 检测进入视口
+  // 使用原生 IntersectionObserver，指定滚动容器为 root
   useEffect(() => {
-    if (!endingRef.current) return;
+    if (!endingRef.current || hasStartedRef.current) return;
 
     const scrollContainer = endingRef.current.closest('.growth-journey-overlay');
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          startAnimation();
-          observer.disconnect(); // 触发后立即断开
+        if (entry.isIntersecting && !hasStartedRef.current) {
+          hasStartedRef.current = true;
+          observer.disconnect();
+
+          // 启动动画
+          if (mainPath.current) {
+            setPathLength(mainPath.current.getTotalLength() || 1000);
+          }
+
+          const duration = 5000;
+          const startTime = performance.now();
+
+          const animate = (currentTime) => {
+            const t = Math.min((currentTime - startTime) / duration, 1);
+            const progress = 1 - Math.pow(1 - t, 3);
+            const animData = getPlayProgressAtTime(progress);
+
+            setState({
+              progress,
+              displayDays: Math.floor(totalDays * progress).toLocaleString(),
+              displayPlays: formatNumber(animData.cumulative)
+            });
+
+            if (t < 1) animationRef.current = requestAnimationFrame(animate);
+          };
+
+          animationRef.current = requestAnimationFrame(animate);
         }
       },
-      { root: scrollContainer, threshold: 0.1 }
+      { root: scrollContainer, threshold: 0.15 }
     );
 
     observer.observe(endingRef.current);
-    return () => observer.disconnect();
-  }, [startAnimation]);
-
-  // 清理动画
-  useEffect(() => {
     return () => {
+      observer.disconnect();
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, []);
+  }, [getPlayProgressAtTime, totalDays]);
 
   return (
     <div ref={endingRef} className="ending-section relative min-h-screen flex flex-col justify-center px-4">
