@@ -1,61 +1,122 @@
 <template>
   <header class="hero-header" ref="heroRef">
-    <div class="hero-bg"></div>
-    <div class="hero-particles">
-      <div v-for="i in 20" :key="i" class="particle" :style="getParticleStyle(i)"></div>
+    <!-- 梦幻背景装饰 -->
+    <div class="bg-decoration">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+      <div class="blob blob-4"></div>
+      <div class="sparkle sparkle-1"></div>
+      <div class="sparkle sparkle-2"></div>
+      <div class="sparkle sparkle-3"></div>
+
     </div>
 
-    <div class="hero-content" :class="{ 'is-visible': isVisible }">
-      <div class="hero-badge">
-        <Sparkles :size="14" />
-        <span>{{ upName }} 的创作历程</span>
+    <!-- 主内容区：左右分栏 -->
+    <div class="hero-container" :class="{ 'is-visible': isVisible }">
+      <!-- 左侧：核心信息 -->
+      <div class="hero-left">
+        <!-- UP主名称 + 标签 -->
+        <div class="hero-intro animate-item" :class="{ 'is-visible': isVisible }" style="--item-delay: 0s">
+          <span class="intro-label">成长历程</span>
+          <h1 class="hero-title">
+            <span class="title-name">{{ upName }}</span>
+            <span class="title-suffix">的创作故事</span>
+          </h1>
+        </div>
+
+        <!-- 核心数字：天数 -->
+        <div class="hero-days animate-item" :class="{ 'is-visible': isVisible }" style="--item-delay: 0.15s">
+          <div class="days-number">
+            <CountUp :end="totalDays" :duration="2500" :start-on-visible="isVisible" />
+          </div>
+          <div class="days-label">
+            <span class="label-text">天的坚持</span>
+            <span class="label-date">始于 {{ journeyStart }}</span>
+          </div>
+        </div>
+
+        <!-- 情感叙事 -->
+        <div class="hero-narrative animate-item" :class="{ 'is-visible': isVisible }" style="--item-delay: 0.3s">
+          <p v-if="firstVideoPlays < 10000" class="narrative-text">
+            从 <span class="highlight">{{ formatNumber(firstVideoPlays) }}</span> 次播放开始，一步步走到今天
+          </p>
+          <p v-else class="narrative-text">
+            出道即巅峰，首个视频就收获 <span class="highlight">{{ formatNumber(firstVideoPlays) }}</span> 次播放
+          </p>
+        </div>
+
+        <!-- 成长数据卡片 -->
+        <div class="hero-stats">
+          <div class="stat-card stat-primary animate-item" :class="{ 'is-visible': isVisible }" style="--item-delay: 0.45s">
+            <div class="stat-value">
+              <CountUp :end="totalPlays" :duration="3000" :start-on-visible="isVisible" :format-fn="formatNumber" />
+            </div>
+            <div class="stat-label">累计播放</div>
+          </div>
+          <div class="stat-card animate-item" :class="{ 'is-visible': isVisible }" style="--item-delay: 0.55s">
+            <div class="stat-value">
+              <CountUp :end="videoCount" :duration="2000" :start-on-visible="isVisible" />
+            </div>
+            <div class="stat-label">个作品</div>
+          </div>
+          <div class="stat-card animate-item" :class="{ 'is-visible': isVisible }" style="--item-delay: 0.65s">
+            <div class="stat-value">
+              <CountUp :end="growthMultiple" :duration="2000" :decimals="0" :start-on-visible="isVisible" />
+              <span class="stat-suffix">x</span>
+            </div>
+            <div class="stat-label">播放增长</div>
+          </div>
+        </div>
       </div>
 
-      <h1 class="hero-title">
-        <span class="hero-number text-blue-600">
-          <CountUp :end="totalDays" :duration="2000" :start-on-visible="isVisible" />
-        </span> 天前<br />
-        {{ upName }} 发布了第一个视频
-      </h1>
+      <!-- 右侧：头像 + 环绕标签 -->
+      <div class="hero-right">
+        <div class="avatar-orbit" :class="{ 'is-visible': isVisible }">
+          <!-- 中心头像 -->
+          <div class="avatar-center">
+            <img
+              v-if="upFace"
+              :src="getImageUrl(upFace)"
+              class="avatar-img"
+              referrerpolicy="no-referrer"
+              alt=""
+            />
+            <div v-else class="avatar-placeholder">
+              {{ upName.charAt(0) }}
+            </div>
+          </div>
 
-      <p class="hero-subtitle">
-        从 {{ journeyStart }} 到现在，{{ videoCount }} 个作品，<br/>
-        从 {{ formatNumber(firstVideoPlays) }} 播放到累计 {{ formatNumber(totalPlays) }} 播放。
-      </p>
-
-      <div class="hero-stats">
-        <div class="hero-stat">
-          <div class="hero-stat-value">
-            <CountUp :end="videoCount" :duration="2000" :start-on-visible="isVisible" />
+          <!-- 环绕标签 -->
+          <div class="orbit-tags">
+            <span
+              v-for="(tag, index) in creatorTags"
+              :key="tag.text"
+              class="orbit-tag"
+              :class="[`tag-type-${tag.type}`, { 'is-visible': isVisible }]"
+              :style="getOrbitTagStyle(index, creatorTags.length)"
+            >
+              {{ tag.text }}
+            </span>
           </div>
-          <div class="hero-stat-label">个作品</div>
-        </div>
-        <div class="hero-stat">
-          <div class="hero-stat-value">
-            <CountUp :end="totalPlays" :duration="2500" :start-on-visible="isVisible" suffix="" :format-fn="formatNumber" />
-          </div>
-          <div class="hero-stat-label">次播放</div>
-        </div>
-        <div class="hero-stat">
-          <div class="hero-stat-value">
-            <CountUp :end="growthMultiple" :duration="2000" :decimals="1" :start-on-visible="isVisible" suffix="x" />
-          </div>
-          <div class="hero-stat-label">播放增长</div>
         </div>
       </div>
     </div>
 
+    <!-- 滚动提示 -->
     <div class="hero-scroll-hint" :class="{ 'is-visible': isVisible }">
-      <span>向下滚动</span>
-      <ChevronDown :size="20" />
+      <span>向下探索 TA 的故事</span>
+      <div class="scroll-arrow">
+        <ChevronDown :size="20" />
+      </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { ref, h, defineComponent, watch, onMounted, onUnmounted } from 'vue';
-import { Sparkles, ChevronDown } from 'lucide-vue-next';
-import { formatNumber } from '../../../utils';
+import { ref, h, defineComponent, watch, onMounted, onUnmounted, computed } from 'vue';
+import { ChevronDown } from 'lucide-vue-next';
+import { formatNumber, getImageUrl } from '../../../utils';
 
 // ============ CountUp 组件 ============
 const CountUp = defineComponent({
@@ -130,12 +191,14 @@ const CountUp = defineComponent({
 
 const props = defineProps({
   upName: { type: String, default: 'UP主' },
+  upFace: { type: String, default: '' },
   totalDays: { type: Number, default: 0 },
   journeyStart: { type: String, default: '' },
   videoCount: { type: Number, default: 0 },
   firstVideoPlays: { type: Number, default: 0 },
   totalPlays: { type: Number, default: 0 },
-  growthMultiple: { type: Number, default: 1 }
+  growthMultiple: { type: Number, default: 1 },
+  creatorTags: { type: Array, default: () => [] }
 });
 
 const emit = defineEmits(['visible']);
@@ -144,17 +207,30 @@ const heroRef = ref(null);
 const isVisible = ref(false);
 let observer = null;
 
-function getParticleStyle(index) {
-  const size = 2 + Math.random() * 4;
-  const left = Math.random() * 100;
-  const delay = Math.random() * 5;
-  const duration = 10 + Math.random() * 10;
+// 环绕标签样式生成：均匀分布在圆周上
+function getOrbitTagStyle(index, total) {
+  // 计算角度，从顶部开始，均匀分布
+  const startAngle = -90; // 从顶部开始（度）
+  const angleStep = 360 / Math.max(total, 1);
+  const angleDeg = startAngle + index * angleStep;
+  const angleRad = (angleDeg * Math.PI) / 180;
+
+  // 轨道半径
+  const radius = 130;
+
+  // 计算 x, y 坐标
+  const x = Math.cos(angleRad) * radius;
+  const y = Math.sin(angleRad) * radius;
+
+  // 入场延迟：头像先显示，标签依次快速出现（参考 Ohoo 的 0.05s 间隔）
+  const baseDelay = 0.5; // 头像显示后的基础延迟
+  const staggerDelay = 0.06; // 每个标签之间的间隔（更快）
+  const delay = baseDelay + index * staggerDelay;
+
   return {
-    width: `${size}px`,
-    height: `${size}px`,
-    left: `${left}%`,
-    animationDelay: `${delay}s`,
-    animationDuration: `${duration}s`
+    '--orbit-x': `${x}px`,
+    '--orbit-y': `${y}px`,
+    '--enter-delay': `${delay}s`
   };
 }
 
@@ -192,109 +268,475 @@ defineExpose({ reset, setupObserver });
 </script>
 
 <style scoped>
+/* ============ 设计系统变量 ============ */
 .hero-header {
-  @apply relative min-h-[80vh] flex flex-col items-center justify-center text-center px-6 overflow-hidden;
+  --text-primary: #1e1b4b;
+  --text-secondary: #4c4678;
+  --text-tertiary: #8b85ad;
+  --accent: #6366f1;
+  --border-color: rgba(99, 102, 241, 0.15);
+
+  @apply relative min-h-screen flex flex-col items-center justify-center overflow-hidden;
+  background: linear-gradient(
+    135deg,
+    #faf5ff 0%,
+    #f0f9ff 25%,
+    #fdf4ff 50%,
+    #eff6ff 75%,
+    #faf5ff 100%
+  );
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-.hero-bg {
-  @apply absolute inset-0 pointer-events-none;
-  background: radial-gradient(ellipse at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+/* ============ 梦幻背景装饰 ============ */
+.bg-decoration {
+  @apply absolute inset-0 overflow-hidden;
+  z-index: 0;
+  pointer-events: none;
 }
 
-.hero-particles {
-  @apply absolute inset-0 overflow-hidden pointer-events-none;
+/* 漂浮光斑 */
+.blob {
+  @apply absolute rounded-full;
+  filter: blur(80px);
+  opacity: 0.6;
+  animation: float 20s ease-in-out infinite;
 }
 
-.particle {
-  @apply absolute rounded-full opacity-30;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  bottom: -10px;
-  animation: float-up linear infinite;
+.blob-1 {
+  width: 400px;
+  height: 400px;
+  background: linear-gradient(135deg, #c7d2fe 0%, #ddd6fe 100%);
+  top: -10%;
+  left: -5%;
+  animation-delay: 0s;
 }
 
-@keyframes float-up {
-  0% {
-    transform: translateY(0) rotate(0deg);
+.blob-2 {
+  width: 350px;
+  height: 350px;
+  background: linear-gradient(135deg, #fbcfe8 0%, #fce7f3 100%);
+  top: 20%;
+  right: -10%;
+  animation-delay: -5s;
+  animation-duration: 25s;
+}
+
+.blob-3 {
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(135deg, #bae6fd 0%, #e0f2fe 100%);
+  bottom: -5%;
+  left: 30%;
+  animation-delay: -10s;
+  animation-duration: 22s;
+}
+
+.blob-4 {
+  width: 250px;
+  height: 250px;
+  background: linear-gradient(135deg, #d9f99d 0%, #ecfccb 100%);
+  bottom: 20%;
+  right: 20%;
+  animation-delay: -15s;
+  animation-duration: 28s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate(30px, -30px) rotate(5deg) scale(1.05);
+  }
+  50% {
+    transform: translate(-20px, 20px) rotate(-5deg) scale(0.95);
+  }
+  75% {
+    transform: translate(10px, 10px) rotate(3deg) scale(1.02);
+  }
+}
+
+/* 闪烁星星 */
+.sparkle {
+  @apply absolute rounded-full;
+  background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 70%);
+  animation: sparkle 3s ease-in-out infinite;
+}
+
+.sparkle-1 {
+  width: 6px;
+  height: 6px;
+  top: 15%;
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.sparkle-2 {
+  width: 8px;
+  height: 8px;
+  top: 40%;
+  right: 15%;
+  animation-delay: 1s;
+}
+
+.sparkle-3 {
+  width: 5px;
+  height: 5px;
+  bottom: 30%;
+  left: 40%;
+  animation-delay: 2s;
+}
+
+@keyframes sparkle {
+  0%, 100% {
     opacity: 0;
+    transform: scale(0);
   }
-  10% {
-    opacity: 0.3;
-  }
-  90% {
-    opacity: 0.3;
-  }
-  100% {
-    transform: translateY(-100vh) rotate(720deg);
-    opacity: 0;
+  50% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
-.hero-content {
-  @apply relative z-10 space-y-6 max-w-2xl mx-auto;
+/* ============ 主内容区 ============ */
+.hero-container {
+  @apply relative z-10 w-full max-w-6xl mx-auto px-8 flex items-center gap-16;
+}
+
+.hero-container.is-visible {
+  /* 容器不再需要整体动画，由子元素分别控制 */
+}
+
+/* ============ 左侧内容 ============ */
+.hero-left {
+  @apply flex-1 space-y-8;
+}
+
+/* 左侧元素渐进入场动画 */
+.animate-item {
   opacity: 0;
-  transform: translateY(40px);
-  transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(-30px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--item-delay, 0s);
 }
 
-.hero-content.is-visible {
+.animate-item.is-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
-.hero-badge {
-  @apply inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium;
-  background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
-  color: #3b82f6;
+.hero-intro {
+  @apply space-y-3;
+}
+
+.intro-label {
+  @apply inline-block px-3 py-1 text-xs font-medium tracking-widest uppercase rounded-full;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
 }
 
 .hero-title {
-  @apply text-4xl md:text-5xl font-bold text-slate-800 tracking-tight leading-tight;
-  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  @apply text-4xl md:text-5xl font-bold leading-tight tracking-tight;
+  color: var(--text-primary);
 }
 
-.hero-number {
-  @apply inline-block tabular-nums;
+.title-name {
+  color: var(--text-primary);
 }
 
-.hero-subtitle {
-  @apply text-slate-500 leading-relaxed text-base;
+.title-suffix {
+  @apply block mt-1 font-normal;
+  color: var(--text-secondary);
+  font-size: 0.65em;
 }
 
+/* 天数区域 */
+.hero-days {
+  @apply flex items-end gap-4;
+}
+
+.days-number {
+  @apply text-7xl md:text-8xl font-black tabular-nums tracking-tighter;
+  color: var(--text-primary);
+  line-height: 0.9;
+}
+
+.days-label {
+  @apply flex flex-col pb-3;
+}
+
+.label-text {
+  @apply text-lg font-medium;
+  color: var(--text-primary);
+}
+
+.label-date {
+  @apply text-sm;
+  color: var(--text-tertiary);
+}
+
+/* 叙事文案 */
+.hero-narrative {
+  @apply py-4 pl-5 border-l-2;
+  border-color: var(--accent);
+}
+
+.narrative-text {
+  @apply text-base leading-relaxed;
+  color: var(--text-secondary);
+}
+
+.narrative-text .highlight {
+  @apply font-semibold;
+  color: var(--text-primary);
+}
+
+/* 数据统计卡片 */
 .hero-stats {
-  @apply grid grid-cols-3 gap-8 mt-10 pt-8 border-t border-slate-100;
+  @apply flex gap-3;
 }
 
-.hero-stat {
-  @apply text-center;
+.stat-card {
+  @apply flex-1 p-4 rounded-xl text-center;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 24px rgba(99, 102, 241, 0.08);
+  transition: all 0.3s ease;
 }
 
-.hero-stat-value {
-  @apply text-2xl md:text-3xl font-bold text-slate-900 tabular-nums;
-  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
 }
 
-.hero-stat-label {
-  @apply text-xs text-slate-400 mt-1;
+.stat-card.stat-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-color: transparent;
+  box-shadow: 0 4px 24px rgba(99, 102, 241, 0.3);
 }
 
+.stat-card.stat-primary .stat-value,
+.stat-card.stat-primary .stat-label {
+  color: #fff;
+}
+
+.stat-value {
+  @apply text-2xl font-bold tabular-nums tracking-tight;
+  color: var(--text-primary);
+}
+
+.stat-suffix {
+  @apply text-base font-medium;
+  color: var(--text-tertiary);
+}
+
+.stat-label {
+  @apply text-xs mt-1 uppercase tracking-wider;
+  color: var(--text-tertiary);
+}
+
+/* ============ 右侧：头像 + 环绕标签 ============ */
+.hero-right {
+  @apply relative flex-1 flex items-center justify-center min-h-[400px];
+  margin-right: -120px;
+}
+
+/* 头像轨道容器 */
+.avatar-orbit {
+  @apply relative;
+  width: 320px;
+  height: 320px;
+}
+
+/* 中心头像 */
+.avatar-center {
+  @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
+  z-index: 10;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.9);
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.avatar-orbit.is-visible .avatar-center {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.avatar-img {
+  @apply w-28 h-28 rounded-full object-cover;
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.8),
+    0 0 0 6px rgba(99, 102, 241, 0.2),
+    0 20px 40px rgba(99, 102, 241, 0.2);
+}
+
+.avatar-placeholder {
+  @apply w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.8),
+    0 0 0 6px rgba(99, 102, 241, 0.2),
+    0 20px 40px rgba(99, 102, 241, 0.2);
+}
+
+/* 环绕标签容器 */
+.orbit-tags {
+  @apply absolute inset-0;
+}
+
+/* 环绕标签 */
+.orbit-tag {
+  @apply absolute px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap;
+  top: 50%;
+  left: 50%;
+  background: #fff;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  /* 初始状态：更柔和的起始位置 */
+  transform: translate(-50%, -50%) scale(0.95);
+  opacity: 0;
+}
+
+.orbit-tag.is-visible {
+  animation: tag-fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--enter-delay, 0s);
+}
+
+/* 柔和渐显动画 - 减少弹跳感 */
+@keyframes tag-fade-in {
+  0% {
+    transform: translate(
+      calc(-50% + var(--orbit-x, 0px) * 0.7),
+      calc(-50% + var(--orbit-y, 0px) * 0.7)
+    ) scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(
+      calc(-50% + var(--orbit-x, 0px)),
+      calc(-50% + var(--orbit-y, 0px))
+    ) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 标签类型 - 梦幻渐变风格 */
+.orbit-tag.tag-type-frequency {
+  background: linear-gradient(135deg, rgba(251, 207, 232, 0.8) 0%, rgba(244, 214, 255, 0.8) 100%);
+  border: 1px solid rgba(244, 114, 182, 0.2);
+}
+
+.orbit-tag.tag-type-time {
+  background: linear-gradient(135deg, rgba(191, 219, 254, 0.8) 0%, rgba(199, 210, 254, 0.8) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.orbit-tag.tag-type-engagement {
+  background: linear-gradient(135deg, rgba(254, 215, 170, 0.8) 0%, rgba(254, 202, 202, 0.8) 100%);
+  border: 1px solid rgba(251, 146, 60, 0.2);
+}
+
+.orbit-tag.tag-type-quality {
+  background: linear-gradient(135deg, rgba(167, 243, 208, 0.8) 0%, rgba(153, 246, 228, 0.8) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.orbit-tag.tag-type-growth,
+.orbit-tag.tag-type-persistence,
+.orbit-tag.tag-type-milestone,
+.orbit-tag.tag-type-productivity {
+  background: linear-gradient(135deg, rgba(221, 214, 254, 0.8) 0%, rgba(199, 210, 254, 0.8) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* hover 效果 */
+.orbit-tag:hover {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+}
+
+/* ============ 滚动提示 ============ */
 .hero-scroll-hint {
-  @apply absolute bottom-8 flex flex-col items-center gap-1 text-slate-400 text-xs;
+  @apply absolute bottom-10 flex flex-col items-center gap-2 text-sm;
+  color: var(--text-tertiary);
   opacity: 0;
   transform: translateY(20px);
-  transition: all 0.8s ease 0.5s;
+  transition: all 1s ease 1.2s;
 }
 
 .hero-scroll-hint.is-visible {
   opacity: 1;
   transform: translateY(0);
-  animation: bounce 2s ease-in-out infinite 1s;
 }
 
-@keyframes bounce {
+.hero-scroll-hint span {
+  letter-spacing: 0.05em;
+}
+
+.scroll-arrow {
+  animation: scroll-bounce 2s ease-in-out infinite;
+}
+
+@keyframes scroll-bounce {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(6px); }
 }
 
+/* ============ 响应式 ============ */
+@media (max-width: 768px) {
+  .hero-container {
+    @apply flex-col gap-10 py-16 px-6;
+  }
+
+  .hero-title {
+    @apply text-3xl;
+  }
+
+  .days-number {
+    @apply text-6xl;
+  }
+
+  .hero-right {
+    @apply min-h-[260px] w-full;
+  }
+
+  .avatar-orbit {
+    width: 240px;
+    height: 240px;
+  }
+
+  .avatar-img,
+  .avatar-placeholder {
+    @apply w-20 h-20 text-2xl;
+  }
+
+  .orbit-tag {
+    @apply px-2.5 py-1 text-xs;
+  }
+
+  .hero-stats {
+    @apply flex-wrap gap-2;
+  }
+
+  .stat-card {
+    @apply min-w-[90px] p-3;
+  }
+
+  .stat-value {
+    @apply text-xl;
+  }
+}
+
+/* ============ 通用 ============ */
 .count-up {
   @apply tabular-nums;
 }

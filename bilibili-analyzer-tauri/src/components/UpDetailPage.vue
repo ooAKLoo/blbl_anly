@@ -96,6 +96,7 @@
           <GrowthJourney
             :videos="videos"
             :up-name="upInfo?.name"
+            :up-face="upInfo?.face"
             :is-active="showGrowthJourney"
           />
         </div>
