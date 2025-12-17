@@ -23,23 +23,30 @@ const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, v
   const days = totalDays % 365;
   const { linePath, areaPath } = useMemo(() => generateMiniChartPaths(videos), [videos]);
 
-  // 播放动画
+  // 播放动画 - 线性时间驱动
+  // 早期视频稀疏 → 点移动慢 → 感受创作初期的沉淀
   const playAnimation = () => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
 
     setState({ progress: 0, displayDays: '0', displayPlays: '0' });
 
-    const duration = 5000;
+    const duration = 10000; // 延长到 10 秒
     const startTime = performance.now();
 
     const animate = (currentTime) => {
       const t = Math.min((currentTime - startTime) / duration, 1);
-      const progress = 1 - Math.pow(1 - t, 3);
-      const animData = getPlayProgressAtTime(progress);
+      // 平滑缓动
+      const easedT = t < 0.5
+        ? 2 * t * t
+        : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+      // 直接用时间进度，点位与时间轴同步
+      const timeProgress = easedT;
+      const animData = getPlayProgressAtTime(timeProgress);
 
       setState({
-        progress,
-        displayDays: Math.floor(totalDays * progress).toLocaleString(),
+        progress: timeProgress,
+        displayDays: Math.floor(totalDays * timeProgress).toLocaleString(),
         displayPlays: formatNumber(animData.cumulative)
       });
 
