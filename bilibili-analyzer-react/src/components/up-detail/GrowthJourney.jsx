@@ -41,6 +41,7 @@ const GrowthJourney = ({ videos = [], upName = 'UP主', upFace = '', onClose }) 
       <div className="ending-section-wrapper">
         <EndingSection
           upName={upName}
+          upFace={upFace}
           totalDays={totalDays}
           firstVideoPlays={firstVideoPlays}
           videos={sortedVideos}

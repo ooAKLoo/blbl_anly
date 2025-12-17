@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { formatNumber } from '../../../utils';
+import { formatNumber, getImageUrl } from '../../../utils';
 import { generateMiniChartPaths } from '../../../utils/chartUtils';
 import { useGrowthData } from '../../../hooks/useGrowthData';
 import { GrowthChart } from './ending';
 
-const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, videos = [] }) => {
+const EndingSection = ({ upName = 'UP主', upFace = '', totalDays = 0, firstVideoPlays = 0, videos = [] }) => {
   const endingRef = useRef(null);
   const animationRef = useRef(null);
   const hasStartedRef = useRef(false);
@@ -106,10 +106,18 @@ const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, v
         <div className="max-w-[1100px] mx-auto flex items-end justify-between">
           {/* 左侧：结语文字 */}
           <div className="max-w-2xl">
-            <p className="text-base text-slate-500 leading-relaxed">
+            <p className="text-base text-slate-500 leading-loose">
               从 <span className="text-slate-700">{journeyLabels.start}</span> 的第一个视频开始，
-              <span className="text-blue-600">{upName}</span> 用 <span className="text-slate-700 tabular-nums">{state.displayDays}</span> 天，
-              将 <span className="text-slate-700">{formatNumber(firstVideoPlays)}</span> 播放变成了 <span className="text-blue-600 tabular-nums">{state.displayPlays}</span>。
+              {upFace && (
+                <img
+                  src={getImageUrl(upFace)}
+                  alt=""
+                  className="w-5 h-5 rounded-full object-cover inline align-middle mx-0.5"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              <span className="text-blue-600 font-medium">{upName}</span> 用 <span className="text-slate-700 tabular-nums">{state.displayDays}</span> 天，
+              将 <span className="text-slate-700">{formatNumber(firstVideoPlays)}</span> 播放变成了 <span className="text-blue-600 font-medium tabular-nums">{state.displayPlays}</span>。
             </p>
             <p className="text-sm text-slate-400 mt-3 italic">故事还在继续。</p>
           </div>
@@ -139,10 +147,18 @@ const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, v
 
       {/* 动画进行中的实时数据显示 */}
       <div className={`absolute bottom-0 left-0 right-0 pb-12 text-center transition-opacity duration-300 ${state.progress > 0 && !isComplete ? 'opacity-100' : 'opacity-0'}`}>
-        <p className="text-base text-slate-500 leading-relaxed">
+        <p className="text-base text-slate-500 leading-loose">
           从 <span className="text-slate-700">{journeyLabels.start}</span> 的第一个视频开始，
-          <span className="text-blue-600">{upName}</span> 用 <span className="text-slate-700 tabular-nums">{state.displayDays}</span> 天，
-          将 <span className="text-slate-700">{formatNumber(firstVideoPlays)}</span> 播放变成了 <span className="text-blue-600 tabular-nums">{state.displayPlays}</span>。
+          {upFace && (
+            <img
+              src={getImageUrl(upFace)}
+              alt=""
+              className="w-5 h-5 rounded-full object-cover inline align-middle mx-0.5"
+              referrerPolicy="no-referrer"
+            />
+          )}
+          <span className="text-blue-600 font-medium">{upName}</span> 用 <span className="text-slate-700 tabular-nums">{state.displayDays}</span> 天，
+          将 <span className="text-slate-700">{formatNumber(firstVideoPlays)}</span> 播放变成了 <span className="text-blue-600 font-medium tabular-nums">{state.displayPlays}</span>。
         </p>
       </div>
     </div>
