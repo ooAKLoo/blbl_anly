@@ -1,0 +1,18 @@
+/* ============ 基础容器 ============ */
+.story-container {
+  min-height: 100vh;
+  padding-bottom: 5rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.ending-wrapper {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .ending-wrapper {
+    padding: 0 1.5rem;
+  }
+}

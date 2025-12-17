@@ -6,3 +6,7 @@ bilibili-analyzer-tauri/node_modules
 bilibili-analyzer-tauri/src-tauri/target
 bilibili-analyzer-tauri/dist
 bilibili-analyzer-tauri/src-tauri/gen
+bilibili-analyzer-react/node_modules
+bilibili-analyzer-react/src-tauri/target
+bilibili-analyzer-react/dist
+bilibili-analyzer-react/src-tauri/gen
