@@ -140,19 +140,16 @@ const GrowthJourney = ({ videos = [], upName = 'UP主', upFace = '', isActive = 
       {/* Ending Section */}
       <motion.div
         ref={endingWrapperRef}
-        className="max-w-5xl mx-auto px-4 sm:px-6"
-        initial={{ opacity: 0, y: 80 }}
-        animate={isEndingInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 80 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0 }}
+        animate={isEndingInView ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ duration: 0.6 }}
       >
         <EndingSection
           ref={endingRef}
           upName={upName}
           totalDays={totalDays}
           firstVideoPlays={firstVideoPlays}
-          totalPlays={totalPlays}
           videos={sortedVideos}
-          growthMultiple={growthMultiple}
         />
       </motion.div>
     </div>

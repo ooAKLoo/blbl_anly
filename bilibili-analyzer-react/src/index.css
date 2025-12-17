@@ -772,6 +772,7 @@ main::-webkit-scrollbar-thumb:hover {
 .growth-journey-overlay {
   @apply fixed inset-0 z-50 bg-white overflow-y-auto;
   animation: growth-journey-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  scroll-behavior: smooth;
 }
 
 .growth-close-btn {
