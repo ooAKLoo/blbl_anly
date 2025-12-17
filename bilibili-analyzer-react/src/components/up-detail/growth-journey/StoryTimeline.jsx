@@ -331,27 +331,27 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
             <div
               key={node.id}
               ref={el => nodeRefs.current[index] = el}
-              className={`relative pl-16 sm:pl-0 sm:flex sm:items-center transition-all duration-500 ease-out ${
-                isVisible ? 'opacity-100 translate-x-0' : `opacity-0 ${isRight ? 'translate-x-10' : '-translate-x-10'}`
-              }`}
+              className="relative pl-16 sm:pl-0 sm:flex sm:items-center"
             >
-              {/* 时间轴节点标记 */}
+              {/* 时间轴节点标记 - 纯渐显 */}
               <div
-                className={`absolute w-4 h-4 rounded-full flex items-center justify-center z-10 left-0 sm:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 ${
-                  isVisible ? 'scale-100' : 'scale-0'
-                } ${MARKER_COLORS[node.markerColor]}`}
+                className={`absolute z-10 left-0 sm:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-500 ${
+                  isVisible ? 'opacity-100' : 'opacity-0'
+                }`}
               >
-                <div className="w-3 h-3 rounded-full bg-current" style={{ boxShadow: '0 0 0 4px rgba(255,255,255,0.9), 0 0 0 5px currentColor' }} />
+                <div className="w-2.5 h-2.5 rounded-full bg-slate-300 border-2 border-white" />
               </div>
 
               {/* 日期显示 */}
-              <div className={`text-sm text-slate-400 mb-3 font-serif italic sm:absolute sm:w-[45%] sm:mb-0 sm:top-1/2 sm:-translate-y-1/2 ${isRight ? 'sm:text-left sm:pl-10 sm:right-0' : 'sm:text-right sm:pr-10 sm:left-0'}`}>
+              <div className={`text-sm text-slate-400 mb-3 sm:absolute sm:w-[45%] sm:mb-0 sm:top-1/2 sm:-translate-y-1/2 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'} ${isRight ? 'sm:text-left sm:pl-10 sm:right-0' : 'sm:text-right sm:pr-10 sm:left-0'}`}>
                 {node.dateDisplay}
               </div>
 
-              {/* 内容卡片 */}
+              {/* 内容卡片 - 滑入动画 */}
               <div
-                className={`bg-white/80 backdrop-blur rounded-2xl border border-slate-200/60 relative overflow-hidden transition-all duration-300 hover:bg-white hover:-translate-y-0.5 sm:w-[45%] ${isRight ? 'sm:mr-[55%]' : 'sm:ml-[55%]'} ${node.video ? 'cursor-pointer' : ''}`}
+                className={`bg-white rounded-2xl relative overflow-hidden transition-all duration-500 ease-out hover:-translate-y-0.5 sm:w-[45%] shadow-[0_2px_8px_rgba(0,0,0,0.04),0_4px_24px_rgba(0,0,0,0.06)] ${
+                  isVisible ? 'opacity-100 translate-x-0' : `opacity-0 ${isRight ? 'translate-x-10' : '-translate-x-10'}`
+                } ${isRight ? 'sm:mr-[55%]' : 'sm:ml-[55%]'} ${node.video ? 'cursor-pointer' : ''}`}
                 onClick={node.video ? () => openVideo(node.video) : undefined}
               >
                 {/* 视频封面 */}

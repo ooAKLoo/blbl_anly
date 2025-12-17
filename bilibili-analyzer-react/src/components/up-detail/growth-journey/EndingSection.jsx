@@ -5,14 +5,38 @@ import { GrowthChart, EndingNarrative } from './ending';
 
 const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, videos = [] }) => {
   const endingRef = useRef(null);
-  const mainPath = useRef(null);
   const animationRef = useRef(null);
   const hasStartedRef = useRef(false);
 
   const [state, setState] = useState({ progress: 0, displayDays: '0', displayPlays: '0' });
-  const [pathLength, setPathLength] = useState(1000);
 
   const { growthData, milestones, getPlayProgressAtTime, journeyLabels } = useGrowthData(videos);
+
+  // 播放动画
+  const playAnimation = () => {
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+
+    setState({ progress: 0, displayDays: '0', displayPlays: '0' });
+
+    const duration = 5000;
+    const startTime = performance.now();
+
+    const animate = (currentTime) => {
+      const t = Math.min((currentTime - startTime) / duration, 1);
+      const progress = 1 - Math.pow(1 - t, 3);
+      const animData = getPlayProgressAtTime(progress);
+
+      setState({
+        progress,
+        displayDays: Math.floor(totalDays * progress).toLocaleString(),
+        displayPlays: formatNumber(animData.cumulative)
+      });
+
+      if (t < 1) animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  };
 
   // 使用原生 IntersectionObserver，指定滚动容器为 root
   useEffect(() => {
@@ -25,30 +49,7 @@ const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, v
         if (entry.isIntersecting && !hasStartedRef.current) {
           hasStartedRef.current = true;
           observer.disconnect();
-
-          // 启动动画
-          if (mainPath.current) {
-            setPathLength(mainPath.current.getTotalLength() || 1000);
-          }
-
-          const duration = 5000;
-          const startTime = performance.now();
-
-          const animate = (currentTime) => {
-            const t = Math.min((currentTime - startTime) / duration, 1);
-            const progress = 1 - Math.pow(1 - t, 3);
-            const animData = getPlayProgressAtTime(progress);
-
-            setState({
-              progress,
-              displayDays: Math.floor(totalDays * progress).toLocaleString(),
-              displayPlays: formatNumber(animData.cumulative)
-            });
-
-            if (t < 1) animationRef.current = requestAnimationFrame(animate);
-          };
-
-          animationRef.current = requestAnimationFrame(animate);
+          playAnimation();
         }
       },
       { root: scrollContainer, threshold: 0.15 }
@@ -69,8 +70,7 @@ const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, v
           growthData={growthData}
           milestones={milestones}
           progress={state.progress}
-          pathLength={pathLength}
-          onPathRef={(el) => { mainPath.current = el; }}
+          onReplay={playAnimation}
         />
         <div className="flex justify-between text-xs text-slate-400 mt-1 px-12">
           <span>{journeyLabels.start}</span>

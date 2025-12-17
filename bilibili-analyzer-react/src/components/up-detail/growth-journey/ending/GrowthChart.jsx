@@ -1,24 +1,32 @@
-import { useMemo, useRef, useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { formatNumber } from '../../../../utils';
 import { generateSmoothPath, generateAreaPath, scalePointsToSVG } from '../../../../utils/chartUtils';
 
 const CHART = { width: 1200, height: 400, padding: 50 };
 
-const GrowthChart = ({ growthData, milestones, progress, pathLength, onPathRef }) => {
-  const pathRef = useRef(null);
-  const [point, setPoint] = useState({ x: 0, y: 0 });
-
+const GrowthChart = ({ growthData, milestones, progress, onReplay }) => {
   const scaledPoints = useMemo(() => scalePointsToSVG(growthData, CHART), [growthData]);
   const linePath = useMemo(() => generateSmoothPath(scaledPoints), [scaledPoints]);
   const areaPath = useMemo(() => generateAreaPath(scaledPoints, CHART.height - CHART.padding), [scaledPoints]);
 
-  // 沿路径获取当前点
-  useEffect(() => {
-    if (pathRef.current && pathLength > 0) {
-      const p = pathRef.current.getPointAtLength(pathLength * progress);
-      setPoint({ x: p.x, y: p.y });
+  // 基于 progress 计算 clipPath 的宽度和 tracking dot 的位置，保证完全同步
+  const clipWidth = CHART.padding + progress * (CHART.width - CHART.padding * 2);
+
+  // 在 scaledPoints 中找到 clipWidth 对应的 y 值
+  const point = useMemo(() => {
+    if (scaledPoints.length < 2 || progress <= 0) return { x: 0, y: 0 };
+
+    for (let i = 1; i < scaledPoints.length; i++) {
+      if (scaledPoints[i].x >= clipWidth) {
+        const prev = scaledPoints[i - 1];
+        const curr = scaledPoints[i];
+        const t = (clipWidth - prev.x) / (curr.x - prev.x || 1);
+        return { x: clipWidth, y: prev.y + (curr.y - prev.y) * t };
+      }
     }
-  }, [progress, pathLength]);
+    const last = scaledPoints[scaledPoints.length - 1];
+    return { x: last.x, y: last.y };
+  }, [scaledPoints, clipWidth, progress]);
 
   // 里程碑
   const visibleMilestones = useMemo(() => {
@@ -54,15 +62,10 @@ const GrowthChart = ({ growthData, milestones, progress, pathLength, onPathRef }
     return { date: `${last.date.getFullYear()}.${last.date.getMonth() + 1}`, cumulative: last.cumulative };
   }, [progress, growthData]);
 
-  const handleRef = (el) => {
-    pathRef.current = el;
-    onPathRef?.(el);
-  };
-
   const posPercent = point.x > 0 ? ((point.x - CHART.padding) / (CHART.width - CHART.padding * 2)) * 100 : 0;
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full cursor-pointer" onClick={onReplay}>
       {/* 跟随圆点的数据显示 */}
       {progress > 0 && progress < 1 && point.x > 0 && (
         <div className="absolute top-2 z-10 -translate-x-1/2 pointer-events-none" style={{ left: `${posPercent}%` }}>
@@ -85,21 +88,21 @@ const GrowthChart = ({ growthData, milestones, progress, pathLength, onPathRef }
         </defs>
 
         <clipPath id="clip">
-          <rect x={0} y={0} width={CHART.padding + progress * (CHART.width - CHART.padding * 2)} height={CHART.height} />
+          <rect x={0} y={0} width={clipWidth} height={CHART.height} />
         </clipPath>
 
-        {/* 里程碑线 */}
+        {/* 里程碑线 - 只画到里程碑点的位置 */}
         {visibleMilestones.map(m => m.passed && (
-          <line key={m.id} x1={m.x} y1={CHART.padding} x2={m.x} y2={CHART.height - CHART.padding}
+          <line key={m.id} x1={m.x} y1={CHART.height - CHART.padding} x2={m.x} y2={m.y}
             stroke={m.color} strokeWidth="1" strokeDasharray="4 4" opacity="0.3" />
         ))}
 
         {/* 区域 */}
         <path d={areaPath} fill="url(#areaGrad)" clipPath="url(#clip)" />
 
-        {/* 线条 */}
-        <path ref={handleRef} d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="3"
-          strokeLinecap="round" style={{ strokeDasharray: pathLength, strokeDashoffset: pathLength * (1 - progress) }} filter="url(#glow)" />
+        {/* 线条 - 用 clipPath 裁剪，与 tracking dot 使用同一个 clipWidth */}
+        <path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="3"
+          strokeLinecap="round" clipPath="url(#clip)" />
 
         {/* 里程碑点 */}
         {visibleMilestones.map(m => m.passed && (
@@ -114,8 +117,8 @@ const GrowthChart = ({ growthData, milestones, progress, pathLength, onPathRef }
         {/* 追踪点 */}
         {progress > 0 && point.x > 0 && (
           <g>
-            <circle cx={point.x} cy={point.y} r="8" fill="#3b82f6" filter="url(#glow)" className="dot-pulse" />
-            <circle cx={point.x} cy={point.y} r="8" fill="none" stroke="#3b82f6" strokeWidth="2" className="dot-expand" />
+            <circle cx={point.x} cy={point.y} r="6" fill="#3b82f6" className="dot-pulse" />
+            <circle cx={point.x} cy={point.y} r="6" fill="none" stroke="#3b82f6" strokeWidth="2" opacity="0.4" className="dot-expand" />
           </g>
         )}
       </svg>
