@@ -1,7 +1,30 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Clock, Play, MessageSquare, MessageCircle, Star, X } from 'lucide-react';
-import { formatNumber, getImageUrl } from '../utils';
+import {
+  Calendar,
+  Clock,
+  Play,
+  MessageSquare,
+  MessageCircle,
+  Star,
+  X,
+  ArrowUpDown,
+  ChevronDown,
+  TrendingUp,
+  ArrowDownWideNarrow,
+  Timer
+} from 'lucide-react';
+import { formatNumber, getImageUrl, sortVideos } from '../utils';
+import { SORT_OPTIONS } from '../utils/constants';
+
+// Icon 映射
+const iconMap = {
+  Calendar,
+  TrendingUp,
+  ArrowDownWideNarrow,
+  MessageSquare,
+  Timer
+};
 
 export default function VideoDetailDrawer({
   visible = false,
@@ -11,10 +34,14 @@ export default function VideoDetailDrawer({
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [sortBy, setSortBy] = useState('time_desc');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef(null);
 
   useEffect(() => {
     if (visible) {
       setIsVisible(true);
+      setSortBy('time_desc'); // 重置排序
       requestAnimationFrame(() => {
         setIsAnimating(true);
       });
@@ -25,11 +52,45 @@ export default function VideoDetailDrawer({
     }
   }, [visible]);
 
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target)) {
+        setSortDropdownOpen(false);
+      }
+    }
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // 排序后的视频
+  const sortedVideos = useMemo(() => {
+    return sortVideos([...videos], sortBy);
+  }, [videos, sortBy]);
+
   const averagePlayCount = useMemo(() => {
     if (videos.length === 0) return 0;
     const total = videos.reduce((sum, v) => sum + v.play_count, 0);
     return Math.round(total / videos.length);
   }, [videos]);
+
+  // 获取当前排序标签
+  const currentSortLabel = useMemo(() => {
+    return SORT_OPTIONS.find(o => o.value === sortBy)?.label || '排序';
+  }, [sortBy]);
+
+  // 转换排序选项，添加图标组件
+  const sortOptionsWithIcons = useMemo(() => {
+    return SORT_OPTIONS.map(opt => ({
+      ...opt,
+      IconComponent: iconMap[opt.icon] || Calendar
+    }));
+  }, []);
+
+  const selectSort = (value) => {
+    setSortBy(value);
+    setSortDropdownOpen(false);
+  };
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget && onClose) {
@@ -47,36 +108,76 @@ export default function VideoDetailDrawer({
       onClick={handleOverlayClick}
     >
       <div
-        className={`w-full max-w-[900px] max-h-[85vh] bg-white rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden ${
+        className={`w-full max-w-[900px] max-h-[85vh] bg-white rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden p-2 ${
           isAnimating ? 'drawer-content-enter' : 'drawer-content-exit'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-4 px-6 py-5 border-b border-black/[0.06] bg-neutral-50">
-          <h3 className="text-lg font-semibold text-neutral-900 m-0">{title}</h3>
-          <div className="flex gap-4 text-sm text-neutral-600 mr-auto">
-            <span>共 {videos.length} 个视频</span>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-200/60 rounded-xl mb-2">
+          <h3 className="text-sm font-semibold text-neutral-900 m-0">{title}</h3>
+          <div className="flex gap-3 text-xs text-neutral-500">
+            <span>{videos.length} 个视频</span>
             {videos.length > 0 && (
-              <span>
-                平均播放: {formatNumber(averagePlayCount)}
-              </span>
+              <span>均播 {formatNumber(averagePlayCount)}</span>
             )}
           </div>
+
+          {/* 排序下拉 */}
+          <div className="relative ml-auto" ref={sortDropdownRef}>
+            <button
+              onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/80 hover:bg-white rounded-lg text-xs text-neutral-600 transition-colors"
+            >
+              <ArrowUpDown size={12} />
+              {currentSortLabel}
+              <ChevronDown
+                size={12}
+                className={`transition-transform ${sortDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {/* 排序下拉菜单 */}
+            {sortDropdownOpen && (
+              <div className="absolute top-full mt-1 right-0 w-36 p-1 bg-white rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.12)] z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                {sortOptionsWithIcons.map((option) => {
+                  const IconComponent = option.IconComponent;
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => selectSort(option.value)}
+                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                        sortBy === option.value
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      <IconComponent size={12} />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <button
-            className="ml-auto inline-flex items-center justify-center gap-2 px-[18px] py-2.5 border-0 rounded-lg text-sm font-medium cursor-pointer transition-all duration-150 bg-transparent text-neutral-600 border border-black/10 hover:bg-neutral-100 hover:text-neutral-900"
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-300/50 transition-colors duration-150"
             onClick={onClose}
           >
-            <X size={20} />
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
+
+        {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
-          {videos.length === 0 ? (
+          {sortedVideos.length === 0 ? (
             <div className="text-center py-[60px] px-5 text-neutral-400">
               <span>暂无视频</span>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {videos.map((video, index) => (
+              {sortedVideos.map((video, index) => (
                 <div
                   key={video.bvid}
                   className="flex items-center gap-4 p-3 bg-neutral-50 rounded-lg transition-all duration-150 border border-transparent hover:bg-neutral-100 hover:border-blue-500/20 hover:translate-x-1"

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useCallback } from 'react';
+import { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import * as echarts from 'echarts';
 import {
   Zap,
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import VideoFilterBar from '../VideoFilterBar';
 import { useVideoMetrics } from '../../hooks';
-import { formatNumber, formatAxisNumber, parseDurationMinutes } from '../../utils';
+import { formatNumber, formatAxisNumber, parseDurationMinutes, getImageUrl, detectAllVirals } from '../../utils';
 import { ANALYSIS_THRESHOLDS } from '../../utils/constants';
 import {
   chartTheme,
@@ -54,6 +54,12 @@ function DataAnalysis({
 
   // Chart instances
   const chartsRef = useRef({});
+
+  // 累计播放量曲线显示状态
+  const [showCumulativeLine, setShowCumulativeLine] = useState(false);
+  // 爆款标注显示状态（分别控制）
+  const [showGlobalViral, setShowGlobalViral] = useState(false);
+  const [showLocalBreakout, setShowLocalBreakout] = useState(false);
 
   // Use video metrics hook
   const {
@@ -431,8 +437,11 @@ function DataAnalysis({
         formatter: (params) => {
           const video = params.data.video;
           if (!video) return '';
-          const title = video.title.length > 30 ? video.title.slice(0, 30) + '...' : video.title;
-          return `<div style="max-width: 280px;"><strong>${title}</strong><br/>播放: ${formatNumber(params.value[0])}<br/>弹幕: ${formatNumber(params.value[1])}<br/>弹幕率: ${((params.value[1] / params.value[0]) * 100).toFixed(2)}%<br/><span style="color:#3B82F6">点击打开视频</span></div>`;
+          const coverUrl = video.cover ? getImageUrl(video.cover) : '';
+          const coverImg = coverUrl
+            ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
+            : '';
+          return `<div style="width: 160px;">${coverImg}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">播放: ${formatNumber(params.value[0])}<br/>弹幕: ${formatNumber(params.value[1])}<br/>弹幕率: ${((params.value[1] / params.value[0]) * 100).toFixed(2)}%<br/><span style="color:#3B82F6">点击打开视频</span></div></div>`;
         }
       },
       xAxis: {
@@ -583,7 +592,20 @@ function DataAnalysis({
 
     chart.setOption({
       ...chartTheme,
-      tooltip: { ...chartTheme.tooltip, trigger: 'axis', confine: true },
+      tooltip: {
+        ...chartTheme.tooltip,
+        trigger: 'axis',
+        confine: true,
+        formatter: (params) => {
+          const idx = 14 - params[0].dataIndex;
+          const video = topVideosData[idx];
+          const coverUrl = video.cover ? getImageUrl(video.cover) : '';
+          const coverImg = coverUrl
+            ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
+            : '';
+          return `<div style="width: 160px;">${coverImg}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">播放: ${formatNumber(video.play_count)}<br/><span style="color: #3B82F6;">点击打开视频</span></div></div>`;
+        }
+      },
       grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
       xAxis: {
         ...chartTheme.xAxis,
@@ -629,10 +651,24 @@ function DataAnalysis({
 
     const titles = videosWithEngagement.map(v => v.title.length > 20 ? v.title.slice(0, 20) + '...' : v.title);
     const rates = videosWithEngagement.map(v => v.engagementRate.toFixed(2));
+    const maxIdx = videosWithEngagement.length - 1;
 
     chart.setOption({
       ...chartTheme,
-      tooltip: { ...chartTheme.tooltip, trigger: 'axis', confine: true },
+      tooltip: {
+        ...chartTheme.tooltip,
+        trigger: 'axis',
+        confine: true,
+        formatter: (params) => {
+          const idx = maxIdx - params[0].dataIndex;
+          const video = videosWithEngagement[idx];
+          const coverUrl = video.cover ? getImageUrl(video.cover) : '';
+          const coverImg = coverUrl
+            ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
+            : '';
+          return `<div style="width: 160px;">${coverImg}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">互动率: ${video.engagementRate.toFixed(2)}%<br/>播放: ${formatNumber(video.play_count)}<br/><span style="color: #3B82F6;">点击打开视频</span></div></div>`;
+        }
+      },
       grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
       xAxis: {
         ...chartTheme.xAxis,
@@ -658,7 +694,7 @@ function DataAnalysis({
 
     chart.off('click');
     chart.on('click', (params) => {
-      const video = videosWithEngagement[14 - params.dataIndex];
+      const video = videosWithEngagement[maxIdx - params.dataIndex];
       openVideo(video);
     });
   }, [analysisVideos, initChart, openVideo]);
@@ -668,9 +704,15 @@ function DataAnalysis({
     if (!chart || analysisVideos.length === 0) return;
 
     const yearlyData = {};
+    const yearlyVideos = {};
     analysisVideos.forEach(v => {
       const year = v.publish_time.slice(0, 4);
-      yearlyData[year] = (yearlyData[year] || 0) + 1;
+      if (!yearlyData[year]) {
+        yearlyData[year] = 0;
+        yearlyVideos[year] = [];
+      }
+      yearlyData[year]++;
+      yearlyVideos[year].push(v);
     });
 
     const years = Object.keys(yearlyData).sort();
@@ -678,7 +720,15 @@ function DataAnalysis({
 
     chart.setOption({
       ...chartTheme,
-      tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
+      tooltip: {
+        ...chartTheme.tooltip,
+        trigger: 'axis',
+        formatter: (params) => {
+          const year = params[0].axisValue;
+          const count = params[0].value;
+          return `<div style="font-size: 13px;"><strong>${year}年</strong><br/>发布 ${count} 个视频<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
+        }
+      },
       xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
       yAxis: {
         ...chartTheme.yAxis,
@@ -702,18 +752,29 @@ function DataAnalysis({
         }
       }]
     });
-  }, [analysisVideos, initChart]);
+
+    chart.off('click');
+    chart.on('click', (params) => {
+      const year = params.name;
+      openVideoDrawer(`${year}年发布的视频`, yearlyVideos[year]);
+    });
+  }, [analysisVideos, initChart, openVideoDrawer]);
 
   const renderYearlyAvgChart = useCallback(() => {
     const chart = initChart(yearlyAvgChartRef, 'yearlyAvg');
     if (!chart || analysisVideos.length === 0) return;
 
     const yearlyData = {};
+    const yearlyVideos = {};
     analysisVideos.forEach(v => {
       const year = v.publish_time.slice(0, 4);
-      if (!yearlyData[year]) yearlyData[year] = { count: 0, totalPlays: 0 };
+      if (!yearlyData[year]) {
+        yearlyData[year] = { count: 0, totalPlays: 0 };
+        yearlyVideos[year] = [];
+      }
       yearlyData[year].count++;
       yearlyData[year].totalPlays += v.play_count;
+      yearlyVideos[year].push(v);
     });
 
     const years = Object.keys(yearlyData).sort();
@@ -721,7 +782,16 @@ function DataAnalysis({
 
     chart.setOption({
       ...chartTheme,
-      tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
+      tooltip: {
+        ...chartTheme.tooltip,
+        trigger: 'axis',
+        formatter: (params) => {
+          const year = params[0].axisValue;
+          const avgPlay = params[0].value;
+          const count = yearlyData[year].count;
+          return `<div style="font-size: 13px;"><strong>${year}年</strong><br/>平均播放量: ${formatNumber(avgPlay)}<br/>共 ${count} 个视频<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
+        }
+      },
       xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
       yAxis: {
         ...chartTheme.yAxis,
@@ -734,13 +804,19 @@ function DataAnalysis({
         smooth: 0.4,
         showSymbol: true,
         symbol: 'circle',
-        symbolSize: 6,
+        symbolSize: 8,
         areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.area) },
         itemStyle: { color: colors.blue500, borderColor: '#fff', borderWidth: 2 },
         lineStyle: { width: 2.5 }
       }]
     });
-  }, [analysisVideos, initChart]);
+
+    chart.off('click');
+    chart.on('click', (params) => {
+      const year = params.name;
+      openVideoDrawer(`${year}年发布的视频`, yearlyVideos[year]);
+    });
+  }, [analysisVideos, initChart, openVideoDrawer]);
 
   const renderTimelineChart = useCallback(() => {
     const chart = initChart(timelineChartRef, 'timeline');
@@ -748,26 +824,119 @@ function DataAnalysis({
 
     const sortedVideos = [...analysisVideos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
 
+    // 检测爆款视频
+    const { globalVirals, localBreakouts } = detectAllVirals(sortedVideos, {
+      globalMaxCount: 10,
+      localMaxCount: 10
+    });
+
+    // 创建爆款索引映射
+    const viralMap = new Map();
+    globalVirals.forEach(v => viralMap.set(v.index, 'global'));
+    localBreakouts.forEach(v => {
+      if (!viralMap.has(v.index)) {
+        viralMap.set(v.index, 'local');
+      }
+    });
+
     let currentThreshold = null;
     const sourceData = sortedVideos.map((v, i) => [i, v.play_count, i]);
+
+    // 计算累计播放量数据
+    let cumulative = 0;
+    const cumulativeData = sortedVideos.map((v, i) => {
+      cumulative += v.play_count;
+      return [i, cumulative];
+    });
 
     const renderChart = (threshold) => {
       const filteredData = threshold === null
         ? sourceData
         : sourceData.filter(d => d[1] >= threshold);
 
-      const barColor = threshold === null
-        ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: colors.primary },
-            { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }
-          ])
-        : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+      // 根据阈值和爆款类型确定颜色
+      const getBarColor = (dataIndex) => {
+        const viralType = viralMap.get(dataIndex);
+        // 全局爆款 - 红色（需开启）
+        if (showGlobalViral && viralType === 'global') {
+          return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#EF4444' },
+            { offset: 1, color: 'rgba(239, 68, 68, 0.4)' }
+          ]);
+        }
+        // 局部突破 - 橙色（需开启）
+        if (showLocalBreakout && viralType === 'local') {
+          return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#F59E0B' },
             { offset: 1, color: 'rgba(245, 158, 11, 0.4)' }
           ]);
+        }
+        if (threshold !== null) {
+          // 阈值筛选模式 - 黄色
+          return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#F59E0B' },
+            { offset: 1, color: 'rgba(245, 158, 11, 0.4)' }
+          ]);
+        }
+        // 普通视频 - 蓝色
+        return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: colors.primary },
+          { offset: 1, color: 'rgba(59, 130, 246, 0.3)' }
+        ]);
+      };
 
       const filteredCount = filteredData.length;
       const totalCount = sourceData.length;
+
+      // 构建柱状图数据，为每个柱子单独设置颜色
+      const barData = filteredData.map(d => ({
+        value: d,
+        itemStyle: { color: getBarColor(d[2]), borderRadius: [3, 3, 0, 0] }
+      }));
+
+      // 构建 series 数组
+      const series = [{
+        name: '单视频播放量',
+        type: 'bar',
+        data: barData,
+        encode: { x: 0, y: 1 },
+        barMaxWidth: 16,
+        markLine: threshold !== null ? {
+          silent: true,
+          symbol: 'none',
+          animation: false,
+          lineStyle: { color: '#F59E0B', width: 1.5, type: 'dashed' },
+          label: {
+            show: true,
+            position: 'insideEndTop',
+            formatter: `阈值: ${formatNumber(threshold)}`,
+            color: '#F59E0B',
+            fontSize: 11,
+            fontWeight: 500
+          },
+          data: [{ yAxis: threshold }]
+        } : { data: [] }
+      }];
+
+      // 如果开启累计曲线，添加折线图
+      if (showCumulativeLine) {
+        series.push({
+          name: '累计播放量',
+          type: 'line',
+          yAxisIndex: 1,
+          data: cumulativeData,
+          encode: { x: 0, y: 1 },
+          smooth: 0.3,
+          showSymbol: false,
+          lineStyle: { width: 2, color: '#10B981' },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(16, 185, 129, 0.25)' },
+              { offset: 1, color: 'rgba(16, 185, 129, 0.02)' }
+            ])
+          }
+        });
+      }
 
       chart.setOption({
         ...chartTheme,
@@ -776,15 +945,40 @@ function DataAnalysis({
           trigger: 'axis',
           formatter: p => {
             if (!p || !p[0]) return '';
-            const videoIdx = p[0].data[2];
+            const barData = p.find(item => item.seriesName === '单视频播放量');
+            if (!barData) return '';
+            const videoIdx = barData.data.value[2];
             const video = sortedVideos[videoIdx];
             const thresholdInfo = threshold !== null
               ? `<br/><span style="color: #F59E0B">阈值: ${formatNumber(threshold)}</span>`
               : '';
-            return `<div style="max-width: 280px;"><strong>${video.title}</strong><br/>发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}${thresholdInfo}</div>`;
+            const coverUrl = video.cover ? getImageUrl(video.cover) : '';
+            const coverImg = coverUrl
+              ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
+              : '';
+            const cumulativeInfo = showCumulativeLine
+              ? `<br/><span style="color: #10B981">累计: ${formatNumber(cumulativeData[videoIdx][1])}</span>`
+              : '';
+            // 爆款标签（只有开启对应开关时才显示）
+            const viralType = viralMap.get(videoIdx);
+            let viralTag = '';
+            if (showGlobalViral && viralType === 'global') {
+              viralTag = '<span style="display: inline-block; background: #EF4444; color: white; font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-bottom: 6px;">全局爆款</span><br/>';
+            } else if (showLocalBreakout && viralType === 'local') {
+              viralTag = '<span style="display: inline-block; background: #F59E0B; color: white; font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-bottom: 6px;">局部突破</span><br/>';
+            }
+            return `<div style="width: 160px;">${coverImg}${viralTag}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}${cumulativeInfo}${thresholdInfo}</div></div>`;
           }
         },
-        grid: { left: '8%', right: '4%', bottom: '22%', top: '12%' },
+        legend: showCumulativeLine ? {
+          show: true,
+          top: 0,
+          right: 0,
+          textStyle: { fontSize: 11, color: '#6B7280' },
+          itemWidth: 16,
+          itemHeight: 8
+        } : { show: false },
+        grid: { left: '8%', right: showCumulativeLine ? '10%' : '4%', bottom: '22%', top: showCumulativeLine ? '10%' : '8%' },
         dataZoom: [
           {
             type: 'slider',
@@ -809,35 +1003,24 @@ function DataAnalysis({
           nameGap: 25,
           nameTextStyle: { color: threshold !== null ? '#F59E0B' : '#9CA3AF', fontSize: 11 }
         },
-        yAxis: {
-          ...chartTheme.yAxis,
-          type: 'value',
-          axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber },
-          axisLine: { lineStyle: { color: threshold !== null ? '#F59E0B' : '#E5E7EB' } },
-          triggerEvent: true
-        },
-        series: [{
-          type: 'bar',
-          data: filteredData,
-          encode: { x: 0, y: 1 },
-          barMaxWidth: 16,
-          itemStyle: { color: barColor, borderRadius: [3, 3, 0, 0] },
-          markLine: threshold !== null ? {
-            silent: true,
-            symbol: 'none',
-            animation: false,
-            lineStyle: { color: '#F59E0B', width: 1.5, type: 'dashed' },
-            label: {
-              show: true,
-              position: 'insideEndTop',
-              formatter: `阈值: ${formatNumber(threshold)}`,
-              color: '#F59E0B',
-              fontSize: 11,
-              fontWeight: 500
-            },
-            data: [{ yAxis: threshold }]
-          } : { data: [] }
-        }]
+        yAxis: [
+          {
+            ...chartTheme.yAxis,
+            type: 'value',
+            axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber },
+            axisLine: { lineStyle: { color: threshold !== null ? '#F59E0B' : '#E5E7EB' } },
+            triggerEvent: true
+          },
+          ...(showCumulativeLine ? [{
+            ...chartTheme.yAxis,
+            type: 'value',
+            position: 'right',
+            axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber, color: '#10B981' },
+            axisLine: { show: true, lineStyle: { color: '#10B981' } },
+            splitLine: { show: false }
+          }] : [])
+        ],
+        series
       }, { notMerge: true });
     };
 
@@ -861,9 +1044,9 @@ function DataAnalysis({
         }
       }
     });
-  }, [analysisVideos, initChart]);
+  }, [analysisVideos, initChart, showCumulativeLine, showGlobalViral, showLocalBreakout]);
 
-  // Render all charts when data changes
+  // Render all charts except timeline when data changes
   useEffect(() => {
     if (analysisVideos.length === 0) return;
 
@@ -878,7 +1061,6 @@ function DataAnalysis({
       renderTopEngagementChart();
       renderYearlyCountChart();
       renderYearlyAvgChart();
-      renderTimelineChart();
     }, 100);
 
     return () => clearTimeout(timer);
@@ -893,9 +1075,19 @@ function DataAnalysis({
     renderTopVideosChart,
     renderTopEngagementChart,
     renderYearlyCountChart,
-    renderYearlyAvgChart,
-    renderTimelineChart
+    renderYearlyAvgChart
   ]);
+
+  // Render timeline chart separately (depends on showCumulativeLine)
+  useEffect(() => {
+    if (analysisVideos.length === 0) return;
+
+    const timer = setTimeout(() => {
+      renderTimelineChart();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [analysisVideos, renderTimelineChart]);
 
   // Cleanup
   useEffect(() => {
@@ -1115,8 +1307,46 @@ function DataAnalysis({
               </div>
             </div>
             <div className="chart-card mt-4">
-              <h3 className="chart-title">全部视频播放量时间线</h3>
-              <p className="text-xs text-neutral-400 -mt-2 mb-2">点击纵坐标可筛选高于该播放量的视频，再次点击取消筛选</p>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="chart-title !mb-0">全部视频播放量时间线</h3>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span className="text-xs text-neutral-500">显示累计曲线</span>
+                  <button
+                    onClick={() => setShowCumulativeLine(!showCumulativeLine)}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${
+                      showCumulativeLine ? 'bg-emerald-500' : 'bg-neutral-200'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                        showCumulativeLine ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-neutral-400 mb-2">
+                <button
+                  onClick={() => setShowGlobalViral(!showGlobalViral)}
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
+                    showGlobalViral ? 'bg-red-50 text-red-600' : 'hover:bg-neutral-50'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-sm ${showGlobalViral ? 'bg-red-500' : 'bg-neutral-300'}`}></span>
+                  全局爆款
+                </button>
+                <button
+                  onClick={() => setShowLocalBreakout(!showLocalBreakout)}
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
+                    showLocalBreakout ? 'bg-amber-50 text-amber-600' : 'hover:bg-neutral-50'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-sm ${showLocalBreakout ? 'bg-amber-500' : 'bg-neutral-300'}`}></span>
+                  局部突破
+                </button>
+                <span className="text-neutral-300 mx-1">|</span>
+                <span>点击纵坐标可筛选高于该播放量的视频</span>
+              </div>
               <div ref={timelineChartRef} className="h-[320px]"></div>
             </div>
           </section>
