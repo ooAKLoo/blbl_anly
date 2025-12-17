@@ -25,7 +25,7 @@
       :growth-multiple="growthMultiple"
     />
 
-    <!-- 结尾 - 数据总结 -->
+    <!-- 结尾 - 成长轨迹可视化 -->
     <div class="ending-wrapper">
       <EndingSection
         ref="endingRef"
@@ -33,6 +33,8 @@
         :total-days="totalDays"
         :first-video-plays="firstVideoPlays"
         :total-plays="totalPlays"
+        :videos="sortedVideos"
+        :growth-multiple="growthMultiple"
       />
     </div>
   </div>
