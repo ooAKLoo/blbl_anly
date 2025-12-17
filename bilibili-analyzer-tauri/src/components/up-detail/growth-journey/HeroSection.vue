@@ -207,24 +207,47 @@ const heroRef = ref(null);
 const isVisible = ref(false);
 let observer = null;
 
-// 环绕标签样式生成：均匀分布在圆周上
+// 环绕标签样式生成：支持3-5个标签的动态布局
 function getOrbitTagStyle(index, total) {
-  // 计算角度，从顶部开始，均匀分布
-  const startAngle = -90; // 从顶部开始（度）
-  const angleStep = 360 / Math.max(total, 1);
-  const angleDeg = startAngle + index * angleStep;
-  const angleRad = (angleDeg * Math.PI) / 180;
+  // 根据标签数量动态调整布局
+  // 核心原则：均匀分布，避免重叠，第一个标签在上方
+  let positions;
 
-  // 轨道半径
-  const radius = 130;
+  if (total <= 3) {
+    // 3个标签：倒三角布局
+    positions = [
+      { angle: -90, radius: 115 },   // 顶部
+      { angle: 150, radius: 125 },   // 左下
+      { angle: 30, radius: 125 },    // 右下
+    ];
+  } else if (total === 4) {
+    // 4个标签：菱形布局
+    positions = [
+      { angle: -90, radius: 115 },   // 顶部
+      { angle: 0, radius: 130 },     // 右侧
+      { angle: 180, radius: 130 },   // 左侧
+      { angle: 90, radius: 120 },    // 底部
+    ];
+  } else {
+    // 5个标签：五边形布局
+    positions = [
+      { angle: -90, radius: 115 },   // 顶部（最重要的标签）
+      { angle: -18, radius: 130 },   // 右上
+      { angle: 54, radius: 130 },    // 右下
+      { angle: 126, radius: 130 },   // 左下
+      { angle: 198, radius: 130 },   // 左上
+    ];
+  }
 
-  // 计算 x, y 坐标
-  const x = Math.cos(angleRad) * radius;
-  const y = Math.sin(angleRad) * radius;
+  const pos = positions[index] || { angle: -90 + index * (360 / total), radius: 125 };
+  const angleRad = (pos.angle * Math.PI) / 180;
 
-  // 入场延迟：头像先显示，标签依次快速出现（参考 Ohoo 的 0.05s 间隔）
-  const baseDelay = 0.5; // 头像显示后的基础延迟
-  const staggerDelay = 0.06; // 每个标签之间的间隔（更快）
+  const x = Math.cos(angleRad) * pos.radius;
+  const y = Math.sin(angleRad) * pos.radius;
+
+  // 入场延迟：头像先显示，标签依次快速出现
+  const baseDelay = 0.4;
+  const staggerDelay = 0.08;
   const delay = baseDelay + index * staggerDelay;
 
   return {
@@ -627,34 +650,7 @@ defineExpose({ reset, setupObserver });
   }
 }
 
-/* 标签类型 - 梦幻渐变风格 */
-.orbit-tag.tag-type-frequency {
-  background: linear-gradient(135deg, rgba(251, 207, 232, 0.8) 0%, rgba(244, 214, 255, 0.8) 100%);
-  border: 1px solid rgba(244, 114, 182, 0.2);
-}
-
-.orbit-tag.tag-type-time {
-  background: linear-gradient(135deg, rgba(191, 219, 254, 0.8) 0%, rgba(199, 210, 254, 0.8) 100%);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-}
-
-.orbit-tag.tag-type-engagement {
-  background: linear-gradient(135deg, rgba(254, 215, 170, 0.8) 0%, rgba(254, 202, 202, 0.8) 100%);
-  border: 1px solid rgba(251, 146, 60, 0.2);
-}
-
-.orbit-tag.tag-type-quality {
-  background: linear-gradient(135deg, rgba(167, 243, 208, 0.8) 0%, rgba(153, 246, 228, 0.8) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.orbit-tag.tag-type-growth,
-.orbit-tag.tag-type-persistence,
-.orbit-tag.tag-type-milestone,
-.orbit-tag.tag-type-productivity {
-  background: linear-gradient(135deg, rgba(221, 214, 254, 0.8) 0%, rgba(199, 210, 254, 0.8) 100%);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-}
+/* 所有标签统一白色风格 */
 
 /* hover 效果 */
 .orbit-tag:hover {
