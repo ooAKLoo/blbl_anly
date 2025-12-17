@@ -90,150 +90,17 @@
       </div>
     </div>
 
-    <!-- 创作节奏 - 中间插叙卡片 -->
-    <div
-      class="persistence-interlude"
-      ref="persistenceRef"
-      :class="{ 'is-visible': persistenceVisible }"
-    >
-      <div class="persistence-badge">
-        <Flame :size="16" class="text-orange-400" />
-        <span>创作节奏</span>
-      </div>
-
-      <div class="persistence-grid">
-        <div class="persistence-item">
-          <h4 class="persistence-title">更新频率</h4>
-          <p class="persistence-text">
-            平均每
-            <strong class="text-blue-600 text-2xl">
-              <CountUp :end="avgPublishDays" :duration="1500" :start-on-visible="persistenceVisible" />
-            </strong>
-            天发布一个视频
-          </p>
-          <p class="persistence-insight">
-            {{ Math.floor(totalDays / 365) }} 年 {{ totalDays % 365 }} 天，{{ videoCount }} 个作品
-          </p>
-          <div ref="miniChartRef" class="mini-chart"></div>
-        </div>
-
-        <div class="persistence-item">
-          <h4 class="persistence-title">成长曲线</h4>
-          <p class="persistence-text">
-            <strong class="text-slate-700 text-2xl">
-              <CountUp :end="valleyVideos" :duration="1200" :start-on-visible="persistenceVisible" />
-            </strong>
-            个视频低于平均播放
-          </p>
-          <p class="persistence-text">
-            <strong class="text-emerald-500 text-2xl">
-              <CountUp :end="breakThroughCount" :duration="1500" :start-on-visible="persistenceVisible" />
-            </strong>
-            次播放量创新高
-          </p>
-          <div class="persistence-quote">
-            <Quote :size="14" />
-            <span>{{ motivationText }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 成长曲线 -->
-    <div
-      class="growth-chart-section"
-      ref="chartSectionRef"
-      :class="{ 'is-visible': chartVisible }"
-    >
-      <div class="growth-chart-header">
-        <TrendingUp :size="18" class="text-blue-500" />
-        <h3>成长轨迹</h3>
-      </div>
-      <div ref="growthChartRef" class="growth-chart"></div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, h, defineComponent } from 'vue';
-import * as echarts from 'echarts';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { formatNumber, getImageUrl } from '../../../utils';
 import { open } from '@tauri-apps/plugin-shell';
 import {
-  Play, Flame, CalendarDays, TrendingUp, Quote, Flag, Trophy,
-  PartyPopper, Crown, PenTool, Milestone, MessageSquare
+  Play, CalendarDays, Flag, Trophy,
+  PartyPopper, Crown, PenTool, Milestone, MessageSquare, Flame
 } from 'lucide-vue-next';
-
-// ============ CountUp 组件 ============
-const CountUp = defineComponent({
-  name: 'CountUp',
-  props: {
-    end: { type: Number, required: true },
-    duration: { type: Number, default: 2000 },
-    startOnVisible: { type: Boolean, default: false },
-    decimals: { type: Number, default: 0 },
-    suffix: { type: String, default: '' },
-    formatFn: { type: Function, default: null }
-  },
-  setup(props) {
-    const current = ref(0);
-    const hasStarted = ref(false);
-    const lastEndValue = ref(props.end);
-
-    const startAnimation = () => {
-      hasStarted.value = true;
-      const startTime = performance.now();
-      const startValue = 0;
-      const endValue = props.end;
-
-      const animate = (currentTime) => {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / props.duration, 1);
-        const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-        current.value = startValue + (endValue - startValue) * easeProgress;
-
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          current.value = endValue;
-        }
-      };
-      requestAnimationFrame(animate);
-    };
-
-    watch(() => props.end, (newEnd) => {
-      if (newEnd !== lastEndValue.value) {
-        lastEndValue.value = newEnd;
-        hasStarted.value = false;
-        current.value = 0;
-        if (props.startOnVisible) {
-          startAnimation();
-        }
-      }
-    });
-
-    watch(() => props.startOnVisible, (visible, oldVisible) => {
-      if (visible && !oldVisible) {
-        hasStarted.value = false;
-        current.value = 0;
-        lastEndValue.value = props.end;
-        startAnimation();
-      }
-    }, { immediate: true });
-
-    return () => {
-      let displayValue;
-      if (props.formatFn) {
-        displayValue = props.formatFn(Math.round(current.value));
-      } else if (props.decimals > 0) {
-        displayValue = current.value.toFixed(props.decimals);
-      } else {
-        displayValue = Math.round(current.value).toLocaleString();
-      }
-      return h('span', { class: 'count-up' }, displayValue + props.suffix);
-    };
-  }
-});
 
 const props = defineProps({
   videos: { type: Array, required: true },
@@ -248,10 +115,6 @@ const emit = defineEmits(['chart-visible']);
 // ============ Refs ============
 const storyStreamRef = ref(null);
 const timelineRef = ref(null);
-const persistenceRef = ref(null);
-const chartSectionRef = ref(null);
-const miniChartRef = ref(null);
-const growthChartRef = ref(null);
 
 const nodeRefs = ref([]);
 const setNodeRef = (el, index) => {
@@ -260,50 +123,13 @@ const setNodeRef = (el, index) => {
 
 // ============ 可见性状态 ============
 const visibleNodes = ref(new Set());
-const persistenceVisible = ref(false);
-const chartVisible = ref(false);
 const timelineProgress = ref(0);
 
-let miniChart = null;
-let growthChart = null;
 let observers = [];
 
 // ============ 基础计算属性 ============
 const sortedVideos = computed(() => {
   return [...props.videos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
-});
-
-const avgPublishDays = computed(() => {
-  if (sortedVideos.value.length < 2) return 0;
-  return Math.round(props.totalDays / sortedVideos.value.length);
-});
-
-// 低于平均播放的视频数（与 InsightReport 保持一致）
-const valleyVideos = computed(() => {
-  if (props.videos.length === 0) return 0;
-  const avgPlay = props.videos.reduce((s, v) => s + v.play_count, 0) / props.videos.length;
-  return props.videos.filter(v => v.play_count < avgPlay).length;
-});
-
-const breakThroughCount = computed(() => {
-  let count = 0;
-  let maxPlay = 0;
-  sortedVideos.value.forEach(v => {
-    if (v.play_count > maxPlay * 1.5 && maxPlay > 0) {
-      count++;
-    }
-    maxPlay = Math.max(maxPlay, v.play_count);
-  });
-  return count;
-});
-
-const motivationText = computed(() => {
-  const multiple = props.growthMultiple;
-  if (isNaN(multiple) || multiple < 1) return '播放量保持稳定';
-  if (multiple >= 10) return `播放量增长 ${multiple.toFixed(0)} 倍`;
-  if (multiple >= 5) return `播放量增长 ${multiple.toFixed(1)} 倍`;
-  if (multiple >= 2) return `播放量稳步增长 ${multiple.toFixed(1)} 倍`;
-  return '播放量保持稳定';
 });
 
 // ============ 故事节点构建 ============
@@ -580,42 +406,6 @@ function setupObservers() {
     if (el) nodeObserver.observe(el);
   });
   observers.push(nodeObserver);
-
-  // Persistence 观察器
-  if (persistenceRef.value) {
-    const persistenceObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            persistenceVisible.value = true;
-          }
-        });
-      },
-      { threshold: 0.3 }
-    );
-    persistenceObserver.observe(persistenceRef.value);
-    observers.push(persistenceObserver);
-  }
-
-  // Chart 观察器
-  if (chartSectionRef.value) {
-    const chartObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            chartVisible.value = true;
-            emit('chart-visible');
-            nextTick(() => {
-              renderGrowthChart();
-            });
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
-    chartObserver.observe(chartSectionRef.value);
-    observers.push(chartObserver);
-  }
 }
 
 // 滚动进度追踪
@@ -649,142 +439,6 @@ function updateTimelinePosition() {
   container.style.setProperty('--timeline-bottom', `${containerRect.height - lastCenter}px`);
 }
 
-// ============ 图表渲染 ============
-function renderMiniChart() {
-  if (!miniChartRef.value || sortedVideos.value.length < 2) return;
-  if (miniChart) miniChart.dispose();
-  miniChart = echarts.init(miniChartRef.value);
-
-  const data = sortedVideos.value.map((v, i) => [i, v.play_count]);
-
-  miniChart.setOption({
-    grid: { top: 10, right: 0, bottom: 0, left: 0 },
-    xAxis: { type: 'value', show: false, min: 0, max: sortedVideos.value.length - 1 },
-    yAxis: { type: 'value', show: false },
-    series: [{
-      type: 'line',
-      data,
-      smooth: 0.5,
-      showSymbol: false,
-      lineStyle: { width: 3, color: '#3b82f6' },
-      areaStyle: {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: 'rgba(59, 130, 246, 0.25)' },
-          { offset: 1, color: 'rgba(59, 130, 246, 0)' }
-        ])
-      }
-    }]
-  });
-}
-
-function renderGrowthChart() {
-  if (!growthChartRef.value || sortedVideos.value.length < 2) return;
-  if (growthChart) growthChart.dispose();
-  growthChart = echarts.init(growthChartRef.value);
-
-  const videos = sortedVideos.value;
-  const monthlyData = {};
-
-  videos.forEach(v => {
-    const month = v.publish_time.slice(0, 7);
-    if (!monthlyData[month]) {
-      monthlyData[month] = { count: 0, totalPlay: 0 };
-    }
-    monthlyData[month].count++;
-    monthlyData[month].totalPlay += v.play_count;
-  });
-
-  const months = Object.keys(monthlyData).sort();
-  const avgPlays = months.map(m => Math.round(monthlyData[m].totalPlay / monthlyData[m].count));
-
-  let cumulative = 0;
-  const cumulativePlays = months.map(m => {
-    cumulative += monthlyData[m].totalPlay;
-    return cumulative;
-  });
-
-  growthChart.setOption({
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: 'transparent',
-      padding: [12, 16],
-      textStyle: { color: '#374151', fontSize: 12 },
-      extraCssText: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); border-radius: 8px;',
-      formatter: params => {
-        const month = params[0].axisValue;
-        const data = monthlyData[month];
-        return `<div style="font-family: system-ui;">
-          <strong>${month}</strong><br/>
-          <span style="color: #6b7280;">发布 ${data.count} 个视频</span><br/>
-          <span style="color: #3b82f6;">均播放 ${formatNumber(Math.round(data.totalPlay / data.count))}</span>
-        </div>`;
-      }
-    },
-    grid: { top: 40, right: 50, bottom: 50, left: 50 },
-    xAxis: {
-      type: 'category',
-      data: months,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: {
-        color: '#9ca3af',
-        fontSize: 11,
-        rotate: 45,
-        interval: Math.max(0, Math.floor(months.length / 8) - 1)
-      }
-    },
-    yAxis: [
-      {
-        type: 'value',
-        position: 'left',
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } },
-        axisLabel: { color: '#9ca3af', fontSize: 11, formatter: v => formatNumber(v) }
-      },
-      {
-        type: 'value',
-        position: 'right',
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { show: false },
-        axisLabel: { color: '#9ca3af', fontSize: 11, formatter: v => formatNumber(v) }
-      }
-    ],
-    series: [
-      {
-        name: '月均播放',
-        type: 'bar',
-        data: avgPlays,
-        barMaxWidth: 20,
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#3b82f6' },
-            { offset: 1, color: 'rgba(59, 130, 246, 0.2)' }
-          ]),
-          borderRadius: [4, 4, 0, 0]
-        }
-      },
-      {
-        name: '累计播放',
-        type: 'line',
-        yAxisIndex: 1,
-        data: cumulativePlays,
-        smooth: 0.4,
-        showSymbol: false,
-        lineStyle: { width: 2.5, color: '#10b981', type: 'dashed' },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(16, 185, 129, 0.1)' },
-            { offset: 1, color: 'rgba(16, 185, 129, 0)' }
-          ])
-        }
-      }
-    ]
-  });
-}
-
 async function openVideo(video) {
   if (video?.video_url) {
     await open(video.video_url);
@@ -794,15 +448,12 @@ async function openVideo(video) {
 // ============ 重置方法 ============
 function reset() {
   visibleNodes.value = new Set();
-  persistenceVisible.value = false;
-  chartVisible.value = false;
   nodeRefs.value = [];
 }
 
 function init() {
   nextTick(() => {
     setupObservers();
-    renderMiniChart();
     updateTimelinePosition();
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', updateTimelinePosition);
@@ -819,11 +470,9 @@ onUnmounted(() => {
   observers.forEach(obs => obs.disconnect());
   window.removeEventListener('scroll', handleScroll);
   window.removeEventListener('resize', updateTimelinePosition);
-  if (miniChart) miniChart.dispose();
-  if (growthChart) growthChart.dispose();
 });
 
-defineExpose({ reset, init, setupObservers, updateTimelinePosition, renderMiniChart });
+defineExpose({ reset, init, setupObservers, updateTimelinePosition });
 </script>
 
 <style scoped>
@@ -1048,78 +697,7 @@ defineExpose({ reset, init, setupObservers, updateTimelinePosition, renderMiniCh
   @apply px-2 py-1 bg-slate-50 rounded;
 }
 
-/* ============ Persistence Interlude ============ */
-.persistence-interlude {
-  @apply relative z-10 bg-white/80 backdrop-blur-sm rounded-3xl p-8 border border-slate-200/60 my-24 mx-0 sm:mx-4;
-  opacity: 0;
-  transform: translateY(40px) scale(0.95);
-  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.persistence-interlude.is-visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-
-.persistence-badge {
-  @apply absolute -top-5 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-2 rounded-full text-sm font-medium flex items-center gap-2;
-}
-
-.persistence-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-10 mt-6;
-}
-
-.persistence-item {
-  @apply space-y-3;
-}
-
-.persistence-title {
-  @apply text-xl font-bold text-slate-800;
-  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-}
-
-.persistence-text {
-  @apply text-sm text-slate-600 leading-relaxed;
-}
-
-.persistence-insight {
-  @apply text-xs text-slate-400 italic;
-}
-
-.persistence-quote {
-  @apply flex items-start gap-2 text-xs text-slate-400 mt-4 bg-slate-50 p-4 rounded-xl;
-}
-
-.mini-chart {
-  @apply h-24 w-full mt-4;
-}
-
-/* ============ Growth Chart Section ============ */
-.growth-chart-section {
-  @apply bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/60 my-8;
-  opacity: 0;
-  transform: translateY(30px);
-  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.growth-chart-section.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.growth-chart-header {
-  @apply flex items-center gap-2 mb-4 text-slate-800 font-semibold;
-}
-
-.growth-chart {
-  @apply h-72;
-}
-
 /* ============ Utilities ============ */
-.count-up {
-  @apply tabular-nums;
-}
-
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
