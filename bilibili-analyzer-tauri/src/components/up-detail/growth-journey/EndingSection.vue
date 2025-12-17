@@ -5,13 +5,13 @@
     :class="{ 'is-visible': isVisible }"
   >
     <!-- 分割线 -->
-    <div class="ending-divider"></div>
+    <div class="ending-divider animate-item" :class="{ 'is-visible': isVisible }" style="--delay: 0s"></div>
 
     <!-- 标题：成长轨迹 -->
-    <h2 class="section-title">成长轨迹</h2>
+    <h2 class="section-title animate-item" :class="{ 'is-visible': isVisible }" style="--delay: 0.1s">成长轨迹</h2>
 
     <!-- 核心可视化区域 -->
-    <div class="visualization-container" ref="vizContainer">
+    <div class="visualization-container animate-item" :class="{ 'is-visible': isVisible }" style="--delay: 0.2s" ref="vizContainer">
       <!-- 累积播放量折线图 -->
       <div class="chart-area">
         <!-- 当前时间/播放量实时显示（跟随光标） -->
@@ -24,7 +24,7 @@
           <div class="live-plays">{{ formatNumber(currentAnimationData.cumulative) }}</div>
         </div>
 
-        <svg ref="chartSvg" class="growth-chart" viewBox="0 0 1000 280" preserveAspectRatio="xMidYMid meet">
+        <svg ref="chartSvg" class="growth-chart" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMid meet">
           <defs>
             <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4" />
@@ -61,9 +61,9 @@
             <template v-for="milestone in visibleMilestones" :key="milestone.id">
               <line
                 :x1="milestone.x"
-                :y1="50"
+                :y1="60"
                 :x2="milestone.x"
-                :y2="230"
+                :y2="340"
                 :stroke="milestone.color"
                 stroke-width="1"
                 stroke-dasharray="4 4"
@@ -168,7 +168,7 @@
     </div>
 
     <!-- 核心数据展示 - 简化为大数字 -->
-    <div class="hero-stats" :class="{ 'animate-in': animationProgress >= 1 }">
+    <div class="hero-stats animate-item" :class="{ 'is-visible': isVisible, 'animate-in': animationProgress >= 1 }" style="--delay: 0.3s">
       <div class="stat-item primary">
         <span class="stat-value">{{ displayPlays }}</span>
         <span class="stat-label">累积播放</span>
@@ -176,7 +176,7 @@
     </div>
 
     <!-- 次要数据 -->
-    <div class="secondary-stats">
+    <div class="secondary-stats animate-item" :class="{ 'is-visible': isVisible }" style="--delay: 0.4s">
       <div class="stat-pill">
         <span class="pill-value">{{ displayDays }}</span>
         <span class="pill-label">天</span>
@@ -191,16 +191,52 @@
       </div>
     </div>
 
-    <!-- 结语 - 更有情感的表达 -->
-    <div class="ending-narrative">
-      <p class="narrative-text">
-        从 <strong>{{ journeyStartLabel }}</strong> 的第一个视频开始，<br/>
-        <span class="highlight">{{ upName }}</span> 用 <strong>{{ displayDays }}</strong> 天，<br/>
-        将 <strong>{{ formatNumber(firstVideoPlays) }}</strong> 播放变成了 <strong>{{ formatNumber(totalPlays) }}</strong>。
-      </p>
-      <p class="narrative-ending" v-if="animationProgress >= 1">
-        故事还在继续。
-      </p>
+    <!-- 结语区域：左侧文字 + 右侧印戳 -->
+    <div class="ending-footer animate-item" :class="{ 'is-visible': isVisible }" style="--delay: 0.5s">
+      <!-- 左侧：结语文字 -->
+      <div class="ending-narrative">
+        <p class="narrative-text">
+          从 <strong>{{ journeyStartLabel }}</strong> 的第一个视频开始，<br/>
+          <span class="highlight">{{ upName }}</span> 用 <strong>{{ displayDays }}</strong> 天，<br/>
+          将 <strong>{{ formatNumber(firstVideoPlays) }}</strong> 播放变成了 <strong>{{ formatNumber(totalPlays) }}</strong>。
+        </p>
+        <p class="narrative-ending" v-if="animationProgress >= 1">
+          故事还在继续。
+        </p>
+      </div>
+
+      <!-- 右侧：印戳 -->
+      <div class="rhythm-stamp" :class="{ 'is-visible': animationProgress >= 1 }">
+        <div class="stamp-header">
+          <span class="stamp-number">{{ avgPublishDays }}</span>
+          <span class="stamp-unit">天/更</span>
+        </div>
+        <div class="stamp-chart">
+          <svg viewBox="0 0 120 40" class="mini-line-chart">
+            <path
+              :d="miniChartPath"
+              fill="none"
+              stroke="#3b82f6"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              :d="miniChartAreaPath"
+              fill="url(#miniGradient)"
+            />
+            <defs>
+              <linearGradient id="miniGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2" />
+                <stop offset="100%" stop-color="#3b82f6" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="stamp-detail">
+          {{ totalYears }}年{{ totalDaysRemainder }}天 · {{ props.videos?.length || 0 }}个作品
+        </div>
+      </div>
     </div>
 
     <!-- 重播按钮 -->
@@ -401,7 +437,7 @@ const milestones = computed(() => {
 });
 
 // SVG 路径计算
-const chartDimensions = { width: 1000, height: 280, padding: 50 };
+const chartDimensions = { width: 1000, height: 400, padding: 60 };
 
 const scaledPoints = computed(() => {
   const data = growthData.value;
@@ -540,6 +576,84 @@ const journeyEndLabel = computed(() => {
   return `${date.getFullYear()}.${date.getMonth() + 1}`;
 });
 
+// 更新频率计算
+const avgPublishDays = computed(() => {
+  if (!props.videos || props.videos.length < 2) return 0;
+  return Math.round(props.totalDays / props.videos.length);
+});
+
+const totalYears = computed(() => Math.floor(props.totalDays / 365));
+const totalDaysRemainder = computed(() => props.totalDays % 365);
+
+// 迷你折线图路径 - 展示每个视频的播放量起伏
+const miniChartPath = computed(() => {
+  if (!props.videos || props.videos.length < 2) return '';
+
+  // 按时间排序的视频
+  const sorted = [...props.videos].sort((a, b) =>
+    new Date(a.publish_time) - new Date(b.publish_time)
+  );
+
+  const width = 120;
+  const height = 40;
+  const padding = 4;
+
+  const maxY = Math.max(...sorted.map(v => v.play_count));
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  const points = sorted.map((v, i) => ({
+    x: padding + (i / (sorted.length - 1)) * chartWidth,
+    y: height - padding - (v.play_count / maxY) * chartHeight
+  }));
+
+  // 使用平滑曲线
+  let path = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cpx = (prev.x + curr.x) / 2;
+    path += ` Q ${cpx} ${prev.y} ${cpx} ${(prev.y + curr.y) / 2}`;
+    path += ` Q ${cpx} ${curr.y} ${curr.x} ${curr.y}`;
+  }
+
+  return path;
+});
+
+const miniChartAreaPath = computed(() => {
+  if (!props.videos || props.videos.length < 2) return '';
+
+  const sorted = [...props.videos].sort((a, b) =>
+    new Date(a.publish_time) - new Date(b.publish_time)
+  );
+
+  const width = 120;
+  const height = 40;
+  const padding = 4;
+
+  const maxY = Math.max(...sorted.map(v => v.play_count));
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  const points = sorted.map((v, i) => ({
+    x: padding + (i / (sorted.length - 1)) * chartWidth,
+    y: height - padding - (v.play_count / maxY) * chartHeight
+  }));
+
+  let path = `M ${points[0].x} ${height - padding}`;
+  path += ` L ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cpx = (prev.x + curr.x) / 2;
+    path += ` Q ${cpx} ${prev.y} ${cpx} ${(prev.y + curr.y) / 2}`;
+    path += ` Q ${cpx} ${curr.y} ${curr.x} ${curr.y}`;
+  }
+  path += ` L ${points[points.length - 1].x} ${height - padding} Z`;
+
+  return path;
+});
+
 // ============ 动画 ============
 
 function animateNumbers(timeProgress) {
@@ -635,13 +749,18 @@ defineExpose({ reset, setupObserver });
 
 <style scoped>
 .story-ending {
-  @apply text-center pt-20 pb-16;
-  opacity: 0;
-  transform: translateY(40px);
-  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  @apply text-center min-h-screen flex flex-col justify-center py-16;
 }
 
-.story-ending.is-visible {
+/* 通用动画项 */
+.animate-item {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--delay, 0s);
+}
+
+.animate-item.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
@@ -651,6 +770,21 @@ defineExpose({ reset, setupObserver });
   background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
 }
 
+.ending-divider.is-visible {
+  animation: dividerExpand 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes dividerExpand {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 8rem;
+    opacity: 1;
+  }
+}
+
 .section-title {
   @apply text-2xl font-semibold text-slate-700 mb-10;
   letter-spacing: 0.1em;
@@ -658,7 +792,22 @@ defineExpose({ reset, setupObserver });
 
 /* ============ 图表区域 ============ */
 .visualization-container {
-  @apply max-w-5xl mx-auto px-4 mb-12;
+  @apply max-w-6xl mx-auto px-6 mb-12;
+}
+
+.visualization-container.is-visible {
+  animation: chartReveal 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+}
+
+@keyframes chartReveal {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .chart-area {
@@ -683,7 +832,7 @@ defineExpose({ reset, setupObserver });
 .growth-chart {
   @apply w-full;
   height: auto;
-  max-height: 320px;
+  max-height: 450px;
 }
 
 /* 里程碑 */
@@ -722,14 +871,61 @@ defineExpose({ reset, setupObserver });
   @apply flex justify-between text-xs text-slate-400 mt-3 px-12;
 }
 
+/* ============ 结语底部区域 ============ */
+.ending-footer {
+  @apply flex items-center justify-center gap-8 max-w-2xl mx-auto mb-8;
+}
+
+/* ============ 印戳式更新频率 ============ */
+.rhythm-stamp {
+  @apply flex-shrink-0 p-4 rounded-2xl text-center;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  opacity: 0;
+  transform: translateY(10px) rotate(2deg);
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rhythm-stamp.is-visible {
+  opacity: 1;
+  transform: translateY(0) rotate(-1deg);
+}
+
+.stamp-header {
+  @apply flex items-baseline justify-center gap-1 mb-2;
+}
+
+.stamp-number {
+  @apply text-2xl font-bold text-slate-700 tabular-nums;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+.stamp-unit {
+  @apply text-xs font-medium text-slate-500;
+}
+
+.stamp-chart {
+  @apply w-28 h-10 mx-auto;
+}
+
+.mini-line-chart {
+  @apply w-full h-full;
+}
+
+.stamp-detail {
+  @apply text-xs text-slate-400 mt-2;
+}
+
 /* ============ 核心数据展示 ============ */
 .hero-stats {
   @apply mb-6;
-  opacity: 0.7;
-  transition: opacity 0.5s ease;
 }
 
-.hero-stats.animate-in {
+.hero-stats.is-visible {
+  opacity: 0.7;
+}
+
+.hero-stats.is-visible.animate-in {
   opacity: 1;
 }
 
@@ -782,7 +978,7 @@ defineExpose({ reset, setupObserver });
 
 /* ============ 结语叙事 ============ */
 .ending-narrative {
-  @apply max-w-lg mx-auto mb-8;
+  @apply text-left;
 }
 
 .narrative-text {
