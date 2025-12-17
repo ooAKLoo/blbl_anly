@@ -1,4 +1,4 @@
-import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import { getImageUrl } from '../utils';
 import DataAnalysis from './up-detail/DataAnalysis';
@@ -37,10 +37,21 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false
 
   // 暴露给父组件的方法
   useImperativeHandle(ref, () => ({
-    // 可以暴露一些方法供父组件调用
     switchTab: (tabId) => setActiveTab(tabId),
     openGrowthJourney: () => setShowGrowthJourney(true),
   }));
+
+  // 成长历程显示时锁定 body 滚动
+  useEffect(() => {
+    if (showGrowthJourney) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showGrowthJourney]);
 
   // 计算筛选后的视频（用于 DataAnalysis）
   const getFilteredVideos = () => {

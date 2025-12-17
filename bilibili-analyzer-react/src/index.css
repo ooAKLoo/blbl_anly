@@ -770,9 +770,11 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .growth-journey-overlay {
-  @apply fixed inset-0 z-50 bg-white overflow-y-auto;
+  @apply fixed inset-0 z-50 bg-white;
+  overflow-y: scroll;
+  overflow-x: hidden;
   animation: growth-journey-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .growth-close-btn {
@@ -869,14 +871,8 @@ main::-webkit-scrollbar-thumb:hover {
   background: transparent;
 }
 
-/* 平滑滚动过渡 */
-.growth-journey-overlay {
-  scroll-snap-type: y proximity;
-}
-
 .ending-section-wrapper {
-  scroll-snap-align: start;
-  scroll-snap-stop: normal;
+  min-height: 100vh;
 }
 
 /* Problem Data Diagnosis Styles (问题数据诊断) */
