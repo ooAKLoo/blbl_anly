@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 import 'echarts-wordcloud';
 import { Plus, X, Users, Trophy, Play, Calendar, Info } from 'lucide-react';
-import { formatNumber, getImageUrl } from '../utils';
+import { formatNumber, getImageUrl, parseDuration } from '../utils';
 import { open } from '@tauri-apps/plugin-shell';
 import * as HoverCard from '@radix-ui/react-hover-card';
 
@@ -224,18 +224,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
     }
     return null;
   }).filter(Boolean);
-
-  // 解析时长字符串为秒数
-  const parseDuration = (duration) => {
-    if (!duration) return 0;
-    const parts = duration.split(':').map(Number);
-    if (parts.length === 3) {
-      return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    } else if (parts.length === 2) {
-      return parts[0] * 60 + parts[1];
-    }
-    return 0;
-  };
 
   // 格式化秒数为时长字符串
   const formatDuration = (seconds) => {

@@ -72,6 +72,26 @@ export function formatDate(dateStr) {
 }
 
 /**
+ * 格式化日期为中文格式 (如 "2024年1月15日")
+ * @param {string|Date} dateStr - 日期字符串或 Date 对象
+ * @returns {string} 中文格式的日期字符串
+ */
+export function formatDateCN(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+/**
+ * 格式化日期为简短中文格式 (如 "2024.1")
+ * @param {string|Date} dateStr - 日期字符串或 Date 对象
+ * @returns {string} 简短中文格式的日期字符串
+ */
+export function formatDateShort(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}.${d.getMonth() + 1}`;
+}
+
+/**
  * 复制文本到剪贴板
  * @param {string} text - 要复制的文本
  * @returns {Promise<boolean>} 是否成功

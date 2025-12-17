@@ -1,19 +1,27 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { parseDurationMinutes } from '../utils';
 
 /**
  * 视频筛选 hook
- * 提供时间范围和时长筛选功能
+ * 提供时间范围和时长筛选功能，支持自定义日期范围
  */
-export function useVideoFilter(videos) {
+export function useVideoFilter(videos, options = {}) {
+  const { enableCustomDateRange = false } = options;
+
   const [selectedTimeRange, setSelectedTimeRange] = useState('all');
   const [selectedDuration, setSelectedDuration] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState(null);
+  const [customEndDate, setCustomEndDate] = useState(null);
 
   /**
    * 根据时间范围获取起始日期
    */
-  function getStartDate(timeRange) {
+  function getStartDate(timeRange, customStart = null, customEnd = null) {
     if (timeRange === 'all') return null;
+
+    if (timeRange === 'custom' && customStart) {
+      return new Date(customStart);
+    }
 
     const now = new Date();
     switch (timeRange) {
@@ -28,6 +36,18 @@ export function useVideoFilter(videos) {
       default:
         return null;
     }
+  }
+
+  /**
+   * 获取结束日期（仅用于自定义范围）
+   */
+  function getEndDate(timeRange, customEnd = null) {
+    if (timeRange === 'custom' && customEnd) {
+      const endDate = new Date(customEnd);
+      endDate.setHours(23, 59, 59, 999);
+      return endDate;
+    }
+    return null;
   }
 
   /**
@@ -56,9 +76,14 @@ export function useVideoFilter(videos) {
     let result = videos;
 
     // 时间范围筛选
-    const startDate = getStartDate(selectedTimeRange);
+    const startDate = getStartDate(selectedTimeRange, customStartDate, customEndDate);
+    const endDate = getEndDate(selectedTimeRange, customEndDate);
+
     if (startDate) {
-      result = result.filter(v => new Date(v.publish_time) >= startDate);
+      result = result.filter(v => {
+        const publishDate = new Date(v.publish_time);
+        return publishDate >= startDate && (!endDate || publishDate <= endDate);
+      });
     }
 
     // 时长筛选
@@ -67,13 +92,48 @@ export function useVideoFilter(videos) {
     }
 
     return result;
-  }, [videos, selectedTimeRange, selectedDuration]);
+  }, [videos, selectedTimeRange, selectedDuration, customStartDate, customEndDate]);
+
+  /**
+   * 通用的视频筛选函数（可以直接传入视频数组）
+   */
+  const filterVideos = useCallback((videosToFilter) => {
+    let result = videosToFilter;
+
+    // 时间范围筛选
+    const startDate = getStartDate(selectedTimeRange, customStartDate, customEndDate);
+    const endDate = getEndDate(selectedTimeRange, customEndDate);
+
+    if (startDate) {
+      result = result.filter(v => {
+        const publishDate = new Date(v.publish_time);
+        return publishDate >= startDate && (!endDate || publishDate <= endDate);
+      });
+    }
+
+    // 时长筛选
+    if (selectedDuration !== 'all') {
+      result = result.filter(v => matchesDuration(v, selectedDuration));
+    }
+
+    return result;
+  }, [selectedTimeRange, selectedDuration, customStartDate, customEndDate]);
 
   return {
+    // 筛选状态
     selectedTimeRange,
     setSelectedTimeRange,
     selectedDuration,
     setSelectedDuration,
-    filteredVideos
+    customStartDate,
+    setCustomStartDate,
+    customEndDate,
+    setCustomEndDate,
+    // 筛选结果
+    filteredVideos,
+    // 工具函数
+    filterVideos,
+    getStartDate: () => getStartDate(selectedTimeRange, customStartDate, customEndDate),
+    getEndDate: () => getEndDate(selectedTimeRange, customEndDate)
   };
 }
