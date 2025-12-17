@@ -1,0 +1,375 @@
+.story-ending {
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 0;
+}
+
+/* 通用动画项 */
+.animate-item {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--delay, 0s);
+}
+
+.animate-item.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ending-divider {
+  width: 8rem;
+  height: 1px;
+  margin: 0 auto 2.5rem;
+  background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+}
+
+.ending-divider.is-visible {
+  animation: dividerExpand 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes dividerExpand {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 8rem;
+    opacity: 1;
+  }
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 2.5rem;
+  letter-spacing: 0.1em;
+}
+
+/* ============ 图表区域 ============ */
+.visualization-container {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.visualization-container.is-visible {
+  animation: chartReveal 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+}
+
+@keyframes chartReveal {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.chart-area {
+  position: relative;
+}
+
+/* 实时指示器 */
+.live-indicator {
+  position: absolute;
+  top: 0.5rem;
+  z-index: 10;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: left 0.1s linear;
+}
+
+.live-date {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 0.125rem;
+}
+
+.live-plays {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #2563eb;
+  font-variant-numeric: tabular-nums;
+}
+
+.growth-chart {
+  width: 100%;
+  height: auto;
+  max-height: 450px;
+}
+
+/* 里程碑 */
+.milestone-dot {
+  transition: r 0.3s ease, opacity 0.3s ease;
+}
+
+.milestone-label {
+  transition: opacity 0.3s ease;
+}
+
+/* 追踪点动画 */
+.current-dot {
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+.pulse-ring {
+  animation: pulseExpand 2s ease-out infinite;
+}
+
+.pulse-ring-2 {
+  animation: pulseExpand 2s ease-out infinite 0.5s;
+}
+
+@keyframes dotPulse {
+  0%, 100% { r: 8; }
+  50% { r: 10; }
+}
+
+@keyframes pulseExpand {
+  0% { r: 8; opacity: 0.6; }
+  100% { r: 30; opacity: 0; }
+}
+
+.time-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.75rem;
+  padding: 0 3rem;
+}
+
+/* ============ 结语底部区域 ============ */
+.ending-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  max-width: 42rem;
+  margin: 0 auto 2rem;
+}
+
+/* ============ 印戳式更新频率 ============ */
+.rhythm-stamp {
+  flex-shrink: 0;
+  padding: 1rem;
+  border-radius: 1rem;
+  text-align: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  opacity: 0;
+  transform: translateY(10px) rotate(2deg);
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rhythm-stamp.is-visible {
+  opacity: 1;
+  transform: translateY(0) rotate(-1deg);
+}
+
+.stamp-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.stamp-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+.stamp-unit {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.stamp-chart {
+  width: 7rem;
+  height: 2.5rem;
+  margin: 0 auto;
+}
+
+.mini-line-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.stamp-detail {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.5rem;
+}
+
+/* ============ 核心数据展示 ============ */
+.hero-stats {
+  margin-bottom: 1.5rem;
+}
+
+.hero-stats.is-visible {
+  opacity: 0.7;
+}
+
+.hero-stats.is-visible.animate-in {
+  opacity: 1;
+}
+
+.stat-item.primary {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-item.primary .stat-value {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #2563eb;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  text-shadow: 0 4px 30px rgba(59, 130, 246, 0.25);
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 640px) {
+  .stat-item.primary .stat-value {
+    font-size: 3.75rem;
+  }
+}
+
+.stat-item.primary .stat-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+}
+
+/* 次要数据 */
+.secondary-stats {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+}
+
+.stat-pill .pill-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-pill .pill-label {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.stat-pill.highlight {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #fcd34d;
+}
+
+.stat-pill.highlight .pill-value {
+  color: #d97706;
+}
+
+.stat-pill.highlight .pill-label {
+  color: #b45309;
+}
+
+/* ============ 结语叙事 ============ */
+.ending-narrative {
+  text-align: left;
+}
+
+.narrative-text {
+  color: #64748b;
+  line-height: 1.625;
+  font-size: 1rem;
+}
+
+.narrative-text strong {
+  color: #334155;
+  font-weight: 600;
+}
+
+.narrative-text .highlight {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.narrative-ending {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  margin-top: 1rem;
+  font-style: italic;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============ 重播按钮 ============ */
+.replay-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+  transition: all 0.3s;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  animation: fadeInUp 0.5s ease-out;
+  cursor: pointer;
+}
+
+.replay-button:hover {
+  color: #2563eb;
+  border-color: #bfdbfe;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.replay-button:active {
+  transform: translateY(0);
+}
+
+.replay-icon {
+  width: 1rem;
+  height: 1rem;
+}
