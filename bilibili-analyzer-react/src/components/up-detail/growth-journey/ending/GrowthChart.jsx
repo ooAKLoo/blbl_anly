@@ -62,29 +62,20 @@ const GrowthChart = ({ growthData, milestones, progress, onReplay }) => {
     return { date: `${last.date.getFullYear()}.${last.date.getMonth() + 1}`, cumulative: last.cumulative };
   }, [progress, growthData]);
 
-  const posPercent = point.x > 0 ? ((point.x - CHART.padding) / (CHART.width - CHART.padding * 2)) * 100 : 0;
+  const isComplete = progress >= 1;
 
   return (
     <div className="relative w-full cursor-pointer" onClick={onReplay}>
-      {/* 跟随圆点的数据显示 */}
-      {progress > 0 && progress < 1 && point.x > 0 && (
-        <div className="absolute top-2 z-10 -translate-x-1/2 pointer-events-none" style={{ left: `${posPercent}%` }}>
-          <div className="text-xs text-slate-400">{currentData.date}</div>
-          <div className="text-sm font-bold text-blue-600 tabular-nums">{formatNumber(currentData.cumulative)}</div>
-        </div>
-      )}
-
       <svg className="w-full h-auto" viewBox="0 0 1200 400">
         <defs>
           <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
             <stop offset="100%" stopColor="#3b82f6" />
           </linearGradient>
           <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.15" />
             <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
           </linearGradient>
-          <filter id="glow"><feGaussianBlur stdDeviation="3" /><feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         </defs>
 
         <clipPath id="clip">
@@ -94,31 +85,49 @@ const GrowthChart = ({ growthData, milestones, progress, onReplay }) => {
         {/* 里程碑线 - 只画到里程碑点的位置 */}
         {visibleMilestones.map(m => m.passed && (
           <line key={m.id} x1={m.x} y1={CHART.height - CHART.padding} x2={m.x} y2={m.y}
-            stroke={m.color} strokeWidth="1" strokeDasharray="4 4" opacity="0.3" />
+            stroke={m.color} strokeWidth="1" strokeDasharray="4 4" opacity="0.25" />
         ))}
 
         {/* 区域 */}
         <path d={areaPath} fill="url(#areaGrad)" clipPath="url(#clip)" />
 
-        {/* 线条 - 用 clipPath 裁剪，与 tracking dot 使用同一个 clipWidth */}
-        <path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="3"
+        {/* 线条 */}
+        <path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="2.5"
           strokeLinecap="round" clipPath="url(#clip)" />
 
         {/* 里程碑点 */}
         {visibleMilestones.map(m => m.passed && (
           <g key={m.id}>
-            <circle cx={m.x} cy={m.y} r="6" fill={m.color} />
-            {point.x > m.x + 20 && (
-              <text x={m.x} y={m.y - 16} textAnchor="middle" fill="#64748b" fontSize="12">{m.label}</text>
+            <circle cx={m.x} cy={m.y} r="4" fill="white" stroke={m.color} strokeWidth="2" />
+            {point.x > m.x + 30 && (
+              <text x={m.x} y={m.y - 12} textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="500">{m.label}</text>
             )}
           </g>
         ))}
 
-        {/* 追踪点 */}
-        {progress > 0 && point.x > 0 && (
+        {/* 追踪点与实时数据 */}
+        {progress > 0 && point.x > 0 && !isComplete && (
           <g>
-            <circle cx={point.x} cy={point.y} r="6" fill="#3b82f6" className="dot-pulse" />
-            <circle cx={point.x} cy={point.y} r="6" fill="none" stroke="#3b82f6" strokeWidth="2" opacity="0.4" className="dot-expand" />
+            {/* 垂直引导线 */}
+            <line x1={point.x} y1={point.y} x2={point.x} y2={CHART.height - CHART.padding}
+              stroke="#3b82f6" strokeWidth="1" strokeDasharray="3 3" opacity="0.3" />
+
+            {/* 追踪点 */}
+            <circle cx={point.x} cy={point.y} r="5" fill="white" stroke="#3b82f6" strokeWidth="2.5" />
+
+            {/* 实时数据标签 */}
+            <g transform={`translate(${point.x}, ${point.y - 20})`}>
+              <text textAnchor="middle" y="-8" fill="#94a3b8" fontSize="11">{currentData.date}</text>
+              <text textAnchor="middle" y="6" fill="#3b82f6" fontSize="13" fontWeight="600">{formatNumber(currentData.cumulative)}</text>
+            </g>
+          </g>
+        )}
+
+        {/* 终点标记 */}
+        {isComplete && point.x > 0 && (
+          <g>
+            <circle cx={point.x} cy={point.y} r="6" fill="#3b82f6" opacity="0.15" />
+            <circle cx={point.x} cy={point.y} r="4" fill="white" stroke="#3b82f6" strokeWidth="2" />
           </g>
         )}
       </svg>
