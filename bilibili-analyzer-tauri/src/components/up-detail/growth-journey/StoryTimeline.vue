@@ -1,5 +1,5 @@
 <template>
-  <div class="story-stream">
+  <div class="story-stream" ref="storyStreamRef">
     <!-- 时间轴区域 -->
     <div class="story-nodes">
       <!-- 时间轴中线 -->
@@ -246,6 +246,7 @@ const props = defineProps({
 const emit = defineEmits(['chart-visible']);
 
 // ============ Refs ============
+const storyStreamRef = ref(null);
 const timelineRef = ref(null);
 const persistenceRef = ref(null);
 const chartSectionRef = ref(null);
@@ -620,7 +621,7 @@ function setupObservers() {
 function handleScroll() {
   const scrollTop = window.scrollY;
   const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-  const scrollPercent = (scrollTop / docHeight) * 100;
+  const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
   timelineProgress.value = Math.min(scrollPercent * 1.2, 100);
 }
 
@@ -802,7 +803,7 @@ function init() {
     setupObservers();
     renderMiniChart();
     updateTimelinePosition();
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', updateTimelinePosition);
     handleScroll();
   });
