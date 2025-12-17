@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { parseDurationMinutes } from '../utils';
 
 /**
  * 成长历程数据计算 hook
@@ -182,9 +183,7 @@ export function useGrowthMetrics(videos) {
 
     // 深度内容
     const avgDuration = vids.reduce((sum, v) => {
-      const parts = String(v.duration || '0:0').split(':');
-      const minutes = parts.length >= 2 ? parseInt(parts[0]) + parseInt(parts[1]) / 60 : 0;
-      return sum + minutes;
+      return sum + parseDurationMinutes(v.duration);
     }, 0) / vids.length;
 
     if (avgDuration > 20) {

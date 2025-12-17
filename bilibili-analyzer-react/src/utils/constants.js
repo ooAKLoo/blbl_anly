@@ -70,3 +70,38 @@ export const ANALYSIS_THRESHOLDS = {
   minSampleForTrend: 10,      // 趋势分析最少视频数
   minPlayForEngagement: 10000 // 计算互动率的最低播放量
 };
+
+// ============ UI 相关限制 ============
+
+export const UI_LIMITS = {
+  MAX_COMPARE_UPS: 5,              // 最多对比 UP 主数量
+  MAX_TOP_VIDEOS: 15,              // TOP N 视频最大数量
+  INTERSECTION_THRESHOLD: 0.3      // IntersectionObserver 可见阈值
+};
+
+// ============ 指标倍数（用于计算爆款、突破等）============
+
+export const METRIC_MULTIPLIERS = {
+  HIT_VIDEO_THRESHOLD: 2,          // 爆款视频阈值（2倍均值）
+  BREAKTHROUGH_THRESHOLD: 2.5,     // 突破性视频（2.5倍最高）
+  ABOVE_AVERAGE_THRESHOLD: 1.5,    // 高于平均阈值（1.5倍均值）
+  LONG_VIDEO_MINUTES: 30,          // 长视频时长阈值（分钟）
+  SHORT_VIDEO_MINUTES: 3,          // 短视频时长阈值（分钟）
+  TOP_VIDEO_PERCENTAGE: 0.3        // 分析高播放视频的百分比（30%）
+};
+
+// ============ 图表相关常量 ============
+
+export const CHART_SIZES = {
+  MIN_SCATTER_SIZE: 8,             // 散点图最小大小
+  MAX_SCATTER_SIZE: 20,            // 散点图最大大小
+  SIZE_SCALE_FACTOR: 4             // 大小缩放因子
+};
+
+// ============ 动画相关常量 ============
+
+export const ANIMATION = {
+  GROWTH_JOURNEY_DURATION: 8000,   // 成长轨迹动画时长（毫秒）
+  HOVER_OPEN_DELAY: 200,           // HoverCard 打开延迟（毫秒）
+  HOVER_CLOSE_DELAY: 100           // HoverCard 关闭延迟（毫秒）
+};
