@@ -2,86 +2,60 @@ import { useMemo } from 'react';
 import { formatNumber } from '../../../../utils';
 import { generateMiniChartPaths } from '../../../../utils/chartUtils';
 
-/**
- * 结语区域组件
- * 显示成长总结文案和更新频率统计
- */
 const EndingNarrative = ({
   upName,
   journeyStartLabel,
   displayDays,
+  displayPlays,
   firstVideoPlays,
-  totalPlays,
   videos,
   totalDays,
-  animationProgress
+  isComplete
 }) => {
-  // 计算更新频率
-  const avgPublishDays = useMemo(() => {
+  const avgDays = useMemo(() => {
     if (!videos || videos.length < 2) return 0;
     return Math.round(totalDays / videos.length);
   }, [videos, totalDays]);
 
-  const totalYears = Math.floor(totalDays / 365);
-  const totalDaysRemainder = totalDays % 365;
+  const years = Math.floor(totalDays / 365);
+  const days = totalDays % 365;
 
-  // 迷你图表路径
-  const { linePath: miniChartPath, areaPath: miniChartAreaPath } = useMemo(() => 
-    generateMiniChartPaths(videos),
-    [videos]
-  );
-
-  const isComplete = animationProgress >= 1;
+  const { linePath, areaPath } = useMemo(() => generateMiniChartPaths(videos), [videos]);
 
   return (
-    <div className={`ending-footer animate-item ${isComplete ? 'is-visible' : ''}`} style={{ '--delay': '0.5s' }}>
-      {/* 左侧：结语文字 */}
-      <div className="ending-narrative">
-        <p className="narrative-text">
-          从 <strong>{journeyStartLabel}</strong> 的第一个视频开始，<br/>
-          <span className="highlight">{upName}</span> 用 <strong>{displayDays}</strong> 天，<br/>
-          将 <strong>{formatNumber(firstVideoPlays)}</strong> 播放变成了 <strong>{formatNumber(totalPlays)}</strong>。
+    <>
+      <div className="text-center">
+        <p className="text-lg sm:text-xl text-slate-600 leading-relaxed">
+          从 <strong className="text-slate-800">{journeyStartLabel}</strong> 的第一个视频开始，
+          <span className="text-blue-600 font-medium">{upName}</span> 用 <strong className="text-slate-800 tabular-nums">{displayDays}</strong> 天，
+          将 <strong className="text-slate-800">{formatNumber(firstVideoPlays)}</strong> 播放变成了 <strong className="text-blue-600 tabular-nums">{displayPlays}</strong>。
         </p>
-        {isComplete && (
-          <p className="narrative-ending">
-            故事还在继续。
-          </p>
-        )}
+        {isComplete && <p className="text-sm text-slate-400 mt-2 italic">故事还在继续。</p>}
       </div>
 
-      {/* 右侧：印戳 */}
-      <div className={`rhythm-stamp ${isComplete ? 'is-visible' : ''}`}>
-        <div className="stamp-header">
-          <span className="stamp-number">{avgPublishDays}</span>
-          <span className="stamp-unit">天/更</span>
-        </div>
-        <div className="stamp-chart">
-          <svg viewBox="0 0 120 40" className="mini-line-chart">
-            <path
-              d={miniChartPath}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d={miniChartAreaPath}
-              fill="url(#miniGradient)"
-            />
+      {/* 右下角迷你图表 */}
+      <div className={`absolute right-8 bottom-8 transition-opacity duration-500 ${isComplete ? 'opacity-50' : 'opacity-0'}`}>
+        <div className="flex items-end gap-3">
+          <div className="text-right">
+            <div className="flex items-baseline gap-1 justify-end">
+              <span className="text-2xl font-bold text-slate-400 tabular-nums">{avgDays}</span>
+              <span className="text-xs text-slate-400">天/更</span>
+            </div>
+            <div className="text-[10px] text-slate-400">{years}年{days}天 · {videos?.length || 0}作品</div>
+          </div>
+          <svg viewBox="0 0 100 40" className="w-24 h-10">
             <defs>
-              <linearGradient id="miniGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+              <linearGradient id="miniGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#cbd5e1" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#cbd5e1" stopOpacity="0" />
               </linearGradient>
             </defs>
+            <path d={areaPath} fill="url(#miniGrad)" />
+            <path d={linePath} fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </div>
-        <div className="stamp-detail">
-          {totalYears}年{totalDaysRemainder}天 · {videos?.length || 0}个作品
-        </div>
       </div>
-    </div>
+    </>
   );
 };
 
