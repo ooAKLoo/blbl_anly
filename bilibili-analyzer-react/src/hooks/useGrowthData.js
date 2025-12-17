@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from 'react';
+import { detectGlobalVirals, detectLocalBreakouts } from '../utils';
 
 /**
  * 处理成长数据的 hook
@@ -104,13 +105,15 @@ export function useGrowthData(videos) {
     });
 
     // 2. 播放量里程碑
-    const playMilestones = [10000, 100000, 1000000, 10000000, 100000000];
+    const playMilestones = [10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000];
     const labels = {
       10000: '1万',
       100000: '10万',
       1000000: '100万',
       10000000: '1000万',
-      100000000: '1亿'
+      100000000: '1亿',
+      1000000000: '10亿',
+      10000000000: '100亿'
     };
 
     playMilestones.forEach(threshold => {
@@ -129,28 +132,57 @@ export function useGrowthData(videos) {
       }
     });
 
-    // 3. 最高播放视频
-    let maxPlayIdx = 0;
-    let maxPlay = 0;
-    growthData.forEach((d, i) => {
-      if (d.playCount > maxPlay) {
-        maxPlay = d.playCount;
-        maxPlayIdx = i;
-      }
+    // 3. 全局爆款检测 - 使用公共算法
+    // 将 growthData 转换为 detectGlobalVirals 需要的格式
+    const videosForDetection = growthData.map(d => ({
+      ...d.video,
+      play_count: d.playCount
+    }));
+
+    const globalViralVideos = detectGlobalVirals(videosForDetection, {
+      threshold: 1.5,
+      minPlay: 10000,
+      maxCount: 3
     });
-    
-    if (maxPlayIdx > 0 && maxPlay > 10000) {
+
+    const globalViralIndices = [];
+    globalViralVideos.forEach((viral, i) => {
+      globalViralIndices.push(viral.index);
+      const gd = growthData[viral.index];
       result.push({
-        id: 'peak',
-        index: maxPlayIdx,
-        type: 'peak',
-        label: '爆款',
-        color: '#f59e0b',
-        timeProgress: growthData[maxPlayIdx].timeProgress,
-        cumulative: growthData[maxPlayIdx].cumulative,
-        video: growthData[maxPlayIdx].video
+        id: `viral-${viral.index}`,
+        index: viral.index,
+        type: 'viral',
+        label: i === 0 ? '爆款' : '热门',
+        color: i === 0 ? '#f59e0b' : '#fb923c',
+        timeProgress: gd.timeProgress,
+        cumulative: gd.cumulative,
+        video: gd.video
       });
-    }
+    });
+
+    // 4. 局部突破检测 - 使用公共算法
+    const localBreakoutVideos = detectLocalBreakouts(videosForDetection, {
+      windowSize: 5,
+      threshold: 2,
+      minRatio: 2,
+      maxCount: 2,
+      excludeIndices: globalViralIndices
+    });
+
+    localBreakoutVideos.forEach(breakout => {
+      const gd = growthData[breakout.index];
+      result.push({
+        id: `breakout-${breakout.index}`,
+        index: breakout.index,
+        type: 'breakout',
+        label: '突破',
+        color: '#8b5cf6',
+        timeProgress: gd.timeProgress,
+        cumulative: gd.cumulative,
+        video: gd.video
+      });
+    });
 
     return result;
   }, [growthData]);

@@ -142,13 +142,19 @@ function InsightReport({
     }
 
     const hitFeatures = getHitVideoFeatures(videos, avgPlays);
-    if (hitFeatures && hitFeatures.count >= 2) {
+    if (hitFeatures && hitFeatures.count >= 1) {
+      // 合并显示，description 分段可 hover
       findings.push({
         title: `${hitFeatures.count} 个爆款`,
-        description: `爆款率 ${hitFeatures.rate}%，平均时长 ${hitFeatures.avgDuration} 分钟`,
+        description: null, // 使用自定义渲染
         type: 'positive',
         icon: Flame,
-        detailKey: 'hitVideos'
+        detailKey: 'hitVideos',
+        // 传递爆款数据用于分段 hover
+        hitData: {
+          globalCount: hitFeatures.globalCount,
+          localCount: hitFeatures.localCount
+        }
       });
     }
 
@@ -218,15 +224,15 @@ function InsightReport({
       };
     }
 
-    // Hit videos details
-    const hitThreshold = avgPlays * 2;
-    const hitVideos = videos.filter(v => v.play_count >= hitThreshold).sort((a, b) => b.play_count - a.play_count);
-    if (hitVideos.length > 0) {
-      details.hitVideos = { videos: hitVideos };
+    // Hit videos details - 使用统一的爆款检测算法
+    const hitFeatures = getHitVideoFeatures(videos, avgPlays);
+    if (hitFeatures) {
+      details.globalVirals = { videos: hitFeatures.globalVirals || [] };
+      details.localBreakouts = { videos: hitFeatures.localBreakouts || [] };
     }
 
     return details;
-  }, [videos, avgPlays, getTrendAnalysis]);
+  }, [videos, avgPlays, getTrendAnalysis, getHitVideoFeatures]);
 
   // Format publish slot
   const formatPublishSlot = useCallback((publishTime) => {
@@ -666,7 +672,104 @@ function InsightReport({
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-medium text-neutral-900">{finding.title}</h3>
-                    {finding.detailKey && findingDetails[finding.detailKey] ? (
+                    {/* 爆款特殊处理：分段 hover */}
+                    {finding.detailKey === 'hitVideos' && finding.hitData ? (
+                      <p className="text-sm text-neutral-500 mt-0.5 leading-relaxed inline-flex items-center gap-1 flex-wrap">
+                        {finding.hitData.globalCount > 0 && (
+                          <HoverCard.Root openDelay={200} closeDelay={100}>
+                            <HoverCard.Trigger asChild>
+                              <span className="cursor-pointer border-b border-dashed border-neutral-300 hover:border-neutral-500 transition-colors">
+                                {finding.hitData.globalCount} 个全局爆款
+                              </span>
+                            </HoverCard.Trigger>
+                            <HoverCard.Portal>
+                              <HoverCard.Content
+                                sideOffset={8}
+                                side="bottom"
+                                align="start"
+                                className="z-50 w-80 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+                              >
+                                <div className="p-3 border-b border-neutral-100 bg-neutral-50">
+                                  <span className="text-sm font-medium text-neutral-700">全局爆款</span>
+                                  <p className="text-xs text-neutral-500 mt-1">在所有视频中播放量显著高</p>
+                                </div>
+                                <div className="p-3 space-y-2 max-h-80 overflow-y-auto">
+                                  {findingDetails.globalVirals?.videos?.map((video) => (
+                                    <div
+                                      key={video.bvid}
+                                      className="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
+                                      onClick={() => openVideo(video)}
+                                    >
+                                      <img
+                                        src={getImageUrl(video.cover)}
+                                        className="w-16 h-9 rounded object-cover flex-shrink-0"
+                                        referrerPolicy="no-referrer"
+                                        alt=""
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{video.title}</div>
+                                        <div className="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                          <span className="flex items-center gap-0.5"><Play size={8} /> {formatNumber(video.play_count)}</span>
+                                          <span>{video.duration}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </HoverCard.Content>
+                            </HoverCard.Portal>
+                          </HoverCard.Root>
+                        )}
+                        {finding.hitData.globalCount > 0 && finding.hitData.localCount > 0 && (
+                          <span className="text-neutral-400 mx-1">+</span>
+                        )}
+                        {finding.hitData.localCount > 0 && (
+                          <HoverCard.Root openDelay={200} closeDelay={100}>
+                            <HoverCard.Trigger asChild>
+                              <span className="cursor-pointer border-b border-dashed border-neutral-300 hover:border-neutral-500 transition-colors">
+                                {finding.hitData.localCount} 个阶段突破
+                              </span>
+                            </HoverCard.Trigger>
+                            <HoverCard.Portal>
+                              <HoverCard.Content
+                                sideOffset={8}
+                                side="bottom"
+                                align="start"
+                                className="z-50 w-80 bg-white rounded-xl shadow-lg border border-neutral-100 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+                              >
+                                <div className="p-3 border-b border-neutral-100 bg-neutral-50">
+                                  <span className="text-sm font-medium text-neutral-700">阶段突破</span>
+                                  <p className="text-xs text-neutral-500 mt-1">在当时阶段相对周围视频显著高</p>
+                                </div>
+                                <div className="p-3 space-y-2 max-h-80 overflow-y-auto">
+                                  {findingDetails.localBreakouts?.videos?.map((video) => (
+                                    <div
+                                      key={video.bvid}
+                                      className="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
+                                      onClick={() => openVideo(video)}
+                                    >
+                                      <img
+                                        src={getImageUrl(video.cover)}
+                                        className="w-16 h-9 rounded object-cover flex-shrink-0"
+                                        referrerPolicy="no-referrer"
+                                        alt=""
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{video.title}</div>
+                                        <div className="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
+                                          <span className="flex items-center gap-0.5"><Play size={8} /> {formatNumber(video.play_count)}</span>
+                                          <span>是同期 {video.ratio?.toFixed(1)}x</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </HoverCard.Content>
+                            </HoverCard.Portal>
+                          </HoverCard.Root>
+                        )}
+                      </p>
+                    ) : finding.detailKey && findingDetails[finding.detailKey] ? (
                       <HoverCard.Root openDelay={200} closeDelay={100}>
                         <HoverCard.Trigger asChild>
                           <p className="text-sm text-neutral-500 mt-0.5 leading-relaxed cursor-pointer border-b border-dashed border-neutral-300 hover:border-neutral-500 inline-flex items-center gap-1 transition-colors">
@@ -793,40 +896,6 @@ function InsightReport({
                               </>
                             )}
 
-                            {/* Hit Videos HoverCard */}
-                            {finding.detailKey === 'hitVideos' && findingDetails.hitVideos && (
-                              <>
-                                <div className="p-3 border-b border-neutral-100 bg-neutral-50">
-                                  <span className="text-sm font-medium text-neutral-700">爆款视频分析</span>
-                                  <p className="text-xs text-neutral-500 mt-1">播放量超过均值 2 倍的视频</p>
-                                </div>
-                                <div className="p-3">
-                                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                                    {findingDetails.hitVideos.videos.map((video) => (
-                                      <div
-                                        key={video.bvid}
-                                        className="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
-                                        onClick={() => openVideo(video)}
-                                      >
-                                        <img
-                                          src={getImageUrl(video.cover)}
-                                          className="w-16 h-9 rounded object-cover flex-shrink-0"
-                                          referrerPolicy="no-referrer"
-                                          alt=""
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                          <div className="text-xs font-medium text-neutral-800 line-clamp-2 leading-tight">{video.title}</div>
-                                          <div className="flex items-center gap-2 mt-1 text-[10px] text-neutral-500">
-                                            <span className="flex items-center gap-0.5 text-amber-600 font-medium"><Play size={8} /> {formatNumber(video.play_count)}</span>
-                                            <span>{video.duration}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </>
-                            )}
 
                             {/* Trend HoverCard */}
                             {finding.detailKey === 'trend' && findingDetails.trend && (

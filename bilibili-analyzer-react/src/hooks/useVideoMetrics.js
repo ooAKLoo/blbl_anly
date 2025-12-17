@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { formatNumber, parseDuration, parseDurationMinutes } from '../utils';
+import { formatNumber, parseDuration, parseDurationMinutes, detectGlobalVirals, detectLocalBreakouts } from '../utils';
 import { ACCOUNT_LEVEL_THRESHOLDS, DURATION_BINS, TREND_THRESHOLDS, ANALYSIS_THRESHOLDS } from '../utils/constants';
 
 /**
@@ -191,25 +191,50 @@ export function useVideoMetrics(analysisVideos, allVideos = null) {
   }
 
   function getHitVideoFeatures(videoList, avgPlay) {
-    const hitThreshold = avgPlay * 2;
-    const hitVideos = videoList.filter(v => v.play_count >= hitThreshold);
+    // 使用统一的爆款检测算法
+    const globalVirals = detectGlobalVirals(videoList, {
+      threshold: 1.5,
+      minPlay: 10000,
+      maxCount: 100 // 获取所有符合条件的
+    });
 
-    if (hitVideos.length < 2) return null;
+    const localBreakouts = detectLocalBreakouts(videoList, {
+      windowSize: 5,
+      threshold: 2,
+      minRatio: 2,
+      maxCount: 100,
+      excludeIndices: globalVirals.map(v => v.index)
+    });
 
-    const hitDurations = hitVideos.map(v => parseDurationMinutes(v.duration));
+    // 合并去重
+    const allHitVideos = [...globalVirals];
+    const hitIndices = new Set(globalVirals.map(v => v.index));
+    localBreakouts.forEach(b => {
+      if (!hitIndices.has(b.index)) {
+        allHitVideos.push(b);
+      }
+    });
+
+    if (allHitVideos.length < 1) return null;
+
+    const hitDurations = allHitVideos.map(v => parseDurationMinutes(v.duration));
     const avgHitDuration = hitDurations.reduce((s, d) => s + d, 0) / hitDurations.length;
 
-    const hitHours = hitVideos.map(v => new Date(v.publish_time).getHours());
+    const hitHours = allHitVideos.map(v => new Date(v.publish_time).getHours());
     const hourCounts = {};
     hitHours.forEach(h => hourCounts[h] = (hourCounts[h] || 0) + 1);
     const topHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
 
     return {
-      count: hitVideos.length,
-      rate: ((hitVideos.length / videoList.length) * 100).toFixed(1),
+      count: allHitVideos.length,
+      globalCount: globalVirals.length,
+      localCount: localBreakouts.length,
+      rate: ((allHitVideos.length / videoList.length) * 100).toFixed(1),
       avgDuration: avgHitDuration.toFixed(0),
       topHour: topHour ? topHour[0] : null,
-      titles: hitVideos.slice(0, 3).map(v => v.title)
+      titles: allHitVideos.slice(0, 3).map(v => v.title),
+      globalVirals,  // 返回全部
+      localBreakouts  // 返回全部
     };
   }
 

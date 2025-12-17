@@ -140,3 +140,133 @@ export function sortVideos(videos, sortKey) {
   const sorter = videoSorters[sortKey];
   return sorter ? [...videos].sort(sorter) : videos;
 }
+
+// ============ 爆款检测算法 ============
+
+/**
+ * 检测全局爆款 - 对数空间 Z-Score
+ * 在 UP 所有视频中播放量显著高的视频
+ * @param {Array} videos - 视频数组，需包含 play_count 字段
+ * @param {Object} options - 配置项
+ * @param {number} options.threshold - Z-Score 阈值，默认 1.5
+ * @param {number} options.minPlay - 最小播放量阈值，默认 10000
+ * @param {number} options.maxCount - 最多返回数量，默认 10
+ * @returns {Array} 爆款视频数组，包含 logZ 分数
+ */
+export function detectGlobalVirals(videos, options = {}) {
+  const { threshold = 1.5, minPlay = 10000, maxCount = 10 } = options;
+
+  if (!videos || videos.length < 5) return [];
+
+  const plays = videos.map(v => v.play_count || 0);
+  const logPlays = plays.map(p => Math.log10(Math.max(p, 1)));
+  const logMean = logPlays.reduce((a, b) => a + b, 0) / logPlays.length;
+  const logStd = Math.sqrt(
+    logPlays.reduce((sum, p) => sum + (p - logMean) ** 2, 0) / logPlays.length
+  );
+
+  if (logStd === 0) return [];
+
+  return videos
+    .map((v, i) => ({
+      ...v,
+      index: i,
+      logZ: (Math.log10(Math.max(v.play_count || 0, 1)) - logMean) / logStd
+    }))
+    .filter(v => v.logZ > threshold && v.play_count > minPlay)
+    .sort((a, b) => b.logZ - a.logZ)
+    .slice(0, maxCount);
+}
+
+/**
+ * 检测局部突破 - 滑动窗口 Z-Score
+ * 在当时阶段比前后视频显著高的视频
+ * @param {Array} videos - 按时间排序的视频数组
+ * @param {Object} options - 配置项
+ * @param {number} options.windowSize - 窗口大小，默认 5
+ * @param {number} options.threshold - 局部 Z-Score 阈值，默认 2
+ * @param {number} options.minRatio - 最小倍数，默认 2
+ * @param {number} options.maxCount - 最多返回数量，默认 5
+ * @param {Array} options.excludeIndices - 需排除的索引（如已标记的全局爆款）
+ * @returns {Array} 局部突破视频数组，包含 localZ 和 ratio
+ */
+export function detectLocalBreakouts(videos, options = {}) {
+  const { windowSize = 5, threshold = 2, minRatio = 2, maxCount = 5, excludeIndices = [] } = options;
+
+  if (!videos || videos.length < windowSize * 2 + 1) return [];
+
+  const breakouts = [];
+
+  for (let i = windowSize; i < videos.length - windowSize; i++) {
+    if (excludeIndices.includes(i)) continue;
+
+    const neighbors = [];
+    for (let j = i - windowSize; j <= i + windowSize; j++) {
+      if (j !== i) neighbors.push(videos[j].play_count || 0);
+    }
+
+    const localMean = neighbors.reduce((a, b) => a + b, 0) / neighbors.length;
+    const localStd = Math.sqrt(
+      neighbors.reduce((sum, p) => sum + (p - localMean) ** 2, 0) / neighbors.length
+    );
+
+    const playCount = videos[i].play_count || 0;
+    const localZ = localStd > 0 ? (playCount - localMean) / localStd : 0;
+    const ratio = localMean > 0 ? playCount / localMean : 0;
+
+    if (localZ > threshold && ratio > minRatio) {
+      breakouts.push({
+        ...videos[i],
+        index: i,
+        localZ,
+        ratio
+      });
+    }
+  }
+
+  return breakouts
+    .sort((a, b) => b.localZ - a.localZ)
+    .slice(0, maxCount);
+}
+
+/**
+ * 综合爆款检测 - 同时检测全局爆款和局部突破
+ * @param {Array} videos - 视频数组
+ * @param {Object} options - 配置项
+ * @returns {Object} { globalVirals, localBreakouts, all }
+ */
+export function detectAllVirals(videos, options = {}) {
+  if (!videos || videos.length < 5) {
+    return { globalVirals: [], localBreakouts: [], all: [] };
+  }
+
+  // 按时间排序
+  const sorted = [...videos].sort((a, b) =>
+    new Date(a.publish_time) - new Date(b.publish_time)
+  );
+
+  // 检测全局爆款
+  const globalVirals = detectGlobalVirals(sorted, {
+    threshold: options.globalThreshold || 1.5,
+    minPlay: options.minPlay || 10000,
+    maxCount: options.globalMaxCount || 3
+  });
+
+  // 检测局部突破（排除全局爆款）
+  const globalIndices = globalVirals.map(v => v.index);
+  const localBreakouts = detectLocalBreakouts(sorted, {
+    windowSize: options.windowSize || 5,
+    threshold: options.localThreshold || 2,
+    minRatio: options.minRatio || 2,
+    maxCount: options.localMaxCount || 2,
+    excludeIndices: globalIndices
+  });
+
+  // 合并结果
+  const all = [
+    ...globalVirals.map(v => ({ ...v, type: 'viral' })),
+    ...localBreakouts.map(v => ({ ...v, type: 'breakout' }))
+  ].sort((a, b) => a.index - b.index);
+
+  return { globalVirals, localBreakouts, all };
+}
