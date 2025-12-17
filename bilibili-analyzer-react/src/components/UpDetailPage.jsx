@@ -1,5 +1,5 @@
 import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Sparkles, X, ChevronRight } from 'lucide-react';
+import { Sparkles, ChevronRight } from 'lucide-react';
 import { getImageUrl } from '../utils';
 import DataAnalysis from './up-detail/DataAnalysis';
 import VideoList from './up-detail/VideoList';
@@ -7,7 +7,7 @@ import InsightReport from './up-detail/InsightReport';
 import GrowthJourney from './up-detail/GrowthJourney';
 import VideoDetailDrawer from './VideoDetailDrawer';
 
-const UpDetailPage = forwardRef(({ upInfo, videos = [] }, ref) => {
+const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false }, ref) => {
   // Tab state
   const [activeTab, setActiveTab] = useState('analysis');
   const tabs = [
@@ -111,7 +111,9 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [] }, ref) => {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-[1400px] mx-auto px-6">
+      <div className={`max-w-[1400px] px-6 transition-all duration-200 ${
+        sidebarCollapsed ? 'mx-auto' : 'ml-0'
+      }`}>
         {/* Unified Sticky Header */}
         <header className="sticky top-0 z-40 bg-neutral-50 pt-4 pb-2">
           {/* UP Info Row */}
@@ -205,19 +207,12 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [] }, ref) => {
         {/* 成长历程全屏覆盖层 */}
         {showGrowthJourney && (
           <div className="growth-journey-overlay">
-            {/* 关闭按钮 - 低调悬浮 */}
-            <button
-              onClick={() => setShowGrowthJourney(false)}
-              className="growth-close-btn"
-              title="关闭"
-            >
-              <X size={18} strokeWidth="1.5" />
-            </button>
             <GrowthJourney
               videos={videos}
               upName={upInfo?.name}
               upFace={upInfo?.face}
               isActive={showGrowthJourney}
+              onClose={() => setShowGrowthJourney(false)}
             />
           </div>
         )}

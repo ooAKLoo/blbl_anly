@@ -1,85 +1,79 @@
-import { useState, useRef, useCallback, forwardRef, useImperativeHandle, useEffect } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { formatNumber } from '../../../utils';
 import { useGrowthData } from '../../../hooks/useGrowthData';
 import { GrowthChart, EndingNarrative } from './ending';
 
-const INITIAL_STATE = { progress: 0, displayDays: '0', displayPlays: '0' };
-
-const EndingSection = forwardRef(({
-  upName = 'UP主',
-  totalDays = 0,
-  firstVideoPlays = 0,
-  videos = []
-}, ref) => {
+const EndingSection = ({ upName = 'UP主', totalDays = 0, firstVideoPlays = 0, videos = [] }) => {
   const endingRef = useRef(null);
   const mainPath = useRef(null);
-  const animationFrameRef = useRef(null);
-  const isInView = useInView(endingRef, { once: false, amount: 0.3 });
+  const animationRef = useRef(null);
+  const hasAnimatedRef = useRef(false); // 用 ref 防止重复触发
 
-  const [hasAnimated, setHasAnimated] = useState(false);
-  const [state, setState] = useState(INITIAL_STATE);
+  const [state, setState] = useState({ progress: 0, displayDays: '0', displayPlays: '0' });
   const [pathLength, setPathLength] = useState(1000);
 
   const { growthData, milestones, getPlayProgressAtTime, journeyLabels } = useGrowthData(videos);
 
-  // 启动动画
-  useEffect(() => {
-    if (isInView && !hasAnimated) {
-      setHasAnimated(true);
+  // 启动动画的函数
+  const startAnimation = useCallback(() => {
+    if (hasAnimatedRef.current) return;
+    hasAnimatedRef.current = true;
 
-      setTimeout(() => {
-        if (mainPath.current) {
-          setPathLength(mainPath.current.getTotalLength() || 1000);
-        }
-
-        const duration = 8000;
-        const startTime = performance.now();
-
-        const animate = (currentTime) => {
-          const progress = Math.min((currentTime - startTime) / duration, 1);
-          const animData = getPlayProgressAtTime(progress);
-
-          setState({
-            progress,
-            displayDays: Math.floor(totalDays * progress).toLocaleString(),
-            displayPlays: formatNumber(animData.cumulative)
-          });
-
-          if (progress < 1) {
-            animationFrameRef.current = requestAnimationFrame(animate);
-          }
-        };
-
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }, 500);
+    if (mainPath.current) {
+      setPathLength(mainPath.current.getTotalLength() || 1000);
     }
-  }, [isInView, hasAnimated, getPlayProgressAtTime, totalDays]);
 
-  // 清理
+    const duration = 5000;
+    const startTime = performance.now();
+
+    const animate = (currentTime) => {
+      const t = Math.min((currentTime - startTime) / duration, 1);
+      const progress = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const animData = getPlayProgressAtTime(progress);
+
+      setState({
+        progress,
+        displayDays: Math.floor(totalDays * progress).toLocaleString(),
+        displayPlays: formatNumber(animData.cumulative)
+      });
+
+      if (t < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  }, [getPlayProgressAtTime, totalDays]);
+
+  // 使用 IntersectionObserver 检测进入视口
+  useEffect(() => {
+    if (!endingRef.current) return;
+
+    const scrollContainer = endingRef.current.closest('.growth-journey-overlay');
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          startAnimation();
+          observer.disconnect(); // 触发后立即断开
+        }
+      },
+      { root: scrollContainer, threshold: 0.1 }
+    );
+
+    observer.observe(endingRef.current);
+    return () => observer.disconnect();
+  }, [startAnimation]);
+
+  // 清理动画
   useEffect(() => {
     return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, []);
 
-  // 重置方法
-  const reset = useCallback(() => {
-    setHasAnimated(false);
-    setState(INITIAL_STATE);
-    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-  }, []);
-
-  useImperativeHandle(ref, () => ({ reset }), [reset]);
-
   return (
-    <motion.div
-      ref={endingRef}
-      className="relative h-screen flex flex-col justify-center px-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: hasAnimated ? 1 : 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div ref={endingRef} className="ending-section relative min-h-screen flex flex-col justify-center px-4">
       {/* 图表 */}
       <div className="w-full max-w-[1400px] mx-auto">
         <GrowthChart
@@ -115,9 +109,8 @@ const EndingSection = forwardRef(({
         .dot-pulse { animation: pulse 2s ease-in-out infinite; }
         .dot-expand { animation: expand 2s ease-out infinite; }
       `}</style>
-    </motion.div>
+    </div>
   );
-});
+};
 
-EndingSection.displayName = 'EndingSection';
 export default EndingSection;

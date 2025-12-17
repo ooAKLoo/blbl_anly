@@ -25,6 +25,7 @@ function App() {
 
   // Sidebar states
   const sidebarRef = useRef(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [savedUpList, setSavedUpList] = useState([]);
   const [currentMid, setCurrentMid] = useState(null);
 
@@ -259,12 +260,13 @@ function App() {
         onOpenSettings={() => setShowSettingsDialog(true)}
         onExportCsv={exportData}
         onGoHome={goToHome}
+        onCollapseChange={setSidebarCollapsed}
       />
 
       {/* Main Content */}
       <main
         className={`flex-1 h-screen overflow-x-hidden overflow-y-auto bg-neutral-100 transition-all duration-200 ${
-          sidebarRef.current?.collapsed ? 'ml-[92px]' : 'ml-[292px]'
+          sidebarCollapsed ? 'ml-[60px]' : 'ml-[264px]'
         }`}
       >
         {/* Home Page (对比分析) */}
@@ -283,6 +285,7 @@ function App() {
             ref={detailPageRef}
             upInfo={upInfo}
             videos={videos}
+            sidebarCollapsed={sidebarCollapsed}
           />
         )}
 
