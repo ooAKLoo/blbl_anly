@@ -32,7 +32,9 @@ export function useGrowthData(videos) {
         playCount: v.play_count,
         date: new Date(v.publish_time),
         timeProgress: (currentDate - firstDate) / totalTimeSpan,
-        title: v.title
+        title: v.title,
+        // 保留完整视频数据用于里程碑展示
+        video: v
       };
     });
   }, [videos]);
@@ -97,7 +99,8 @@ export function useGrowthData(videos) {
       label: '起点',
       color: '#6366f1',
       timeProgress: growthData[0].timeProgress,
-      cumulative: growthData[0].cumulative
+      cumulative: growthData[0].cumulative,
+      video: growthData[0].video
     });
 
     // 2. 播放量里程碑
@@ -120,7 +123,8 @@ export function useGrowthData(videos) {
           label: labels[threshold],
           color: '#10b981',
           timeProgress: growthData[idx].timeProgress,
-          cumulative: growthData[idx].cumulative
+          cumulative: growthData[idx].cumulative,
+          video: growthData[idx].video
         });
       }
     });
@@ -143,7 +147,8 @@ export function useGrowthData(videos) {
         label: '爆款',
         color: '#f59e0b',
         timeProgress: growthData[maxPlayIdx].timeProgress,
-        cumulative: growthData[maxPlayIdx].cumulative
+        cumulative: growthData[maxPlayIdx].cumulative,
+        video: growthData[maxPlayIdx].video
       });
     }
 

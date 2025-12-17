@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { formatNumber } from '../../../../utils';
+import * as HoverCard from '@radix-ui/react-hover-card';
+import { formatNumber, getImageUrl } from '../../../../utils';
 import { generateSmoothPath, generateAreaPath, scalePointsToSVG } from '../../../../utils/chartUtils';
 
 const CHART = { width: 1200, height: 400, padding: 50 };
@@ -28,7 +29,7 @@ const GrowthChart = ({ growthData, milestones, progress, onReplay }) => {
     return { x: last.x, y: last.y };
   }, [scaledPoints, clipWidth, progress]);
 
-  // 里程碑
+  // 里程碑 - 计算百分比位置用于绝对定位
   const visibleMilestones = useMemo(() => {
     if (scaledPoints.length === 0) return [];
     const maxY = Math.max(...growthData.map(d => d.cumulative));
@@ -39,7 +40,10 @@ const GrowthChart = ({ growthData, milestones, progress, onReplay }) => {
       const x = CHART.padding + m.timeProgress * chartW;
       const y = CHART.height - CHART.padding - (m.cumulative / maxY) * chartH;
       const passed = point.x >= x;
-      return { ...m, x, y, passed };
+      // 转换为百分比用于 HTML 绝对定位
+      const xPercent = (x / CHART.width) * 100;
+      const yPercent = (y / CHART.height) * 100;
+      return { ...m, x, y, xPercent, yPercent, passed };
     });
   }, [scaledPoints, milestones, point.x, growthData]);
 
@@ -95,16 +99,6 @@ const GrowthChart = ({ growthData, milestones, progress, onReplay }) => {
         <path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="2.5"
           strokeLinecap="round" clipPath="url(#clip)" />
 
-        {/* 里程碑点 */}
-        {visibleMilestones.map(m => m.passed && (
-          <g key={m.id}>
-            <circle cx={m.x} cy={m.y} r="4" fill="white" stroke={m.color} strokeWidth="2" />
-            {point.x > m.x + 30 && (
-              <text x={m.x} y={m.y - 12} textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="500">{m.label}</text>
-            )}
-          </g>
-        ))}
-
         {/* 追踪点与实时数据 */}
         {progress > 0 && point.x > 0 && !isComplete && (
           <g>
@@ -131,6 +125,78 @@ const GrowthChart = ({ growthData, milestones, progress, onReplay }) => {
           </g>
         )}
       </svg>
+
+      {/* 里程碑点 - HTML 绝对定位 + HoverCard */}
+      {visibleMilestones.map(m => m.passed && (
+        <HoverCard.Root key={m.id} openDelay={100} closeDelay={100}>
+          <HoverCard.Trigger asChild>
+            <div
+              className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer"
+              style={{ left: `${m.xPercent}%`, top: `${m.yPercent}%` }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                className="w-2 h-2 rounded-full bg-white border-2 transition-transform hover:scale-150"
+                style={{ borderColor: m.color }}
+              />
+              {/* 里程碑标签 */}
+              {point.x > m.x + 30 && (
+                <span className="absolute left-1/2 -translate-x-1/2 -top-5 text-[11px] text-slate-400 font-medium whitespace-nowrap">
+                  {m.label}
+                </span>
+              )}
+            </div>
+          </HoverCard.Trigger>
+          <HoverCard.Portal>
+            <HoverCard.Content
+              className="w-72 bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] p-0 overflow-hidden z-50"
+              sideOffset={8}
+            >
+              {m.video && (
+                <>
+                  {/* 封面图 */}
+                  <div className="relative aspect-video bg-slate-100">
+                    <img
+                      src={getImageUrl(m.video.cover)}
+                      alt={m.video.title}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    {/* 里程碑标签 */}
+                    <div
+                      className="absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-medium text-white"
+                      style={{ backgroundColor: m.color }}
+                    >
+                      {m.label}
+                    </div>
+                  </div>
+                  {/* 视频信息 */}
+                  <div className="p-3">
+                    <h4 className="text-sm font-medium text-slate-800 line-clamp-2 leading-snug">
+                      {m.video.title}
+                    </h4>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                      <span>{new Date(m.video.publish_time).toLocaleDateString('zh-CN')}</span>
+                      <span>·</span>
+                      <span>{formatNumber(m.video.play_count || 0)} 播放</span>
+                      {m.video.like_count != null && (
+                        <>
+                          <span>·</span>
+                          <span>{formatNumber(m.video.like_count)} 点赞</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-400">
+                      累计播放达到 <span className="text-slate-600 font-medium">{formatNumber(m.cumulative)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+              <HoverCard.Arrow className="fill-white" />
+            </HoverCard.Content>
+          </HoverCard.Portal>
+        </HoverCard.Root>
+      ))}
     </div>
   );
 };
