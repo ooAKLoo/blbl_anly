@@ -314,7 +314,7 @@ function App() {
 
       {/* Dialogs */}
       <NewScrapeDialog
-        visible={showNewScrapeDialog}
+        open={showNewScrapeDialog}
         onClose={() => setShowNewScrapeDialog(false)}
         mid={mid}
         isLoading={isLoading}
@@ -324,7 +324,7 @@ function App() {
       />
 
       <SettingsDialog
-        visible={showSettingsDialog}
+        open={showSettingsDialog}
         onClose={() => setShowSettingsDialog(false)}
         cookie={cookie}
         onSave={handleSaveCookie}
