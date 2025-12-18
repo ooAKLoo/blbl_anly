@@ -39,17 +39,14 @@ function DataAnalysis({
   onUpdateDuration,
   onOpenDrawer
 }) {
-  // Chart refs - 11 charts
+  // Chart refs - 8 charts (merged monthly/yearly trend, removed hourly chart)
   const playDistChartRef = useRef(null);
   const durationChartRef = useRef(null);
-  const monthlyTrendChartRef = useRef(null);
-  const hourlyPlayChartRef = useRef(null);
+  const publishTrendChartRef = useRef(null);
   const scatterChartRef = useRef(null);
   const heatmapChartRef = useRef(null);
   const topVideosChartRef = useRef(null);
   const topEngagementChartRef = useRef(null);
-  const yearlyCountChartRef = useRef(null);
-  const yearlyAvgChartRef = useRef(null);
   const timelineChartRef = useRef(null);
 
   // Chart instances
@@ -60,6 +57,8 @@ function DataAnalysis({
   // 爆款标注显示状态（分别控制）
   const [showGlobalViral, setShowGlobalViral] = useState(false);
   const [showLocalBreakout, setShowLocalBreakout] = useState(false);
+  // 发布趋势图表粒度：'month' | 'year'
+  const [trendGranularity, setTrendGranularity] = useState('month');
 
   // Use video metrics hook
   const {
@@ -80,15 +79,23 @@ function DataAnalysis({
     return timeRange !== 'all' || duration !== 'all';
   }, [timeRange, duration]);
 
-  // Initialize chart helper
-  const initChart = useCallback((ref, name) => {
+  // Initialize or get existing chart instance
+  const getChart = (ref, name) => {
     if (!ref.current) return null;
-    if (chartsRef.current[name]) {
-      chartsRef.current[name].dispose();
+    if (!chartsRef.current[name]) {
+      chartsRef.current[name] = echarts.init(ref.current);
     }
-    chartsRef.current[name] = echarts.init(ref.current);
     return chartsRef.current[name];
-  }, []);
+  };
+
+  // Tooltip with cover image helper
+  const tooltipWithCover = (video, extraInfo = '') => {
+    const coverUrl = video.cover ? getImageUrl(video.cover) : '';
+    const coverImg = coverUrl
+      ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
+      : '';
+    return `<div style="width: 160px;">${coverImg}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">${extraInfo}</div></div>`;
+  };
 
   // Open video drawer callback
   const openVideoDrawer = useCallback((title, videos) => {
@@ -104,8 +111,8 @@ function DataAnalysis({
 
   // ============ Chart Rendering Functions ============
 
-  const renderPlayDistChart = useCallback(() => {
-    const chart = initChart(playDistChartRef, 'playDist');
+  const renderPlayDistChart = () => {
+    const chart = getChart(playDistChartRef, 'playDist');
     if (!chart || analysisVideos.length === 0) return;
 
     const plays = analysisVideos.map(v => v.play_count).sort((a, b) => a - b);
@@ -179,10 +186,10 @@ function DataAnalysis({
       const idx = params.dataIndex;
       openVideoDrawer(`播放量区间: ${labels[idx]}`, videosByBin[idx]);
     });
-  }, [analysisVideos, initChart, openVideoDrawer]);
+  };
 
-  const renderDurationChart = useCallback(() => {
-    const chart = initChart(durationChartRef, 'duration');
+  const renderDurationChart = () => {
+    const chart = getChart(durationChartRef, 'duration');
     if (!chart || analysisVideos.length === 0) return;
 
     const bins = [0, 5, 10, 15, 20, 30, 60, Infinity];
@@ -271,29 +278,30 @@ function DataAnalysis({
         openVideoDrawer(`时长区间: ${labels[idx]}`, videosByBin[idx]);
       }
     });
-  }, [analysisVideos, initChart, openVideoDrawer]);
+  };
 
-  const renderMonthlyTrendChart = useCallback(() => {
-    const chart = initChart(monthlyTrendChartRef, 'monthlyTrend');
+  const renderPublishTrendChart = () => {
+    const chart = getChart(publishTrendChartRef, 'publishTrend');
     if (!chart || analysisVideos.length === 0) return;
 
-    const monthlyData = {};
-    const monthlyVideos = {};
+    const isMonthly = trendGranularity === 'month';
+    const trendData = {};
+    const trendVideos = {};
 
     analysisVideos.forEach(v => {
-      const month = v.publish_time.slice(0, 7);
-      if (!monthlyData[month]) {
-        monthlyData[month] = { count: 0, totalPlays: 0 };
-        monthlyVideos[month] = [];
+      const key = isMonthly ? v.publish_time.slice(0, 7) : v.publish_time.slice(0, 4);
+      if (!trendData[key]) {
+        trendData[key] = { count: 0, totalPlays: 0 };
+        trendVideos[key] = [];
       }
-      monthlyData[month].count++;
-      monthlyData[month].totalPlays += v.play_count;
-      monthlyVideos[month].push(v);
+      trendData[key].count++;
+      trendData[key].totalPlays += v.play_count;
+      trendVideos[key].push(v);
     });
 
-    const months = Object.keys(monthlyData).sort();
-    const counts = months.map(m => monthlyData[m].count);
-    const avgPlaysData = months.map(m => Math.round(monthlyData[m].totalPlays / monthlyData[m].count));
+    const periods = Object.keys(trendData).sort();
+    const counts = periods.map(p => trendData[p].count);
+    const avgPlaysData = periods.map(p => Math.round(trendData[p].totalPlays / trendData[p].count));
 
     chart.setOption({
       ...chartTheme,
@@ -303,16 +311,21 @@ function DataAnalysis({
         trigger: 'axis',
         confine: true,
         formatter: params => {
-          const month = params[0].axisValue;
-          return `<div><strong>${month}</strong><br/>发布: ${params[0].value} 个<br/>均播放: ${formatNumber(params[1]?.value || 0)}</div>`;
+          const period = params[0].axisValue;
+          const label = isMonthly ? period : `${period}年`;
+          return `<div><strong>${label}</strong><br/>发布: ${params[0].value} 个<br/>均播放: ${formatNumber(params[1]?.value || 0)}<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
         }
       },
       legend: { ...chartTheme.legend, data: ['发布数量', '平均播放量'] },
       xAxis: {
         ...chartTheme.xAxis,
         type: 'category',
-        data: months,
-        axisLabel: { ...chartTheme.xAxis.axisLabel, rotate: 45, interval: Math.floor(months.length / 12) }
+        data: periods,
+        axisLabel: {
+          ...chartTheme.xAxis.axisLabel,
+          rotate: isMonthly ? 45 : 0,
+          interval: isMonthly ? Math.floor(periods.length / 12) : 0
+        }
       },
       yAxis: [
         {
@@ -333,10 +346,17 @@ function DataAnalysis({
           name: '发布数量',
           type: 'bar',
           data: counts,
-          barMaxWidth: 32,
+          barMaxWidth: isMonthly ? 32 : 48,
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar),
             borderRadius: [6, 6, 0, 0]
+          },
+          label: isMonthly ? { show: false } : {
+            show: true,
+            position: 'top',
+            color: '#6B7280',
+            fontSize: 11,
+            fontWeight: 600
           }
         },
         {
@@ -345,8 +365,10 @@ function DataAnalysis({
           yAxisIndex: 1,
           data: avgPlaysData,
           smooth: 0.4,
-          showSymbol: false,
-          itemStyle: { color: secondaryAxis.line },
+          showSymbol: !isMonthly,
+          symbol: 'circle',
+          symbolSize: 8,
+          itemStyle: { color: secondaryAxis.line, borderColor: '#fff', borderWidth: 2 },
           lineStyle: { width: 2.5 },
           areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, secondaryAxis.area) }
         }
@@ -356,72 +378,15 @@ function DataAnalysis({
     chart.off('click');
     chart.on('click', (params) => {
       if (params.seriesType === 'bar') {
-        const month = params.name;
-        openVideoDrawer(`发布月份: ${month}`, monthlyVideos[month]);
+        const period = params.name;
+        const label = isMonthly ? `发布月份: ${period}` : `${period}年发布的视频`;
+        openVideoDrawer(label, trendVideos[period]);
       }
     });
-  }, [analysisVideos, initChart, openVideoDrawer]);
+  };
 
-  const renderHourlyPlayChart = useCallback(() => {
-    const chart = initChart(hourlyPlayChartRef, 'hourlyPlay');
-    if (!chart || analysisVideos.length === 0) return;
-
-    const hourlyData = {};
-    const hourlyVideos = {};
-    for (let i = 0; i < 24; i++) {
-      hourlyData[i] = { count: 0, totalPlays: 0 };
-      hourlyVideos[i] = [];
-    }
-
-    analysisVideos.forEach(v => {
-      const hour = new Date(v.publish_time).getHours();
-      hourlyData[hour].count++;
-      hourlyData[hour].totalPlays += v.play_count;
-      hourlyVideos[hour].push(v);
-    });
-
-    const hours = Array.from({ length: 24 }, (_, i) => i + '时');
-    const avgPlaysData = hours.map((_, i) =>
-      hourlyData[i].count > 0 ? Math.round(hourlyData[i].totalPlays / hourlyData[i].count) : 0
-    );
-    const sortedHours = [...avgPlaysData.map((v, i) => ({ hour: i, avg: v }))]
-      .sort((a, b) => b.avg - a.avg)
-      .slice(0, 3)
-      .map(h => h.hour);
-
-    chart.setOption({
-      ...chartTheme,
-      tooltip: { ...chartTheme.tooltip, trigger: 'axis', confine: true },
-      xAxis: { ...chartTheme.xAxis, type: 'category', data: hours },
-      yAxis: {
-        ...chartTheme.yAxis,
-        type: 'value',
-        axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
-      },
-      series: [{
-        type: 'bar',
-        barMaxWidth: 32,
-        data: avgPlaysData.map((v, i) => ({
-          value: v,
-          itemStyle: {
-            color: sortedHours.includes(i)
-              ? new echarts.graphic.LinearGradient(0, 0, 0, 1, highlightColor.gradient)
-              : new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar),
-            borderRadius: [6, 6, 0, 0]
-          }
-        }))
-      }]
-    });
-
-    chart.off('click');
-    chart.on('click', (params) => {
-      const idx = params.dataIndex;
-      openVideoDrawer(`发布时间: ${idx}时`, hourlyVideos[idx]);
-    });
-  }, [analysisVideos, initChart, openVideoDrawer]);
-
-  const renderScatterChart = useCallback(() => {
-    const chart = initChart(scatterChartRef, 'scatter');
+  const renderScatterChart = () => {
+    const chart = getChart(scatterChartRef, 'scatter');
     if (!chart || analysisVideos.length === 0) return;
 
     const scatterData = analysisVideos.map(v => ({
@@ -437,11 +402,7 @@ function DataAnalysis({
         formatter: (params) => {
           const video = params.data.video;
           if (!video) return '';
-          const coverUrl = video.cover ? getImageUrl(video.cover) : '';
-          const coverImg = coverUrl
-            ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
-            : '';
-          return `<div style="width: 160px;">${coverImg}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">播放: ${formatNumber(params.value[0])}<br/>弹幕: ${formatNumber(params.value[1])}<br/>弹幕率: ${((params.value[1] / params.value[0]) * 100).toFixed(2)}%<br/><span style="color:#3B82F6">点击打开视频</span></div></div>`;
+          return tooltipWithCover(video, `播放: ${formatNumber(params.value[0])}<br/>弹幕: ${formatNumber(params.value[1])}<br/>弹幕率: ${((params.value[1] / params.value[0]) * 100).toFixed(2)}%<br/><span style="color:#3B82F6">点击打开视频</span>`);
         }
       },
       xAxis: {
@@ -481,10 +442,10 @@ function DataAnalysis({
         openVideo(video);
       }
     });
-  }, [analysisVideos, initChart, openVideo]);
+  };
 
-  const renderHeatmapChart = useCallback(() => {
-    const chart = initChart(heatmapChartRef, 'heatmap');
+  const renderHeatmapChart = () => {
+    const chart = getChart(heatmapChartRef, 'heatmap');
     if (!chart || analysisVideos.length === 0) return;
 
     const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -580,10 +541,10 @@ function DataAnalysis({
         openVideoDrawer(`${weekdays[weekday]} ${hour}时发布`, stats.videos);
       }
     });
-  }, [analysisVideos, initChart, openVideoDrawer]);
+  };
 
-  const renderTopVideosChart = useCallback(() => {
-    const chart = initChart(topVideosChartRef, 'topVideos');
+  const renderTopVideosChart = () => {
+    const chart = getChart(topVideosChartRef, 'topVideos');
     if (!chart || analysisVideos.length === 0) return;
 
     const topVideosData = [...analysisVideos].sort((a, b) => b.play_count - a.play_count).slice(0, 15);
@@ -599,11 +560,7 @@ function DataAnalysis({
         formatter: (params) => {
           const idx = 14 - params[0].dataIndex;
           const video = topVideosData[idx];
-          const coverUrl = video.cover ? getImageUrl(video.cover) : '';
-          const coverImg = coverUrl
-            ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
-            : '';
-          return `<div style="width: 160px;">${coverImg}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">播放: ${formatNumber(video.play_count)}<br/><span style="color: #3B82F6;">点击打开视频</span></div></div>`;
+          return tooltipWithCover(video, `播放: ${formatNumber(video.play_count)}<br/><span style="color: #3B82F6;">点击打开视频</span>`);
         }
       },
       grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
@@ -634,10 +591,10 @@ function DataAnalysis({
       const video = topVideosData[14 - params.dataIndex];
       openVideo(video);
     });
-  }, [analysisVideos, initChart, openVideo]);
+  };
 
-  const renderTopEngagementChart = useCallback(() => {
-    const chart = initChart(topEngagementChartRef, 'topEngagement');
+  const renderTopEngagementChart = () => {
+    const chart = getChart(topEngagementChartRef, 'topEngagement');
     if (!chart || analysisVideos.length === 0) return;
 
     const videosWithEngagement = analysisVideos
@@ -662,11 +619,7 @@ function DataAnalysis({
         formatter: (params) => {
           const idx = maxIdx - params[0].dataIndex;
           const video = videosWithEngagement[idx];
-          const coverUrl = video.cover ? getImageUrl(video.cover) : '';
-          const coverImg = coverUrl
-            ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
-            : '';
-          return `<div style="width: 160px;">${coverImg}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">互动率: ${video.engagementRate.toFixed(2)}%<br/>播放: ${formatNumber(video.play_count)}<br/><span style="color: #3B82F6;">点击打开视频</span></div></div>`;
+          return tooltipWithCover(video, `互动率: ${video.engagementRate.toFixed(2)}%<br/>播放: ${formatNumber(video.play_count)}<br/><span style="color: #3B82F6;">点击打开视频</span>`);
         }
       },
       grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
@@ -697,129 +650,10 @@ function DataAnalysis({
       const video = videosWithEngagement[maxIdx - params.dataIndex];
       openVideo(video);
     });
-  }, [analysisVideos, initChart, openVideo]);
+  };
 
-  const renderYearlyCountChart = useCallback(() => {
-    const chart = initChart(yearlyCountChartRef, 'yearlyCount');
-    if (!chart || analysisVideos.length === 0) return;
-
-    const yearlyData = {};
-    const yearlyVideos = {};
-    analysisVideos.forEach(v => {
-      const year = v.publish_time.slice(0, 4);
-      if (!yearlyData[year]) {
-        yearlyData[year] = 0;
-        yearlyVideos[year] = [];
-      }
-      yearlyData[year]++;
-      yearlyVideos[year].push(v);
-    });
-
-    const years = Object.keys(yearlyData).sort();
-    const counts = years.map(y => yearlyData[y]);
-
-    chart.setOption({
-      ...chartTheme,
-      tooltip: {
-        ...chartTheme.tooltip,
-        trigger: 'axis',
-        formatter: (params) => {
-          const year = params[0].axisValue;
-          const count = params[0].value;
-          return `<div style="font-size: 13px;"><strong>${year}年</strong><br/>发布 ${count} 个视频<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
-        }
-      },
-      xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
-      yAxis: {
-        ...chartTheme.yAxis,
-        type: 'value',
-        axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
-      },
-      series: [{
-        type: 'bar',
-        data: counts,
-        barMaxWidth: 48,
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.bar),
-          borderRadius: [6, 6, 0, 0]
-        },
-        label: {
-          show: true,
-          position: 'top',
-          color: '#6B7280',
-          fontSize: 11,
-          fontWeight: 600
-        }
-      }]
-    });
-
-    chart.off('click');
-    chart.on('click', (params) => {
-      const year = params.name;
-      openVideoDrawer(`${year}年发布的视频`, yearlyVideos[year]);
-    });
-  }, [analysisVideos, initChart, openVideoDrawer]);
-
-  const renderYearlyAvgChart = useCallback(() => {
-    const chart = initChart(yearlyAvgChartRef, 'yearlyAvg');
-    if (!chart || analysisVideos.length === 0) return;
-
-    const yearlyData = {};
-    const yearlyVideos = {};
-    analysisVideos.forEach(v => {
-      const year = v.publish_time.slice(0, 4);
-      if (!yearlyData[year]) {
-        yearlyData[year] = { count: 0, totalPlays: 0 };
-        yearlyVideos[year] = [];
-      }
-      yearlyData[year].count++;
-      yearlyData[year].totalPlays += v.play_count;
-      yearlyVideos[year].push(v);
-    });
-
-    const years = Object.keys(yearlyData).sort();
-    const avgPlaysData = years.map(y => Math.round(yearlyData[y].totalPlays / yearlyData[y].count));
-
-    chart.setOption({
-      ...chartTheme,
-      tooltip: {
-        ...chartTheme.tooltip,
-        trigger: 'axis',
-        formatter: (params) => {
-          const year = params[0].axisValue;
-          const avgPlay = params[0].value;
-          const count = yearlyData[year].count;
-          return `<div style="font-size: 13px;"><strong>${year}年</strong><br/>平均播放量: ${formatNumber(avgPlay)}<br/>共 ${count} 个视频<br/><span style="color: #3B82F6;">点击查看详情</span></div>`;
-        }
-      },
-      xAxis: { ...chartTheme.xAxis, type: 'category', data: years },
-      yAxis: {
-        ...chartTheme.yAxis,
-        type: 'value',
-        axisLabel: { ...chartTheme.yAxis.axisLabel, formatter: formatAxisNumber }
-      },
-      series: [{
-        type: 'line',
-        data: avgPlaysData,
-        smooth: 0.4,
-        showSymbol: true,
-        symbol: 'circle',
-        symbolSize: 8,
-        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, gradients.area) },
-        itemStyle: { color: colors.blue500, borderColor: '#fff', borderWidth: 2 },
-        lineStyle: { width: 2.5 }
-      }]
-    });
-
-    chart.off('click');
-    chart.on('click', (params) => {
-      const year = params.name;
-      openVideoDrawer(`${year}年发布的视频`, yearlyVideos[year]);
-    });
-  }, [analysisVideos, initChart, openVideoDrawer]);
-
-  const renderTimelineChart = useCallback(() => {
-    const chart = initChart(timelineChartRef, 'timeline');
+  const renderTimelineChart = () => {
+    const chart = getChart(timelineChartRef, 'timeline');
     if (!chart || analysisVideos.length === 0) return;
 
     const sortedVideos = [...analysisVideos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
@@ -952,10 +786,6 @@ function DataAnalysis({
             const thresholdInfo = threshold !== null
               ? `<br/><span style="color: #F59E0B">阈值: ${formatNumber(threshold)}</span>`
               : '';
-            const coverUrl = video.cover ? getImageUrl(video.cover) : '';
-            const coverImg = coverUrl
-              ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
-              : '';
             const cumulativeInfo = showCumulativeLine
               ? `<br/><span style="color: #10B981">累计: ${formatNumber(cumulativeData[videoIdx][1])}</span>`
               : '';
@@ -967,6 +797,10 @@ function DataAnalysis({
             } else if (showLocalBreakout && viralType === 'local') {
               viralTag = '<span style="display: inline-block; background: #F59E0B; color: white; font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-bottom: 6px;">局部突破</span><br/>';
             }
+            const coverUrl = video.cover ? getImageUrl(video.cover) : '';
+            const coverImg = coverUrl
+              ? `<img src="${coverUrl}" style="width: 160px; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" referrerPolicy="no-referrer" />`
+              : '';
             return `<div style="width: 160px;">${coverImg}${viralTag}<div style="font-weight: 600; margin-bottom: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px;">${video.title}</div><div style="color: #6B7280; font-size: 12px;">发布: ${video.publish_time}<br/>播放: ${formatNumber(video.play_count)}${cumulativeInfo}${thresholdInfo}</div></div>`;
           }
         },
@@ -1044,50 +878,40 @@ function DataAnalysis({
         }
       }
     });
-  }, [analysisVideos, initChart, showCumulativeLine, showGlobalViral, showLocalBreakout]);
+  };
 
-  // Render all charts except timeline when data changes
+  // Render all charts when data changes
   useEffect(() => {
     if (analysisVideos.length === 0) return;
 
     const timer = setTimeout(() => {
       renderPlayDistChart();
       renderDurationChart();
-      renderMonthlyTrendChart();
-      renderHourlyPlayChart();
+      renderPublishTrendChart();
       renderScatterChart();
       renderHeatmapChart();
       renderTopVideosChart();
       renderTopEngagementChart();
-      renderYearlyCountChart();
-      renderYearlyAvgChart();
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [
-    analysisVideos,
-    renderPlayDistChart,
-    renderDurationChart,
-    renderMonthlyTrendChart,
-    renderHourlyPlayChart,
-    renderScatterChart,
-    renderHeatmapChart,
-    renderTopVideosChart,
-    renderTopEngagementChart,
-    renderYearlyCountChart,
-    renderYearlyAvgChart
-  ]);
-
-  // Render timeline chart separately (depends on showCumulativeLine)
-  useEffect(() => {
-    if (analysisVideos.length === 0) return;
-
-    const timer = setTimeout(() => {
       renderTimelineChart();
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [analysisVideos, renderTimelineChart]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysisVideos]);
+
+  // Re-render timeline chart when options change
+  useEffect(() => {
+    if (analysisVideos.length === 0) return;
+    renderTimelineChart();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCumulativeLine, showGlobalViral, showLocalBreakout]);
+
+  // Re-render publish trend chart when granularity changes
+  useEffect(() => {
+    if (analysisVideos.length === 0) return;
+    renderPublishTrendChart();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trendGranularity]);
 
   // Cleanup
   useEffect(() => {
@@ -1243,19 +1067,37 @@ function DataAnalysis({
               时间趋势
             </h2>
             <div className="chart-card">
-              <h3 className="chart-title">月度发布趋势与播放量</h3>
-              <div ref={monthlyTrendChartRef} className="h-[280px]"></div>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="chart-title !mb-0">发布趋势与播放量</h3>
+                <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setTrendGranularity('month')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      trendGranularity === 'month'
+                        ? 'bg-white text-neutral-900 shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-700'
+                    }`}
+                  >
+                    按月
+                  </button>
+                  <button
+                    onClick={() => setTrendGranularity('year')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      trendGranularity === 'year'
+                        ? 'bg-white text-neutral-900 shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-700'
+                    }`}
+                  >
+                    按年
+                  </button>
+                </div>
+              </div>
+              <div ref={publishTrendChartRef} className="h-[280px]"></div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-              <div className="chart-card">
-                <h3 className="chart-title">发布小时 vs 平均播放量</h3>
-                <div ref={hourlyPlayChartRef} className="h-[260px]"></div>
-              </div>
-              <div className="chart-card">
-                <h3 className="chart-title">最佳发布时间（按平均播放量）</h3>
-                <p className="text-xs text-neutral-400 -mt-2 mb-2">颜色越红表示该时段发布的视频平均播放量越高</p>
-                <div ref={heatmapChartRef} className="h-[280px]"></div>
-              </div>
+            <div className="chart-card mt-4">
+              <h3 className="chart-title">最佳发布时间（按平均播放量）</h3>
+              <p className="text-xs text-neutral-400 -mt-2 mb-2">颜色越红表示该时段发布的视频平均播放量越高，点击查看详情</p>
+              <div ref={heatmapChartRef} className="h-[280px]"></div>
             </div>
           </section>
 
@@ -1290,23 +1132,13 @@ function DataAnalysis({
             </div>
           </section>
 
-          {/* Yearly Review */}
+          {/* Video Timeline */}
           <section>
             <h2 className="section-title">
               <Calendar size={16} />
-              年度回顾
+              视频时间线
             </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="chart-card">
-                <h3 className="chart-title">年度发布数量</h3>
-                <div ref={yearlyCountChartRef} className="h-[260px]"></div>
-              </div>
-              <div className="chart-card">
-                <h3 className="chart-title">年度平均播放量</h3>
-                <div ref={yearlyAvgChartRef} className="h-[260px]"></div>
-              </div>
-            </div>
-            <div className="chart-card mt-4">
+            <div className="chart-card">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="chart-title !mb-0">全部视频播放量时间线</h3>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
