@@ -528,28 +528,28 @@ export function useVideoMetrics(analysisVideos, allVideos = null) {
           ratio: (quadrants.star.length / videoList.length * 100).toFixed(1),
           label: '明星内容',
           desc: '高播放高互动，是账号的核心资产',
-          videos: quadrants.star.sort((a, b) => b.play_count - a.play_count).slice(0, 3)
+          videos: quadrants.star.sort((a, b) => b.play_count - a.play_count)
         },
         niche: {
           count: quadrants.niche.length,
           ratio: (quadrants.niche.length / videoList.length * 100).toFixed(1),
           label: '利基宝藏',
           desc: '播放不高但粉丝很喜欢，可能是未被发掘的蓝海选题',
-          videos: quadrants.niche.sort((a, b) => b.engagementRate - a.engagementRate).slice(0, 3)
+          videos: quadrants.niche.sort((a, b) => b.engagementRate - a.engagementRate)
         },
         traffic: {
           count: quadrants.traffic.length,
           ratio: (quadrants.traffic.length / videoList.length * 100).toFixed(1),
           label: '流量内容',
           desc: '能获取流量但粉丝粘性一般，注意不要过度依赖',
-          videos: quadrants.traffic.sort((a, b) => b.play_count - a.play_count).slice(0, 3)
+          videos: quadrants.traffic.sort((a, b) => b.play_count - a.play_count)
         },
         weak: {
           count: quadrants.weak.length,
           ratio: (quadrants.weak.length / videoList.length * 100).toFixed(1),
           label: '待优化',
           desc: '表现不佳的内容，可分析原因或考虑调整方向',
-          videos: quadrants.weak.slice(0, 3)
+          videos: quadrants.weak.sort((a, b) => a.play_count - b.play_count)
         }
       }
     };

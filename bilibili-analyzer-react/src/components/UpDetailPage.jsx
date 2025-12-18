@@ -211,6 +211,7 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false
               duration={selectedDuration}
               onUpdateTimeRange={setSelectedTimeRange}
               onUpdateDuration={setSelectedDuration}
+              onOpenDrawer={openDrawer}
             />
           )}
         </main>
