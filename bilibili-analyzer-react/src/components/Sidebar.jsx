@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
-import { getImageUrl } from '../utils';
+import { getImageUrl, formatNumber } from '../utils';
 
 const Sidebar = forwardRef(function Sidebar({
   savedUpList = [],
@@ -178,7 +178,12 @@ const Sidebar = forwardRef(function Sidebar({
                         />
                         <div className="avatar-ring"></div>
                       </div>
-                      <span className="nav-item-text">{up.name}</span>
+                      <div className="nav-item-info">
+                        <span className="nav-item-text">{up.name}</span>
+                        {up.follower != null && (
+                          <span className="nav-item-follower">{formatNumber(up.follower)} 粉丝</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
