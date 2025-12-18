@@ -625,8 +625,15 @@ main::-webkit-scrollbar-thumb:hover {
   border-color: rgb(191, 219, 254);
 }
 
-.nav-item-text {
+.nav-item-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.nav-item-text {
   font-size: 13px;
   font-weight: 500;
   color: rgb(115, 115, 115);
@@ -639,6 +646,18 @@ main::-webkit-scrollbar-thumb:hover {
 .nav-item.active .nav-item-text {
   color: rgb(29, 78, 216);
   font-weight: 600;
+}
+
+.nav-item-follower {
+  font-size: 11px;
+  color: rgb(163, 163, 163);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-item.active .nav-item-follower {
+  color: rgb(96, 165, 250);
 }
 
 .context-menu {

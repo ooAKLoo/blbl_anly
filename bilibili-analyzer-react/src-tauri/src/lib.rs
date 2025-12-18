@@ -42,6 +42,7 @@ pub struct UpInfo {
     pub level: i32,
     pub face: Option<String>,  // 本地头像路径
     pub mid: i64,
+    pub follower: Option<i64>,  // 粉丝数
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -273,11 +274,15 @@ fn init_database(db_path: &PathBuf) -> Result<Connection, String> {
             sign TEXT,
             level INTEGER,
             face TEXT,
+            follower INTEGER,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )",
         [],
     ).map_err(|e| format!("创建up_users表失败: {}", e))?;
+
+    // 迁移：为旧表添加 follower 字段
+    let _ = conn.execute("ALTER TABLE up_users ADD COLUMN follower INTEGER", []);
 
     // 创建视频表（只存储本地封面路径）
     conn.execute(
@@ -343,15 +348,16 @@ fn load_setting(conn: &Connection, key: &str) -> Option<String> {
 // 保存UP主信息到数据库
 fn save_up_info_to_db(conn: &Connection, up_info: &UpInfo) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO up_users (mid, name, sign, level, face, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
+        "INSERT INTO up_users (mid, name, sign, level, face, follower, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP)
          ON CONFLICT(mid) DO UPDATE SET
             name = excluded.name,
             sign = excluded.sign,
             level = excluded.level,
             face = COALESCE(excluded.face, face),
+            follower = COALESCE(excluded.follower, follower),
             updated_at = CURRENT_TIMESTAMP",
-        params![up_info.mid, up_info.name, up_info.sign, up_info.level, up_info.face],
+        params![up_info.mid, up_info.name, up_info.sign, up_info.level, up_info.face, up_info.follower],
     ).map_err(|e| format!("保存UP主信息失败: {}", e))?;
     Ok(())
 }
@@ -382,7 +388,7 @@ fn save_videos_to_db(conn: &Connection, mid: i64, videos: &[VideoInfo]) -> Resul
 // 从数据库加载UP主列表
 fn load_up_list_from_db(conn: &Connection) -> Result<Vec<UpInfo>, String> {
     let mut stmt = conn.prepare(
-        "SELECT mid, name, sign, level, face FROM up_users ORDER BY updated_at DESC"
+        "SELECT mid, name, sign, level, face, follower FROM up_users ORDER BY updated_at DESC"
     ).map_err(|e| format!("准备查询失败: {}", e))?;
 
     let up_iter = stmt.query_map([], |row| {
@@ -392,6 +398,7 @@ fn load_up_list_from_db(conn: &Connection) -> Result<Vec<UpInfo>, String> {
             sign: row.get(2)?,
             level: row.get(3)?,
             face: row.get(4)?,
+            follower: row.get(5)?,
         })
     }).map_err(|e| format!("查询UP主列表失败: {}", e))?;
 
@@ -441,6 +448,35 @@ fn delete_up_from_db(conn: &Connection, mid: i64) -> Result<(), String> {
         .map_err(|e| format!("删除视频失败: {}", e))?;
     conn.execute("DELETE FROM up_users WHERE mid = ?1", [mid])
         .map_err(|e| format!("删除UP主失败: {}", e))?;
+    Ok(())
+}
+
+// 获取UP主粉丝数
+async fn fetch_follower_count(client: &reqwest::Client, headers: &HeaderMap, mid: i64) -> Option<i64> {
+    let url = format!("https://api.bilibili.com/x/relation/stat?vmid={}", mid);
+
+    let resp = client
+        .get(&url)
+        .headers(headers.clone())
+        .send()
+        .await
+        .ok()?;
+
+    let json: serde_json::Value = resp.json().await.ok()?;
+
+    if json["code"].as_i64() != Some(0) {
+        return None;
+    }
+
+    json["data"]["follower"].as_i64()
+}
+
+// 更新UP主粉丝数到数据库
+fn update_follower_in_db(conn: &Connection, mid: i64, follower: i64) -> Result<(), String> {
+    conn.execute(
+        "UPDATE up_users SET follower = ?1, updated_at = CURRENT_TIMESTAMP WHERE mid = ?2",
+        params![follower, mid],
+    ).map_err(|e| format!("更新粉丝数失败: {}", e))?;
     Ok(())
 }
 
@@ -624,12 +660,16 @@ async fn fetch_up_info_with_url(
     let data = &json["data"];
     let face_url = data["face"].as_str().unwrap_or("").to_string();
 
+    // 获取粉丝数
+    let follower = fetch_follower_count(client, headers, mid).await;
+
     Ok((UpInfo {
         name: data["name"].as_str().unwrap_or("").to_string(),
         sign: data["sign"].as_str().unwrap_or("").to_string(),
         level: data["level"].as_i64().unwrap_or(0) as i32,
         face: None,
         mid,
+        follower,
     }, face_url))
 }
 
@@ -843,10 +883,41 @@ async fn stop_scraping(state: State<'_, Arc<ScraperState>>) -> Result<bool, Stri
 
 // 获取已保存的UP主列表
 #[tauri::command]
-async fn get_saved_up_list(app: AppHandle) -> Result<Vec<UpInfo>, String> {
+async fn get_saved_up_list(app: AppHandle, state: State<'_, Arc<ScraperState>>) -> Result<Vec<UpInfo>, String> {
     let db_path = get_db_path(&app);
     let conn = init_database(&db_path)?;
-    load_up_list_from_db(&conn)
+    let mut ups = load_up_list_from_db(&conn)?;
+
+    // 找出没有粉丝数的UP主
+    let mids_without_follower: Vec<i64> = ups
+        .iter()
+        .filter(|up| up.follower.is_none())
+        .map(|up| up.mid)
+        .collect();
+
+    if !mids_without_follower.is_empty() {
+        let cookie = state.cookie.lock().await.clone();
+        let client = reqwest::Client::new();
+        let headers = build_headers(&cookie);
+
+        // 逐个请求粉丝数，控制频率（每个请求间隔500ms）
+        for (i, mid) in mids_without_follower.iter().enumerate() {
+            if let Some(follower) = fetch_follower_count(&client, &headers, *mid).await {
+                // 更新数据库
+                let _ = update_follower_in_db(&conn, *mid, follower);
+                // 更新返回列表中的数据
+                if let Some(up) = ups.iter_mut().find(|u| u.mid == *mid) {
+                    up.follower = Some(follower);
+                }
+            }
+            // 频率控制：每次请求后等待500ms
+            if i < mids_without_follower.len() - 1 {
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            }
+        }
+    }
+
+    Ok(ups)
 }
 
 // 加载指定UP主的视频数据
@@ -857,7 +928,7 @@ async fn load_up_videos(mid: i64, app: AppHandle) -> Result<ScrapeResult, String
 
     // 加载UP主信息
     let mut stmt = conn.prepare(
-        "SELECT mid, name, sign, level, face FROM up_users WHERE mid = ?1"
+        "SELECT mid, name, sign, level, face, follower FROM up_users WHERE mid = ?1"
     ).map_err(|e| format!("准备查询失败: {}", e))?;
 
     let up_info = stmt.query_row([mid], |row| {
@@ -867,6 +938,7 @@ async fn load_up_videos(mid: i64, app: AppHandle) -> Result<ScrapeResult, String
             sign: row.get(2)?,
             level: row.get(3)?,
             face: row.get(4)?,
+            follower: row.get(5)?,
         })
     }).ok();
 
