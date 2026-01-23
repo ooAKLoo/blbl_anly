@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import VirtualGrid from '../VirtualGrid';
-import { formatNumber, getImageUrl, formatDate, sortVideos } from '../../utils';
+import { formatNumber, getImageUrl, formatDate, sortVideos, parseDuration } from '../../utils';
 import { SORT_OPTIONS } from '../../utils/constants';
 import {
   Calendar,
@@ -16,7 +16,8 @@ import {
   Timer,
   LayoutGrid,
   List as ListIcon,
-  Star
+  Star,
+  Clock
 } from 'lucide-react';
 
 // Icon 映射
@@ -27,6 +28,18 @@ const iconMap = {
   MessageSquare,
   Timer
 };
+
+/**
+ * 格式化秒数为可读时长
+ */
+function formatDurationText(seconds) {
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h}小时${m > 0 ? m + '分' : ''}`;
+  }
+  return `${Math.floor(seconds / 60)}分钟`;
+}
 
 /**
  * VideoList 组件
@@ -42,6 +55,10 @@ export default function VideoList({ videos = [] }) {
   const [sortBy, setSortBy] = useState('time_desc');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  
+  // 时长过滤状态
+  const [durationRange, setDurationRange] = useState([0, Infinity]);
+  const [isDurationFilterActive, setIsDurationFilterActive] = useState(false);
 
   // Refs
   const sortDropdownRef = useRef(null);
@@ -73,6 +90,22 @@ export default function VideoList({ videos = [] }) {
     return getImageUrl(video.cover);
   };
 
+  // 计算视频时长范围（秒）
+  const durationBounds = useMemo(() => {
+    if (videos.length === 0) return { min: 0, max: 3600 };
+    const durations = videos.map(v => parseDuration(v.duration || '0:00'));
+    const min = Math.min(...durations);
+    const max = Math.max(...durations);
+    return { min, max: Math.max(max, 60) }; // 至少60秒
+  }, [videos]);
+
+  // 初始化时长范围
+  useEffect(() => {
+    if (!isDurationFilterActive) {
+      setDurationRange([durationBounds.min, durationBounds.max]);
+    }
+  }, [durationBounds, isDurationFilterActive]);
+
   // 筛选和排序后的视频列表
   const filteredVideos = useMemo(() => {
     let result = videos;
@@ -83,9 +116,17 @@ export default function VideoList({ videos = [] }) {
       result = result.filter(v => v.title.toLowerCase().includes(keyword));
     }
 
+    // 时长筛选
+    if (isDurationFilterActive) {
+      result = result.filter(v => {
+        const sec = parseDuration(v.duration || '0:00');
+        return sec >= durationRange[0] && sec <= durationRange[1];
+      });
+    }
+
     // 排序
     return sortVideos(result, sortBy);
-  }, [videos, searchKeyword, sortBy]);
+  }, [videos, searchKeyword, sortBy, durationRange, isDurationFilterActive]);
 
   // 计算筛选后的平均播放量
   const filteredAvgPlays = useMemo(() => {
@@ -213,6 +254,97 @@ export default function VideoList({ videos = [] }) {
           >
             <ListIcon size={16} />
           </button>
+        </div>
+
+        {/* 时长过滤 Slider */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg">
+          <button
+            onClick={() => setIsDurationFilterActive(!isDurationFilterActive)}
+            className={`flex items-center gap-1.5 text-sm transition-colors ${
+              isDurationFilterActive ? 'text-blue-600' : 'text-neutral-500 hover:text-neutral-700'
+            }`}
+          >
+            <Clock size={14} />
+            <span>时长</span>
+          </button>
+          
+          {isDurationFilterActive && (
+            <div className="flex items-center gap-3">
+              <div className="relative w-[180px] h-6">
+                {/* 双滑块 Range Slider */}
+                <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1.5 bg-neutral-200 rounded-full">
+                  <div
+                    className="absolute h-full bg-blue-500 rounded-full"
+                    style={{
+                      left: `${((durationRange[0] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}%`,
+                      right: `${100 - ((durationRange[1] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}%`
+                    }}
+                  />
+                </div>
+                {/* 最小值滑块 - 只处理左半区域 */}
+                <input
+                  type="range"
+                  min={durationBounds.min}
+                  max={durationBounds.max}
+                  value={durationRange[0]}
+                  onChange={(e) => {
+                    const val = Math.min(Number(e.target.value), durationRange[1] - 60);
+                    setDurationRange([val, durationRange[1]]);
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  style={{ 
+                    zIndex: 30,
+                    clipPath: `inset(0 ${100 - ((durationRange[0] + durationRange[1]) / 2 - durationBounds.min) / (durationBounds.max - durationBounds.min) * 100}% 0 0)`
+                  }}
+                />
+                {/* 最大值滑块 - 只处理右半区域 */}
+                <input
+                  type="range"
+                  min={durationBounds.min}
+                  max={durationBounds.max}
+                  value={durationRange[1]}
+                  onChange={(e) => {
+                    const val = Math.max(Number(e.target.value), durationRange[0] + 60);
+                    setDurationRange([durationRange[0], val]);
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  style={{ 
+                    zIndex: 20,
+                  }}
+                />
+                {/* 滑块指示器 */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full shadow-sm pointer-events-none"
+                  style={{
+                    left: `calc(${((durationRange[0] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}% - 7px)`
+                  }}
+                />
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full shadow-sm pointer-events-none"
+                  style={{
+                    left: `calc(${((durationRange[1] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}% - 7px)`
+                  }}
+                />
+              </div>
+              
+              {/* 时长范围显示 */}
+              <span className="text-xs text-neutral-500 whitespace-nowrap">
+                {formatDurationText(durationRange[0])} - {formatDurationText(durationRange[1])}
+              </span>
+              
+              {/* 重置按钮 */}
+              <button
+                onClick={() => {
+                  setDurationRange([durationBounds.min, durationBounds.max]);
+                  setIsDurationFilterActive(false);
+                }}
+                className="text-neutral-400 hover:text-neutral-600"
+                title="重置时长过滤"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         <span className="text-xs text-neutral-400 ml-auto">

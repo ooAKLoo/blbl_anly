@@ -19,6 +19,7 @@ function App() {
   const [mid, setMid] = useState('');
   const [cookie, setCookie] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [videos, setVideos] = useState([]);
   const [upInfo, setUpInfo] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0, page: 0, message: '' });
@@ -161,6 +162,43 @@ function App() {
     }
   };
 
+  // 增量刷新当前UP主的视频
+  const refreshUpVideos = async () => {
+    if (!currentMid || isRefreshing) return;
+
+    setIsRefreshing(true);
+    setProgress({ current: 0, total: 0, page: 0, message: '初始化刷新...' });
+
+    try {
+      await invoke('init_wbi_keys');
+      const result = await invoke('refresh_up_videos', {
+        mid: parseInt(currentMid)
+      });
+
+      if (result.success) {
+        setVideos(result.videos);
+        if (result.up_info) {
+          setUpInfo(result.up_info);
+        }
+
+        // 更新 upDataMap 缓存
+        setUpDataMap(prev => ({
+          ...prev,
+          [currentMid]: {
+            up_info: result.up_info || upInfo,
+            videos: result.videos
+          }
+        }));
+      } else {
+        alert('刷新失败: ' + (result.error || '未知错误'));
+      }
+    } catch (error) {
+      alert('刷新错误: ' + error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const stopScraping = async () => {
     try {
       await invoke('stop_scraping');
@@ -286,6 +324,8 @@ function App() {
             upInfo={upInfo}
             videos={videos}
             sidebarCollapsed={sidebarCollapsed}
+            onRefresh={refreshUpVideos}
+            isRefreshing={isRefreshing}
           />
         )}
 
