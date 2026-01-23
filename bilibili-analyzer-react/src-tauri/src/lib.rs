@@ -875,6 +875,273 @@ async fn scrape_videos(
     })
 }
 
+// 增量刷新UP主视频（只为新视频下载封面，已有视频只更新数据）
+#[tauri::command]
+async fn refresh_up_videos(
+    mid: i64,
+    app: AppHandle,
+    state: State<'_, Arc<ScraperState>>,
+) -> Result<ScrapeResult, String> {
+    // 检查是否已经在运行
+    {
+        let mut is_running = state.is_running.lock().await;
+        if *is_running {
+            return Err("已有爬取任务在运行".to_string());
+        }
+        *is_running = true;
+    }
+
+    let cookie = state.cookie.lock().await.clone();
+    let img_key = state.img_key.lock().await.clone();
+    let sub_key = state.sub_key.lock().await.clone();
+
+    let client = reqwest::Client::new();
+    let headers = build_headers(&cookie);
+
+    // 获取数据库中已有的视频bvid列表
+    let db_path = get_db_path(&app);
+    let conn = match init_database(&db_path) {
+        Ok(c) => c,
+        Err(e) => {
+            *state.is_running.lock().await = false;
+            return Err(e);
+        }
+    };
+    
+    let existing_bvids: std::collections::HashSet<String> = {
+        let mut stmt = conn.prepare("SELECT bvid FROM videos WHERE mid = ?1")
+            .map_err(|e| format!("查询失败: {}", e))?;
+        let bvid_iter = stmt.query_map([mid], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("查询失败: {}", e))?;
+        bvid_iter.filter_map(|r| r.ok()).collect()
+    };
+
+    let mut all_videos: Vec<VideoInfo> = Vec::new();
+    let mut new_cover_urls: Vec<(String, String)> = Vec::new();  // 只保存新视频的封面URL
+    let mut total_count = 0i32;
+    let mut max_pages = i32::MAX;
+
+    let mut page = 1;
+    loop {
+        if page > max_pages {
+            break;
+        }
+        let mut params: HashMap<String, String> = HashMap::new();
+        params.insert("mid".to_string(), mid.to_string());
+        params.insert("ps".to_string(), "30".to_string());
+        params.insert("tid".to_string(), "0".to_string());
+        params.insert("pn".to_string(), page.to_string());
+        params.insert("keyword".to_string(), "".to_string());
+        params.insert("order".to_string(), "pubdate".to_string());
+
+        enc_wbi(&mut params, &img_key, &sub_key);
+
+        let url = format!(
+            "https://api.bilibili.com/x/space/wbi/arc/search?{}",
+            params
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect::<Vec<_>>()
+                .join("&")
+        );
+
+        let resp = match client.get(&url).headers(headers.clone()).send().await {
+            Ok(r) => r,
+            Err(e) => {
+                *state.is_running.lock().await = false;
+                return Err(format!("请求失败: {}", e));
+            }
+        };
+
+        let json: serde_json::Value = match resp.json().await {
+            Ok(j) => j,
+            Err(e) => {
+                *state.is_running.lock().await = false;
+                return Err(format!("解析JSON失败: {}", e));
+            }
+        };
+
+        if json["code"].as_i64() != Some(0) {
+            *state.is_running.lock().await = false;
+            return Err(format!(
+                "API错误: {}",
+                json["message"].as_str().unwrap_or("未知错误")
+            ));
+        }
+
+        let vlist = match json["data"]["list"]["vlist"].as_array() {
+            Some(v) => v,
+            None => {
+                break;
+            }
+        };
+
+        if vlist.is_empty() {
+            break;
+        }
+
+        total_count = json["data"]["page"]["count"].as_i64().unwrap_or(0) as i32;
+
+        if page == 1 && total_count > 0 {
+            max_pages = (total_count + 29) / 30;
+        }
+
+        for v in vlist {
+            let created = v["created"].as_i64().unwrap_or(0);
+            let publish_time = chrono::DateTime::from_timestamp(created, 0)
+                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                .unwrap_or_default();
+
+            let bvid = v["bvid"].as_str().unwrap_or("").to_string();
+            let cover_url = v["pic"].as_str().unwrap_or("").to_string();
+            let is_new_video = !existing_bvids.contains(&bvid);
+
+            // 只为新视频记录封面URL
+            if is_new_video && !cover_url.is_empty() {
+                new_cover_urls.push((bvid.clone(), cover_url));
+            }
+
+            all_videos.push(VideoInfo {
+                title: v["title"].as_str().unwrap_or("").to_string(),
+                bvid: bvid.clone(),
+                aid: v["aid"].as_i64().unwrap_or(0),
+                publish_time,
+                duration: v["length"].as_str().unwrap_or("").to_string(),
+                play_count: v["play"].as_i64().unwrap_or(0),
+                danmu_count: v["video_review"].as_i64().unwrap_or(0),
+                comment_count: v["comment"].as_i64().unwrap_or(0),
+                favorite_count: v["favorites"].as_i64().unwrap_or(0),
+                category: v["typename"].as_str().unwrap_or("").to_string(),
+                description: v["description"]
+                    .as_str()
+                    .unwrap_or("")
+                    .chars()
+                    .take(100)
+                    .collect(),
+                cover: None,  // 稍后处理
+                video_url: format!("https://www.bilibili.com/video/{}", bvid),
+            });
+        }
+
+        // 发送进度更新
+        let new_count = new_cover_urls.len();
+        let progress = ScrapeProgress {
+            current: all_videos.len() as i32,
+            total: total_count,
+            page,
+            message: format!("正在刷新第{}页... (发现{}个新视频)", page, new_count),
+        };
+        let _ = app.emit("scrape-progress", progress);
+
+        if all_videos.len() as i32 >= total_count {
+            break;
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+        page += 1;
+    }
+
+    *state.is_running.lock().await = false;
+
+    // 获取UP主信息
+    let (mut up_info, face_url) = match fetch_up_info_with_url(&client, &headers, mid, &img_key, &sub_key).await {
+        Ok((info, url)) => (Some(info), url),
+        Err(_) => (None, String::new()),
+    };
+
+    // 检查头像是否需要更新
+    if let Some(ref mut info) = up_info {
+        let avatars_dir = get_avatars_dir(&app);
+        let ext = get_extension_from_url(&face_url);
+        let filename = format!("{}.{}", mid, ext);
+        let avatar_path = avatars_dir.join(&filename);
+        
+        if avatar_path.exists() {
+            // 使用现有头像
+            info.face = Some(avatar_path.to_string_lossy().to_string());
+        } else if !face_url.is_empty() {
+            // 下载新头像
+            let _ = app.emit("scrape-progress", ScrapeProgress {
+                current: 0,
+                total: new_cover_urls.len() as i32,
+                page: 0,
+                message: "正在下载UP主头像...".to_string(),
+            });
+            if let Some(local_path) = download_avatar(&client, &app, mid, &face_url).await {
+                info.face = Some(local_path);
+            }
+        }
+    }
+
+    // 只为新视频下载封面
+    let new_video_count = new_cover_urls.len();
+    if new_video_count > 0 {
+        let _ = app.emit("scrape-progress", ScrapeProgress {
+            current: 0,
+            total: new_video_count as i32,
+            page: 0,
+            message: format!("正在下载{}个新视频封面...", new_video_count),
+        });
+        
+        // 逐个下载新视频封面
+        for (i, (bvid, cover_url)) in new_cover_urls.iter().enumerate() {
+            let _ = app.emit("scrape-progress", ScrapeProgress {
+                current: (i + 1) as i32,
+                total: new_video_count as i32,
+                page: 0,
+                message: format!("正在下载新视频封面 ({}/{})", i + 1, new_video_count),
+            });
+            
+            if let Some(local_path) = download_cover(&client, &app, bvid, cover_url).await {
+                // 更新对应视频的封面路径
+                if let Some(video) = all_videos.iter_mut().find(|v| &v.bvid == bvid) {
+                    video.cover = Some(local_path);
+                }
+            }
+            
+            // 频率控制：每5张暂停500ms
+            if (i + 1) % 5 == 0 && i + 1 < new_video_count {
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            }
+        }
+    }
+
+    // 为已有视频设置本地封面路径
+    let covers_dir = get_covers_dir(&app);
+    for video in all_videos.iter_mut() {
+        if video.cover.is_none() {
+            for ext in &["jpg", "jpeg", "png", "gif", "webp"] {
+                let cover_path = covers_dir.join(format!("{}.{}", video.bvid, ext));
+                if cover_path.exists() {
+                    video.cover = Some(cover_path.to_string_lossy().to_string());
+                    break;
+                }
+            }
+        }
+    }
+
+    // 保存数据到数据库（会通过UPSERT更新已有视频的数据）
+    if let Some(ref info) = up_info {
+        let _ = save_up_info_to_db(&conn, info);
+    }
+    let _ = save_videos_to_db(&conn, mid, &all_videos);
+
+    // 发送完成消息
+    let _ = app.emit("scrape-progress", ScrapeProgress {
+        current: all_videos.len() as i32,
+        total: all_videos.len() as i32,
+        page: 0,
+        message: format!("刷新完成！共{}个视频，新增{}个", all_videos.len(), new_video_count),
+    });
+
+    Ok(ScrapeResult {
+        up_info,
+        videos: all_videos,
+        success: true,
+        error: None,
+    })
+}
+
 #[tauri::command]
 async fn stop_scraping(state: State<'_, Arc<ScraperState>>) -> Result<bool, String> {
     *state.is_running.lock().await = false;
@@ -1016,6 +1283,7 @@ pub fn run() {
             init_wbi_keys,
             get_up_info,
             scrape_videos,
+            refresh_up_videos,
             stop_scraping,
             get_saved_up_list,
             load_up_videos,

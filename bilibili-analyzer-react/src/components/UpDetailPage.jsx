@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Sparkles, ChevronRight } from 'lucide-react';
+import { Sparkles, ChevronRight, RefreshCw } from 'lucide-react';
 import { getImageUrl } from '../utils';
 import DataAnalysis from './up-detail/DataAnalysis';
 import VideoList from './up-detail/VideoList';
@@ -7,7 +7,7 @@ import InsightReport from './up-detail/InsightReport';
 import GrowthJourney from './up-detail/GrowthJourney';
 import VideoDetailDrawer from './VideoDetailDrawer';
 
-const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false }, ref) => {
+const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false, onRefresh, isRefreshing = false }, ref) => {
   // Tab state
   const [activeTab, setActiveTab] = useState('analysis');
   const tabs = [
@@ -145,6 +145,25 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false
                 {upInfo.sign || '这个人很懒，什么都没写'}
               </p>
             </div>
+            {/* 刷新按钮 */}
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  isRefreshing
+                    ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800'
+                }`}
+                title="增量刷新：获取新发布的视频，更新已有视频数据"
+              >
+                <RefreshCw
+                  size={14}
+                  className={isRefreshing ? 'animate-spin' : ''}
+                />
+                <span>{isRefreshing ? '刷新中...' : '刷新数据'}</span>
+              </button>
+            )}
             {/* 成长历程入口按钮 */}
             <button
               onClick={() => setShowGrowthJourney(true)}

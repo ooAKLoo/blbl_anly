@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@radix-ui/react-hover-card": "^1.1.15",
+    "@supabase/supabase-js": "^2.89.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-shell": "^2",
     "echarts": "^5.5.0",
