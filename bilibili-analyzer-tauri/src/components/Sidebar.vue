@@ -243,10 +243,6 @@ defineExpose({
 /* Sidebar Container */
 .sidebar {
   @apply w-[240px] fixed top-3 left-3 bottom-3 flex flex-col bg-white/80 backdrop-blur-xl rounded-2xl overflow-hidden z-[100];
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.03),
-    0 2px 4px rgba(0, 0, 0, 0.02),
-    0 8px 16px rgba(0, 0, 0, 0.04);
 }
 
 /* Sidebar Transition */
