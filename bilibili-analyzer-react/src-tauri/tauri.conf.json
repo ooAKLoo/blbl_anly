@@ -1,18 +1,18 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "B站视频分析器",
+  "productName": "UPulse",
   "version": "1.0.0",
-  "identifier": "com.bilibili.analyzer",
+  "identifier": "com.upulse.app",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:5174",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
-        "title": "B站UP主视频数据分析器",
+        "title": "UPulse",
         "width": 1400,
         "height": 900,
         "resizable": true,
@@ -24,7 +24,9 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "**"
+        ]
       }
     }
   },
@@ -32,6 +34,8 @@
     "active": true,
     "targets": "all",
     "icon": [
+      "icons/icon.icns",
+      "icons/icon.ico",
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
