@@ -795,6 +795,17 @@ main::-webkit-scrollbar-thumb:hover {
   -webkit-overflow-scrolling: touch;
 }
 
+/* sidebar 展开时，成长历程变为右侧圆角卡片，与 sidebar 并排 */
+.growth-journey-overlay.growth-journey-beside {
+  /* sidebar: left 12px + width 240px + gap 12px = 264px */
+  left: 264px;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
 .growth-close-btn {
   @apply fixed z-[60];
   @apply w-9 h-9 flex items-center justify-center;
