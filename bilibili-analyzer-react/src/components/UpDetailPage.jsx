@@ -1,5 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Sparkles, ChevronRight, RefreshCw } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, ChevronRight, RefreshCw, X } from 'lucide-react';
 import { getImageUrl } from '../utils';
 import DataAnalysis from './up-detail/DataAnalysis';
 import VideoList from './up-detail/VideoList';
@@ -186,7 +187,7 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative py-2.5 text-sm font-medium transition-colors ${
+                className={`relative py-2.5 text-sm font-medium transition-colors duration-200 ${
                   activeTab === tab.id
                     ? 'text-neutral-900'
                     : 'text-neutral-400 hover:text-neutral-600'
@@ -194,7 +195,11 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false
               >
                 {tab.label}
                 {activeTab === tab.id && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 rounded-full"></span>
+                  <motion.span
+                    layoutId="detail-tab-indicator"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 rounded-full"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  />
                 )}
               </button>
             ))}
@@ -235,18 +240,44 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false
           )}
         </main>
 
-        {/* 成长历程全屏覆盖层 */}
-        {showGrowthJourney && (
-          <div className={`growth-journey-overlay ${sidebarCollapsed ? '' : 'growth-journey-beside'}`}>
-            <GrowthJourney
-              videos={videos}
-              upName={upInfo?.name}
-              upFace={upInfo?.face}
-              isActive={showGrowthJourney}
-              onClose={() => setShowGrowthJourney(false)}
-            />
-          </div>
-        )}
+        {/* 成长历程覆盖层 */}
+        <AnimatePresence>
+          {showGrowthJourney && (
+            <motion.div
+              className="growth-journey-shell"
+              initial={{ opacity: 0, top: 0, right: 0, bottom: 0, left: 0, borderRadius: 0 }}
+              animate={sidebarCollapsed ? {
+                opacity: 1,
+                top: 0, right: 0, bottom: 0, left: 0,
+                borderRadius: 0,
+              } : {
+                opacity: 1,
+                top: 12, right: 12, bottom: 12, left: 264,
+                borderRadius: 16,
+              }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+              {/* 关闭按钮：absolute 定位在 shell 内，不随内容滚动 */}
+              <button
+                onClick={() => setShowGrowthJourney(false)}
+                className="growth-close-btn"
+                title="关闭"
+              >
+                <X size={18} strokeWidth="1.5" />
+              </button>
+
+              <div className="growth-journey-scroll">
+                <GrowthJourney
+                  videos={videos}
+                  upName={upInfo?.name}
+                  upFace={upInfo?.face}
+                  isActive={showGrowthJourney}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Video Detail Drawer */}
         <VideoDetailDrawer

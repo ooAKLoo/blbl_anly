@@ -180,6 +180,10 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
     let maxPlay = firstVideo.play_count;
     let cumulativePlays = firstVideo.play_count;
     const achievedPlayMilestones = new Set();
+    // 第一个视频本身可能已经超过某些累计播放里程碑，提前标记
+    PLAY_MILESTONES.forEach(m => {
+      if (cumulativePlays >= m) achievedPlayMilestones.add(m);
+    });
     const yearsSeen = new Set([firstVideoDate.getFullYear()]);
 
     vids.forEach((v, index) => {
@@ -290,7 +294,7 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
 
   // 设置 IntersectionObserver
   useEffect(() => {
-    const scrollContainer = containerRef.current?.closest('.growth-journey-overlay');
+    const scrollContainer = containerRef.current?.closest('.growth-journey-scroll');
     if (!scrollContainer || storyNodes.length === 0) return;
 
     const observer = new IntersectionObserver(

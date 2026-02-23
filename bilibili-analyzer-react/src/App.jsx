@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { motion, MotionConfig } from 'framer-motion';
 import Sidebar from './components/Sidebar';
 import NewScrapeDialog from './components/NewScrapeDialog';
 import SettingsDialog from './components/SettingsDialog';
@@ -327,6 +328,7 @@ function App() {
   }, [savedUpList]);
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex h-screen">
       {/* Sidebar */}
       <Sidebar
@@ -344,10 +346,10 @@ function App() {
       />
 
       {/* Main Content */}
-      <main
-        className={`flex-1 h-screen overflow-x-hidden overflow-y-auto bg-neutral-100 transition-all duration-200 ${
-          sidebarCollapsed ? 'ml-[60px]' : 'ml-[264px]'
-        }`}
+      <motion.main
+        className="flex-1 h-screen overflow-x-hidden overflow-y-auto bg-neutral-100"
+        animate={{ marginLeft: sidebarCollapsed ? 60 : 264 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       >
         {/* Home Page (对比分析) */}
         {currentView === 'home' && (
@@ -392,7 +394,7 @@ function App() {
             </div>
           </div>
         )}
-      </main>
+      </motion.main>
 
       {/* Dialogs */}
       <NewScrapeDialog
@@ -412,6 +414,7 @@ function App() {
         onSave={handleSaveCookie}
       />
     </div>
+    </MotionConfig>
   );
 }
 

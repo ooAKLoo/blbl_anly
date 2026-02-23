@@ -1,5 +1,8 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { TIME_RANGE_OPTIONS, DURATION_OPTIONS } from '../utils/constants';
+
+const springTransition = { type: 'spring', stiffness: 500, damping: 35 };
 
 export default function VideoFilterBar({
   timeRange = 'all',
@@ -18,13 +21,20 @@ export default function VideoFilterBar({
             <button
               key={option.value}
               onClick={() => onUpdateTimeRange?.(option.value)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150 ${
-                timeRange === option.value
-                  ? 'bg-neutral-900 text-white'
-                  : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
-              }`}
+              className="relative px-2.5 py-1 text-xs font-medium rounded-md z-[1]"
             >
-              {option.label}
+              {timeRange === option.value && (
+                <motion.div
+                  layoutId="filter-time-range-indicator"
+                  className="absolute inset-0 bg-neutral-900 rounded-md"
+                  transition={springTransition}
+                />
+              )}
+              <span className={`relative z-[1] transition-colors duration-200 ${
+                timeRange === option.value ? 'text-white' : 'text-neutral-500 hover:text-neutral-700'
+              }`}>
+                {option.label}
+              </span>
             </button>
           ))}
         </div>
@@ -41,13 +51,20 @@ export default function VideoFilterBar({
             <button
               key={option.value}
               onClick={() => onUpdateDuration?.(option.value)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150 ${
-                duration === option.value
-                  ? 'bg-neutral-900 text-white'
-                  : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
-              }`}
+              className="relative px-2.5 py-1 text-xs font-medium rounded-md z-[1]"
             >
-              {option.label}
+              {duration === option.value && (
+                <motion.div
+                  layoutId="filter-duration-indicator"
+                  className="absolute inset-0 bg-neutral-900 rounded-md"
+                  transition={springTransition}
+                />
+              )}
+              <span className={`relative z-[1] transition-colors duration-200 ${
+                duration === option.value ? 'text-white' : 'text-neutral-500 hover:text-neutral-700'
+              }`}>
+                {option.label}
+              </span>
             </button>
           ))}
         </div>

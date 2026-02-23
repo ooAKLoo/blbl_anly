@@ -149,7 +149,7 @@ const GrowthChart = ({ growthData, milestones, progress, onReplay }) => {
           </HoverCard.Trigger>
           <HoverCard.Portal>
             <HoverCard.Content
-              className="w-72 bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] p-0 overflow-hidden z-50"
+              className="w-72 bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] p-0 overflow-hidden z-[200]"
               sideOffset={8}
             >
               {m.video && (
