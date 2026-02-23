@@ -60,7 +60,7 @@ const EndingSection = ({ upName = 'UP主', upFace = '', totalDays = 0, firstVide
   useEffect(() => {
     if (!endingRef.current || hasStartedRef.current) return;
 
-    const scrollContainer = endingRef.current.closest('.growth-journey-overlay');
+    const scrollContainer = endingRef.current.closest('.growth-journey-scroll');
 
     const observer = new IntersectionObserver(
       ([entry]) => {

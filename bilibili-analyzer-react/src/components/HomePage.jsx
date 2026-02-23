@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import * as echarts from 'echarts';
 import 'echarts-wordcloud';
 import { Plus, X, Users, Trophy, Play, Calendar, Info } from 'lucide-react';
@@ -1057,24 +1058,38 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
                   <button
                     key={option.value}
                     onClick={() => setSelectedTimeRange(option.value)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150 ${
-                      selectedTimeRange === option.value
-                        ? 'bg-white text-neutral-900 shadow-sm'
-                        : 'text-neutral-500 hover:text-neutral-700'
-                    }`}
+                    className="relative px-3 py-1.5 text-sm font-medium rounded-md z-[1]"
                   >
-                    {option.label}
+                    {selectedTimeRange === option.value && (
+                      <motion.div
+                        layoutId="home-time-range-indicator"
+                        className="absolute inset-0 bg-white rounded-md shadow-sm"
+                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                    <span className={`relative z-[1] transition-colors duration-200 ${
+                      selectedTimeRange === option.value ? 'text-neutral-900' : 'text-neutral-500'
+                    }`}>
+                      {option.label}
+                    </span>
                   </button>
                 ))}
                 <button
                   onClick={() => setSelectedTimeRange('custom')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150 ${
-                    selectedTimeRange === 'custom'
-                      ? 'bg-white text-neutral-900 shadow-sm'
-                      : 'text-neutral-500 hover:text-neutral-700'
-                  }`}
+                  className="relative px-3 py-1.5 text-sm font-medium rounded-md z-[1]"
                 >
-                  自定义
+                  {selectedTimeRange === 'custom' && (
+                    <motion.div
+                      layoutId="home-time-range-indicator"
+                      className="absolute inset-0 bg-white rounded-md shadow-sm"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                  <span className={`relative z-[1] transition-colors duration-200 ${
+                    selectedTimeRange === 'custom' ? 'text-neutral-900' : 'text-neutral-500'
+                  }`}>
+                    自定义
+                  </span>
                 </button>
               </div>
               {selectedTimeRange === 'custom' && (
@@ -1251,26 +1266,29 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
                 <div className="flex items-center gap-4">
                   {/* 指标切换 */}
                   <div className="flex items-center p-1 bg-neutral-100 rounded-lg">
-                    <button
-                      onClick={() => setChartMetric('play')}
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                        chartMetric === 'play'
-                          ? 'bg-white text-neutral-900 shadow-sm'
-                          : 'text-neutral-500 hover:text-neutral-700'
-                      }`}
-                    >
-                      播放量
-                    </button>
-                    <button
-                      onClick={() => setChartMetric('engagement')}
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                        chartMetric === 'engagement'
-                          ? 'bg-white text-neutral-900 shadow-sm'
-                          : 'text-neutral-500 hover:text-neutral-700'
-                      }`}
-                    >
-                      互动率
-                    </button>
+                    {[
+                      { value: 'play', label: '播放量' },
+                      { value: 'engagement', label: '互动率' },
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => setChartMetric(option.value)}
+                        className="relative px-3 py-1 text-xs font-medium rounded-md z-[1]"
+                      >
+                        {chartMetric === option.value && (
+                          <motion.div
+                            layoutId="home-chart-metric-indicator"
+                            className="absolute inset-0 bg-white rounded-md shadow-sm"
+                            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                          />
+                        )}
+                        <span className={`relative z-[1] transition-colors duration-200 ${
+                          chartMetric === option.value ? 'text-neutral-900' : 'text-neutral-500'
+                        }`}>
+                          {option.label}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                   {/* UP主图例 */}
                   {selectedUps.map(up => (

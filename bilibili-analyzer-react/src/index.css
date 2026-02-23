@@ -52,11 +52,45 @@ main::-webkit-scrollbar-thumb:hover {
 /* Custom component styles */
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 cursor-pointer border-none outline-none inline-flex items-center justify-center gap-2;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer border-none outline-none;
+  }
+
+  .btn:active {
+    transform: scale(0.98);
+  }
+
+  .btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700;
+    color: #fff;
+    background: var(--accent-primary, #5c6bc0);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #6d7cd0;
+  }
+
+  .btn-primary:active:not(:disabled) {
+    background: #5563b3;
+  }
+
+  .btn-danger {
+    color: #fff;
+    background: var(--accent-danger, #ff5252);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: #ff6b6b;
+  }
+
+  .btn-danger:active:not(:disabled) {
+    background: #e64a4a;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900;
   }
 
   .btn-secondary {
@@ -68,8 +102,8 @@ main::-webkit-scrollbar-thumb:hover {
   }
 
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg outline-none transition-all duration-200;
-    @apply focus:border-primary-500 focus:ring-2 focus:ring-primary-100;
+    @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition-all duration-200;
+    @apply placeholder:text-gray-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100;
   }
 
   .card {
@@ -107,40 +141,29 @@ main::-webkit-scrollbar-thumb:hover {
 
 /* Dialog Styles */
 .dialog-overlay {
-  position: fixed;
-  inset: 0;
+  @apply fixed inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 1000;
-  opacity: 0;
-  transition: opacity 0.2s ease;
 }
 
 .dialog-overlay.dialog-enter-active {
-  opacity: 1;
+  @apply opacity-100;
 }
 
 .dialog-overlay.dialog-leave-active {
-  opacity: 0;
+  @apply opacity-0;
 }
 
 .dialog-content {
+  @apply w-full overflow-hidden rounded-xl flex flex-col opacity-0;
+  @apply transition-[transform,opacity] duration-200;
   background: var(--bg-secondary, #ffffff);
   border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
-  border-radius: 12px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  width: 100%;
   max-width: 480px;
   max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
   transform: scale(0.95);
-  opacity: 0;
-  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .dialog-enter-active .dialog-content {
@@ -154,75 +177,55 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
+  @apply flex items-center justify-between px-6 py-5;
   border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
 }
 
 .dialog-header h2 {
-  font-size: 1.125rem;
-  font-weight: 600;
+  @apply m-0 text-lg font-semibold;
   color: var(--text-primary, #1a1a1a);
-  margin: 0;
 }
 
 .close-btn {
-  background: transparent;
-  border: none;
+  @apply flex items-center justify-center rounded-md p-1 border-none bg-transparent;
+  @apply text-neutral-400 transition-colors duration-200 cursor-pointer;
   color: var(--text-muted, #999);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s, background 0.2s;
 }
 
 .close-btn:hover {
+  @apply text-neutral-900 bg-neutral-100;
   color: var(--text-primary, #1a1a1a);
-  background: var(--bg-hover, #f0f0f0);
 }
 
 .dialog-body {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  @apply p-6 flex flex-col gap-5;
 }
 
 .input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  @apply flex flex-col gap-1.5;
 }
 
 .input-label {
-  font-size: 0.875rem;
-  font-weight: 500;
+  @apply text-sm font-medium text-neutral-900;
   color: var(--text-primary, #1a1a1a);
 }
 
 .input-hint {
-  font-size: 0.75rem;
+  @apply text-xs text-neutral-400;
   color: var(--text-muted, #999);
 }
 
 .dialog-body .input {
+  @apply w-full rounded-lg border border-black/10 bg-neutral-50 px-4 py-3 text-sm;
+  @apply transition-[border-color,box-shadow] duration-200;
   background: var(--bg-tertiary, #fafafa);
   border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
-  border-radius: 8px;
   color: var(--text-primary, #1a1a1a);
-  padding: 12px 16px;
-  font-size: 0.875rem;
   font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  width: 100%;
 }
 
 .dialog-body .input::placeholder {
+  @apply text-neutral-400;
   color: var(--text-muted, #999);
 }
 
@@ -233,22 +236,17 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .dialog-body .input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  @apply opacity-50 cursor-not-allowed;
 }
 
 .progress-section {
+  @apply rounded-lg p-4 bg-neutral-50;
   background: var(--bg-tertiary, #fafafa);
-  border-radius: 8px;
-  padding: 16px;
 }
 
 .progress-bar {
-  height: 6px;
+  @apply h-1.5 rounded-sm overflow-hidden mb-2 bg-neutral-200;
   background: var(--bg-hover, #e8e8e8);
-  border-radius: 3px;
-  overflow: hidden;
-  margin-bottom: 8px;
 }
 
 .progress-fill {
@@ -258,86 +256,30 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .progress-text {
-  font-size: 0.75rem;
+  @apply text-xs text-neutral-600;
   color: var(--text-secondary, #666);
 }
 
 .dialog-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
+  @apply flex items-center justify-end gap-3 px-6 py-4;
   border-top: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
 }
 
-.btn {
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
-  border: none;
-}
-
-.btn:active {
-  transform: scale(0.98);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary, #666);
-}
-
-.btn-ghost:hover {
-  background: var(--bg-hover, #f0f0f0);
-  color: var(--text-primary, #1a1a1a);
-}
-
-.btn-primary {
-  background: var(--accent-primary, #5c6bc0);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #6d7cd0;
-}
-
-.btn-danger {
-  background: var(--accent-danger, #ff5252);
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #ff6b6b;
-}
-
 .setting-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  @apply flex flex-col gap-2;
 }
 
 .setting-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+  @apply flex items-baseline gap-2;
 }
 
 .setting-label {
-  font-size: 0.875rem;
-  font-weight: 500;
+  @apply text-sm font-medium text-neutral-900;
   color: var(--text-primary, #1a1a1a);
 }
 
 .setting-hint {
-  font-size: 0.75rem;
+  @apply text-xs text-neutral-400;
   color: var(--text-muted, #999);
 }
 
@@ -380,15 +322,7 @@ main::-webkit-scrollbar-thumb:hover {
   border: none;
   background: white;
   color: rgb(115, 115, 115);
-  top: 16px;
-  left: 16px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: left 0.2s ease, top 0.2s ease;
-}
-
-.sidebar-toggle.active {
-  top: 32px;
-  left: 204px;
 }
 
 .sidebar-toggle:hover {
@@ -409,14 +343,6 @@ main::-webkit-scrollbar-thumb:hover {
   border-radius: 16px;
   overflow: hidden;
   z-index: 100;
-  opacity: 1;
-  transform: translateX(0);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sidebar-exit {
-  opacity: 0;
-  transform: translateX(-16px);
 }
 
 .sidebar-header {
@@ -668,19 +594,6 @@ main::-webkit-scrollbar-thumb:hover {
   z-index: 1000;
   min-width: 160px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.08);
-  opacity: 0;
-  transform: scale(0.95) translateY(4px);
-  transition: all 0.15s ease-out;
-}
-
-.context-menu.context-menu-enter {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-}
-
-.context-menu.context-menu-exit {
-  opacity: 0;
-  transform: scale(0.95) translateY(4px);
 }
 
 .context-menu-item {
@@ -787,32 +700,28 @@ main::-webkit-scrollbar-thumb:hover {
   @apply text-xs font-medium text-neutral-500 group-hover:text-neutral-700 transition-colors;
 }
 
-.growth-journey-overlay {
-  @apply fixed inset-0 z-50 bg-white;
+/* 外层：定位 + 圆角裁剪，不滚动 */
+.growth-journey-shell {
+  @apply fixed z-50 bg-white;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* 内层：滚动容器，始终填满外层 */
+.growth-journey-scroll {
+  width: 100%;
+  height: 100%;
   overflow-y: scroll;
   overflow-x: hidden;
-  animation: growth-journey-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-overflow-scrolling: touch;
 }
 
-/* sidebar 展开时，成长历程变为右侧圆角卡片，与 sidebar 并排 */
-.growth-journey-overlay.growth-journey-beside {
-  /* sidebar: left 12px + width 240px + gap 12px = 264px */
-  left: 264px;
-  top: 12px;
-  right: 12px;
-  bottom: 12px;
-  border-radius: 16px;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 4px 24px rgba(0, 0, 0, 0.08);
-}
-
 .growth-close-btn {
-  @apply fixed z-[60];
+  @apply absolute z-[60];
   @apply w-9 h-9 flex items-center justify-center;
   @apply text-neutral-300 hover:text-neutral-500;
-  @apply rounded-full transition-all duration-300;
+  @apply rounded-full transition-colors duration-200;
   @apply hover:bg-neutral-100/80;
-  /* 与 sidebar-toggle 收起时同一水平线 */
   top: 16px;
   right: 16px;
   opacity: 0.6;
@@ -822,16 +731,7 @@ main::-webkit-scrollbar-thumb:hover {
   opacity: 1;
 }
 
-@keyframes growth-journey-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+
 
 /* DataAnalysis, InsightReport, VideoList Common Styles */
 .section-title {

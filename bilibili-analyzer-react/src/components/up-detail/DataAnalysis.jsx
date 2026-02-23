@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect, useCallback, useState } from 'react';
+import { motion } from 'framer-motion';
 import * as echarts from 'echarts';
 import {
   Zap,
@@ -1070,26 +1071,29 @@ function DataAnalysis({
               <div className="flex items-center justify-between mb-1">
                 <h3 className="chart-title !mb-0">发布趋势与播放量</h3>
                 <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-0.5">
-                  <button
-                    onClick={() => setTrendGranularity('month')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                      trendGranularity === 'month'
-                        ? 'bg-white text-neutral-900 shadow-sm'
-                        : 'text-neutral-500 hover:text-neutral-700'
-                    }`}
-                  >
-                    按月
-                  </button>
-                  <button
-                    onClick={() => setTrendGranularity('year')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                      trendGranularity === 'year'
-                        ? 'bg-white text-neutral-900 shadow-sm'
-                        : 'text-neutral-500 hover:text-neutral-700'
-                    }`}
-                  >
-                    按年
-                  </button>
+                  {[
+                    { value: 'month', label: '按月' },
+                    { value: 'year', label: '按年' },
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => setTrendGranularity(option.value)}
+                      className="relative px-3 py-1 text-xs font-medium rounded-md z-[1]"
+                    >
+                      {trendGranularity === option.value && (
+                        <motion.div
+                          layoutId="trend-granularity-indicator"
+                          className="absolute inset-0 bg-white rounded-md shadow-sm"
+                          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <span className={`relative z-[1] transition-colors duration-200 ${
+                        trendGranularity === option.value ? 'text-neutral-900' : 'text-neutral-500'
+                      }`}>
+                        {option.label}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
               <div ref={publishTrendChartRef} className="h-[280px]"></div>
