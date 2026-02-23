@@ -553,8 +553,10 @@ async fn init_wbi_keys(state: State<'_, Arc<ScraperState>>) -> Result<bool, Stri
 
     let json: serde_json::Value = resp.json().await.map_err(|e| format!("解析JSON失败: {}", e))?;
 
-    if json["code"].as_i64() != Some(0) {
-        return Err("获取WBI keys失败".to_string());
+    let code = json["code"].as_i64().unwrap_or(-1);
+    if code != 0 {
+        let msg = json["message"].as_str().unwrap_or("未知错误");
+        return Err(format!("获取WBI keys失败: {} (code {})", msg, code));
     }
 
     let img_url = json["data"]["wbi_img"]["img_url"]
@@ -614,10 +616,12 @@ async fn fetch_up_info_with_url(
 
     let json: serde_json::Value = resp.json().await.map_err(|e| format!("解析JSON失败: {}", e))?;
 
-    if json["code"].as_i64() != Some(0) {
+    let code = json["code"].as_i64().unwrap_or(-1);
+    if code != 0 {
         return Err(format!(
-            "获取UP主信息失败: {}",
-            json["message"].as_str().unwrap_or("未知错误")
+            "获取UP主信息失败: {} (code {})",
+            json["message"].as_str().unwrap_or("未知错误"),
+            code
         ));
     }
 
@@ -638,6 +642,9 @@ async fn get_up_info(mid: i64, state: State<'_, Arc<ScraperState>>) -> Result<Up
     let cookie = state.cookie.lock().await.clone();
     let img_key = state.img_key.lock().await.clone();
     let sub_key = state.sub_key.lock().await.clone();
+    if img_key.is_empty() || sub_key.is_empty() {
+        return Err("WBI keys 为空，请先获取 WBI keys".to_string());
+    }
 
     let client = reqwest::Client::new();
     let headers = build_headers(&cookie);
@@ -713,11 +720,13 @@ async fn scrape_videos(
             }
         };
 
-        if json["code"].as_i64() != Some(0) {
+        let code = json["code"].as_i64().unwrap_or(-1);
+        if code != 0 {
             *state.is_running.lock().await = false;
             return Err(format!(
-                "API错误: {}",
-                json["message"].as_str().unwrap_or("未知错误")
+                "API错误: {} (code {})",
+                json["message"].as_str().unwrap_or("未知错误"),
+                code
             ));
         }
 

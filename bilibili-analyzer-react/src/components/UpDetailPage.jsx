@@ -237,7 +237,7 @@ const UpDetailPage = forwardRef(({ upInfo, videos = [], sidebarCollapsed = false
 
         {/* 成长历程全屏覆盖层 */}
         {showGrowthJourney && (
-          <div className="growth-journey-overlay">
+          <div className={`growth-journey-overlay ${sidebarCollapsed ? '' : 'growth-journey-beside'}`}>
             <GrowthJourney
               videos={videos}
               upName={upInfo?.name}

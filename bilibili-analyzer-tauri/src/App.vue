@@ -189,8 +189,23 @@ async function handleStartScrape({ mid: newMid }) {
   await startScraping();
 }
 
+function normalizeMid(input) {
+  const str = String(input ?? '').trim();
+  if (!str) return null;
+  const matches = str.match(/\d+/g);
+  if (!matches || matches.length === 0) return null;
+  const midNum = parseInt(matches[matches.length - 1], 10);
+  return Number.isNaN(midNum) ? null : midNum;
+}
+
 async function startScraping() {
   if (!mid.value) return;
+
+  const normalizedMid = normalizeMid(mid.value);
+  if (normalizedMid === null) {
+    alert('请输入有效的 MID 或 UP 主空间 URL');
+    return;
+  }
 
   isLoading.value = true;
   videos.value = [];
@@ -198,18 +213,19 @@ async function startScraping() {
   progress.value = { current: 0, total: 0, page: 0, message: '初始化...' };
 
   try {
+    mid.value = String(normalizedMid);
     progress.value.message = '获取WBI签名...';
     await invoke('init_wbi_keys');
 
     progress.value.message = '开始爬取视频...';
     const result = await invoke('scrape_videos', {
-      mid: parseInt(mid.value)
+      mid: normalizedMid
     });
 
     if (result.success) {
       videos.value = result.videos;
       upInfo.value = result.up_info;
-      currentMid.value = parseInt(mid.value);
+      currentMid.value = normalizedMid;
 
       await loadSavedUpList();
       showNewScrapeDialog.value = false;
@@ -217,6 +233,7 @@ async function startScraping() {
       alert('爬取失败: ' + (result.error || '未知错误'));
     }
   } catch (error) {
+    console.error('爬取失败:', error);
     alert('错误: ' + error);
   } finally {
     isLoading.value = false;

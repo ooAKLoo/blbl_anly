@@ -127,9 +127,29 @@ function App() {
     await startScraping(newMid);
   };
 
+  const normalizeMid = (input) => {
+    const str = String(input ?? '').trim();
+    if (!str) return null;
+    const matches = str.match(/\d+/g);
+    if (!matches || matches.length === 0) return null;
+    const midNum = parseInt(matches[matches.length - 1], 10);
+    return Number.isNaN(midNum) ? null : midNum;
+  };
+
+  const isNotLoggedInError = (err) => {
+    const msg = String(err ?? '');
+    return msg.includes('账号未登录') || msg.includes('code -101');
+  };
+
   const startScraping = async (targetMid) => {
     const midToUse = targetMid || mid;
     if (!midToUse) return;
+
+    const normalizedMid = normalizeMid(midToUse);
+    if (normalizedMid === null) {
+      alert('请输入有效的 MID 或 UP 主空间 URL');
+      return;
+    }
 
     setIsLoading(true);
     setVideos([]);
@@ -137,26 +157,38 @@ function App() {
     setProgress({ current: 0, total: 0, page: 0, message: '初始化...' });
 
     try {
+      setMid(String(normalizedMid));
       setProgress({ current: 0, total: 0, page: 0, message: '获取WBI签名...' });
       await invoke('init_wbi_keys');
 
       setProgress({ current: 0, total: 0, page: 0, message: '开始爬取视频...' });
       const result = await invoke('scrape_videos', {
-        mid: parseInt(midToUse)
+        mid: normalizedMid
       });
 
       if (result.success) {
         setVideos(result.videos);
         setUpInfo(result.up_info);
-        setCurrentMid(parseInt(midToUse));
+        setCurrentMid(normalizedMid);
 
         await loadSavedUpList();
         setShowNewScrapeDialog(false);
       } else {
-        alert('爬取失败: ' + (result.error || '未知错误'));
+        if (isNotLoggedInError(result.error)) {
+          alert('账号未登录，无法获取 WBI keys。请在“设置”中填写 Cookie 后再试。');
+          setShowSettingsDialog(true);
+        } else {
+          alert('爬取失败: ' + (result.error || '未知错误'));
+        }
       }
     } catch (error) {
-      alert('错误: ' + error);
+      console.error('爬取失败:', error);
+      if (isNotLoggedInError(error)) {
+        alert('账号未登录，无法获取 WBI keys。请在“设置”中填写 Cookie 后再试。');
+        setShowSettingsDialog(true);
+      } else {
+        alert('错误: ' + error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -190,10 +222,20 @@ function App() {
           }
         }));
       } else {
-        alert('刷新失败: ' + (result.error || '未知错误'));
+        if (isNotLoggedInError(result.error)) {
+          alert('账号未登录，无法获取 WBI keys。请在“设置”中填写 Cookie 后再试。');
+          setShowSettingsDialog(true);
+        } else {
+          alert('刷新失败: ' + (result.error || '未知错误'));
+        }
       }
     } catch (error) {
-      alert('刷新错误: ' + error);
+      if (isNotLoggedInError(error)) {
+        alert('账号未登录，无法获取 WBI keys。请在“设置”中填写 Cookie 后再试。');
+        setShowSettingsDialog(true);
+      } else {
+        alert('刷新错误: ' + error);
+      }
     } finally {
       setIsRefreshing(false);
     }
