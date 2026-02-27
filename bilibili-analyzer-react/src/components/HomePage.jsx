@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import * as echarts from 'echarts';
 import { Plus, X, Users, Trophy, Play, Calendar, Info } from 'lucide-react';
 import { formatNumber, getImageUrl, parseDuration, detectAllVirals, getEngagementRate } from '../utils';
+import { generateCrossUpFunFacts } from '../utils/crossUpInsights';
+import { FunFactCards } from './common';
 import { open } from '@tauri-apps/plugin-shell';
 import * as HoverCard from '@radix-ui/react-hover-card';
 
@@ -309,6 +311,14 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
     const minAvg = allAvgPlays.length > 0 ? Math.min(...allAvgPlays) : 1;
     const relativeFlow = avgPlay > 0 ? (avgPlay / minAvg).toFixed(1) : 0;
 
+    // 年均发布数 + 单条效率
+    const dates = videos.map(v => new Date(v.publish_time).getTime());
+    const earliest = Math.min(...dates);
+    const latest = Math.max(...dates);
+    const activeYears = Math.max(1, (latest - earliest) / (365.25 * 24 * 60 * 60 * 1000));
+    const yearlyPublishRate = Math.round(videos.length / activeYears);
+    const perVideoEfficiency = yearlyPublishRate > 0 ? Math.round(avgPlay / yearlyPublishRate) : 0;
+
     return {
       videoCount: videos.length,
       avgPlay,
@@ -320,7 +330,9 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
       publishFrequency,
       bestPublishTime,
       hitRate,
-      relativeFlow
+      relativeFlow,
+      yearlyPublishRate,
+      perVideoEfficiency
     };
   };
 
@@ -419,6 +431,14 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
       localSet: new Set(localBreakouts.map(v => v.bvid))
     };
   };
+
+  // 趣味洞见
+  const funFacts = selectedUps.length >= 2
+    ? generateCrossUpFunFacts(
+        selectedUps.map((up, i) => ({ ...up, color: upColors[i % upColors.length] })),
+        getFilteredVideos
+      )
+    : [];
 
   // 渲染散点图
   const renderScatterChart = () => {
@@ -1105,6 +1125,14 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
               <div className="flex-1 h-px bg-neutral-200"></div>
             </div>
 
+            {/* 趣味洞见卡片 */}
+            {funFacts.length > 0 && (
+              <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
+                <h3 className="text-sm font-medium text-neutral-700 mb-3">趣味洞见</h3>
+                <FunFactCards facts={funFacts} />
+              </div>
+            )}
+
             {/* 时间轴散点图 */}
             <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
               <div className="flex items-center justify-between mb-4">
@@ -1374,6 +1402,22 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
                       {selectedUps.map(up => (
                         <td key={up.mid} className="text-right py-3 px-4 font-medium text-neutral-900">
                           {getUpStats(up.mid).hitRate}%
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-neutral-50 hover:bg-neutral-50/50">
+                      <td className="py-3 px-4 text-neutral-600">年均发布数</td>
+                      {selectedUps.map(up => (
+                        <td key={up.mid} className="text-right py-3 px-4 font-medium text-neutral-900">
+                          {getUpStats(up.mid).yearlyPublishRate} 条/年
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-neutral-50 hover:bg-neutral-50/50">
+                      <td className="py-3 px-4 text-neutral-600">单条效率</td>
+                      {selectedUps.map(up => (
+                        <td key={up.mid} className="text-right py-3 px-4 font-medium text-neutral-900">
+                          {formatNumber(getUpStats(up.mid).perVideoEfficiency)}
                         </td>
                       ))}
                     </tr>

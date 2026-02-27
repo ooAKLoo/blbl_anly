@@ -98,6 +98,16 @@ export const CHART_SIZES = {
   SIZE_SCALE_FACTOR: 4             // 大小缩放因子
 };
 
+// ============ 标题分析阈值 ============
+
+export const TITLE_ANALYSIS_THRESHOLDS = {
+  minSampleForKeyword: 3,       // 关键词最少命中视频数
+  minLiftForPattern: 1.2,       // 句式规律最低 lift 值
+  minLiftForHighlight: 1.5,     // 关键词高亮阈值（绿色）
+  comebackMultiple: 1.5,        // 回归爆款倍数阈值
+  weekdayLiftThreshold: 1.5,    // 星期效应 lift 阈值
+};
+
 // ============ 动画相关常量 ============
 
 export const ANIMATION = {
