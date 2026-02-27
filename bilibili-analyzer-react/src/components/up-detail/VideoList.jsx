@@ -18,6 +18,7 @@ import {
   List as ListIcon,
   Clock
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Icon 映射
 const iconMap = {
@@ -35,9 +36,13 @@ function formatDurationText(seconds) {
   if (seconds >= 3600) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    return `${h}小时${m > 0 ? m + '分' : ''}`;
+    return m > 0 ? `${h}h${m}m` : `${h}h`;
   }
-  return `${Math.floor(seconds / 60)}分钟`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0 && s === 0) return '0s';
+  if (m === 0) return `${s}s`;
+  return `${m}m`;
 }
 
 /**
@@ -230,13 +235,18 @@ export default function VideoList({ videos = [] }) {
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center p-1 bg-white rounded-lg">
+        <div className="relative flex items-center p-1 bg-white rounded-lg">
+          {/* Morph indicator */}
+          <motion.div
+            layoutId="viewmode-indicator"
+            className="absolute w-[28px] h-[28px] bg-neutral-100 rounded-md"
+            style={{ left: viewMode === 'grid' ? 4 : 32 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+          />
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-md transition-all duration-150 ${
-              viewMode === 'grid'
-                ? 'bg-neutral-100 text-neutral-900'
-                : 'text-neutral-400 hover:text-neutral-600'
+            className={`relative z-[1] p-1.5 rounded-md transition-colors duration-150 ${
+              viewMode === 'grid' ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-600'
             }`}
             title="网格视图"
           >
@@ -244,10 +254,8 @@ export default function VideoList({ videos = [] }) {
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-1.5 rounded-md transition-all duration-150 ${
-              viewMode === 'list'
-                ? 'bg-neutral-100 text-neutral-900'
-                : 'text-neutral-400 hover:text-neutral-600'
+            className={`relative z-[1] p-1.5 rounded-md transition-colors duration-150 ${
+              viewMode === 'list' ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-600'
             }`}
             title="列表视图"
           >
@@ -256,94 +264,102 @@ export default function VideoList({ videos = [] }) {
         </div>
 
         {/* 时长过滤 Slider */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg">
+        <div className="flex items-center gap-2 px-3 h-9 bg-white rounded-lg">
           <button
             onClick={() => setIsDurationFilterActive(!isDurationFilterActive)}
             className={`flex items-center gap-1.5 text-sm transition-colors ${
-              isDurationFilterActive ? 'text-blue-600' : 'text-neutral-500 hover:text-neutral-700'
+              isDurationFilterActive ? 'text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'
             }`}
           >
             <Clock size={14} />
             <span>时长</span>
           </button>
-          
-          {isDurationFilterActive && (
-            <div className="flex items-center gap-3">
-              <div className="relative w-[180px] h-6">
-                {/* 双滑块 Range Slider */}
-                <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1.5 bg-neutral-200 rounded-full">
-                  <div
-                    className="absolute h-full bg-blue-500 rounded-full"
+
+          <AnimatePresence>
+            {isDurationFilterActive && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 'auto', opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                className="flex items-center gap-3 overflow-hidden"
+              >
+                <div className="relative w-[180px] h-6 shrink-0">
+                  {/* 双滑块 Range Slider - track 内缩留出圆点空间 */}
+                  <div className="absolute top-1/2 -translate-y-1/2 left-1.5 right-1.5 h-1 bg-neutral-200 rounded-full">
+                    <div
+                      className="absolute h-full bg-neutral-400 rounded-full"
+                      style={{
+                        left: `${((durationRange[0] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}%`,
+                        right: `${100 - ((durationRange[1] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}%`
+                      }}
+                    />
+                    {/* 滑块指示器 - 放在 track 内，百分比基于 track 宽度 */}
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-neutral-600 rounded-full shadow-sm pointer-events-none -ml-1.5"
+                      style={{
+                        left: `${((durationRange[0] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}%`
+                      }}
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-neutral-600 rounded-full shadow-sm pointer-events-none -ml-1.5"
+                      style={{
+                        left: `${((durationRange[1] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}%`
+                      }}
+                    />
+                  </div>
+                  {/* 最小值滑块 - 只处理左半区域 */}
+                  <input
+                    type="range"
+                    min={durationBounds.min}
+                    max={durationBounds.max}
+                    value={durationRange[0]}
+                    onChange={(e) => {
+                      const val = Math.min(Number(e.target.value), durationRange[1] - 60);
+                      setDurationRange([val, durationRange[1]]);
+                    }}
+                    className="absolute top-0 left-1.5 right-1.5 h-full opacity-0 cursor-pointer"
                     style={{
-                      left: `${((durationRange[0] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}%`,
-                      right: `${100 - ((durationRange[1] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}%`
+                      zIndex: 30,
+                      clipPath: `inset(0 ${100 - ((durationRange[0] + durationRange[1]) / 2 - durationBounds.min) / (durationBounds.max - durationBounds.min) * 100}% 0 0)`
+                    }}
+                  />
+                  {/* 最大值滑块 - 只处理右半区域 */}
+                  <input
+                    type="range"
+                    min={durationBounds.min}
+                    max={durationBounds.max}
+                    value={durationRange[1]}
+                    onChange={(e) => {
+                      const val = Math.max(Number(e.target.value), durationRange[0] + 60);
+                      setDurationRange([durationRange[0], val]);
+                    }}
+                    className="absolute top-0 left-1.5 right-1.5 h-full opacity-0 cursor-pointer"
+                    style={{
+                      zIndex: 20,
                     }}
                   />
                 </div>
-                {/* 最小值滑块 - 只处理左半区域 */}
-                <input
-                  type="range"
-                  min={durationBounds.min}
-                  max={durationBounds.max}
-                  value={durationRange[0]}
-                  onChange={(e) => {
-                    const val = Math.min(Number(e.target.value), durationRange[1] - 60);
-                    setDurationRange([val, durationRange[1]]);
+
+                {/* 时长范围显示 */}
+                <span className="text-[11px] font-mono text-neutral-400 whitespace-nowrap tabular-nums">
+                  {formatDurationText(durationRange[0])}<span className="mx-0.5 text-neutral-300">~</span>{formatDurationText(durationRange[1])}
+                </span>
+
+                {/* 重置按钮 */}
+                <button
+                  onClick={() => {
+                    setDurationRange([durationBounds.min, durationBounds.max]);
+                    setIsDurationFilterActive(false);
                   }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  style={{ 
-                    zIndex: 30,
-                    clipPath: `inset(0 ${100 - ((durationRange[0] + durationRange[1]) / 2 - durationBounds.min) / (durationBounds.max - durationBounds.min) * 100}% 0 0)`
-                  }}
-                />
-                {/* 最大值滑块 - 只处理右半区域 */}
-                <input
-                  type="range"
-                  min={durationBounds.min}
-                  max={durationBounds.max}
-                  value={durationRange[1]}
-                  onChange={(e) => {
-                    const val = Math.max(Number(e.target.value), durationRange[0] + 60);
-                    setDurationRange([durationRange[0], val]);
-                  }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  style={{ 
-                    zIndex: 20,
-                  }}
-                />
-                {/* 滑块指示器 */}
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full shadow-sm pointer-events-none"
-                  style={{
-                    left: `calc(${((durationRange[0] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}% - 7px)`
-                  }}
-                />
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full shadow-sm pointer-events-none"
-                  style={{
-                    left: `calc(${((durationRange[1] - durationBounds.min) / (durationBounds.max - durationBounds.min)) * 100}% - 7px)`
-                  }}
-                />
-              </div>
-              
-              {/* 时长范围显示 */}
-              <span className="text-xs text-neutral-500 whitespace-nowrap">
-                {formatDurationText(durationRange[0])} - {formatDurationText(durationRange[1])}
-              </span>
-              
-              {/* 重置按钮 */}
-              <button
-                onClick={() => {
-                  setDurationRange([durationBounds.min, durationBounds.max]);
-                  setIsDurationFilterActive(false);
-                }}
-                className="text-neutral-400 hover:text-neutral-600"
-                title="重置时长过滤"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
+                  className="text-neutral-400 hover:text-neutral-600"
+                  title="重置时长过滤"
+                >
+                  <X size={14} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <span className="text-xs text-neutral-400 ml-auto">
