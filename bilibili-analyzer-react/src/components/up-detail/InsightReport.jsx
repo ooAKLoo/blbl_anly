@@ -18,11 +18,14 @@ import {
   MessageSquareOff,
   CalendarX,
   Info,
-  Play
+  Play,
+  Type,
+  CalendarDays
 } from 'lucide-react';
 import VideoFilterBar from '../VideoFilterBar';
 import { VideoListHoverCard } from '../common';
 import { formatNumber, copyToClipboard, parseDurationMinutes, getImageUrl } from '../../utils';
+import { getTitleKeywordInsights, getTitlePatternInsights } from '../../utils/titleInsights';
 import { useVideoMetrics } from '../../hooks';
 
 function InsightReport({
@@ -53,8 +56,14 @@ function InsightReport({
     getTrendAnalysis,
     getHitVideoFeatures,
     generateDataSummary,
-    getQuadrantAnalysis
+    getQuadrantAnalysis,
+    getPublishingRhythmInsight
   } = useVideoMetrics(videos);
+
+  // Title insights
+  const titleKeywordInsights = useMemo(() => getTitleKeywordInsights(videos), [videos]);
+  const titlePatternInsights = useMemo(() => getTitlePatternInsights(videos), [videos]);
+  const publishingRhythm = useMemo(() => getPublishingRhythmInsight(videos), [videos, getPublishingRhythmInsight]);
 
   // Report Summary
   const reportSummary = useMemo(() => {
@@ -143,8 +152,35 @@ function InsightReport({
       });
     }
 
-    return findings.slice(0, 4);
-  }, [videos, avgPlays, getBestDuration, getBestPublishTime, getTrendAnalysis, getHitVideoFeatures]);
+    // 发布节奏故事
+    if (publishingRhythm && publishingRhythm.longestBreakDays >= 30) {
+      const title = publishingRhythm.isComeback
+        ? `消失 ${publishingRhythm.longestBreakDays} 天后回归爆款`
+        : `最长断更 ${publishingRhythm.longestBreakDays} 天`;
+      findings.push({
+        title,
+        description: publishingRhythm.isComeback
+          ? `回归首条视频达到均播的 ${publishingRhythm.comebackMultiple}x`
+          : '断更后逐步恢复更新节奏',
+        type: publishingRhythm.isComeback ? 'positive' : 'neutral',
+        icon: CalendarDays,
+        detailKey: 'rhythm',
+      });
+    }
+
+    // 星期效应
+    if (publishingRhythm && publishingRhythm.weekdayLift > 50 && publishingRhythm.bestWeekday && publishingRhythm.worstWeekday) {
+      findings.push({
+        title: `${publishingRhythm.bestWeekday.name}发视频效果最好`,
+        description: `${publishingRhythm.bestWeekday.name}发视频比${publishingRhythm.worstWeekday.name}高 ${publishingRhythm.weekdayLift}%`,
+        type: 'positive',
+        icon: Calendar,
+        detailKey: null,
+      });
+    }
+
+    return findings.slice(0, 5);
+  }, [videos, avgPlays, getBestDuration, getBestPublishTime, getTrendAnalysis, getHitVideoFeatures, publishingRhythm]);
 
   // Finding Details for HoverCard
   const findingDetails = useMemo(() => {
@@ -216,8 +252,19 @@ function InsightReport({
       details.localBreakouts = { videos: hitFeatures.localBreakouts || [] };
     }
 
+    // Rhythm details
+    if (publishingRhythm && publishingRhythm.longestBreakDays >= 30) {
+      details.rhythm = {
+        videoBeforeBreak: publishingRhythm.videoBeforeBreak,
+        videoAfterBreak: publishingRhythm.videoAfterBreak,
+        longestBreakDays: publishingRhythm.longestBreakDays,
+        isComeback: publishingRhythm.isComeback,
+        comebackMultiple: publishingRhythm.comebackMultiple,
+      };
+    }
+
     return details;
-  }, [videos, avgPlays, getTrendAnalysis, getHitVideoFeatures]);
+  }, [videos, avgPlays, getTrendAnalysis, getHitVideoFeatures, publishingRhythm]);
 
   // Format publish slot
   const formatPublishSlot = useCallback((publishTime) => {
@@ -659,6 +706,64 @@ function InsightReport({
                                 </div>
                               </>
                             )}
+
+                            {/* Rhythm HoverCard */}
+                            {finding.detailKey === 'rhythm' && findingDetails.rhythm && (
+                              <>
+                                <div className="p-3 border-b border-neutral-100 bg-neutral-50">
+                                  <span className="text-sm font-medium text-neutral-700">发布节奏故事</span>
+                                  <p className="text-xs text-neutral-500 mt-1">断更 {findingDetails.rhythm.longestBreakDays} 天前后对比</p>
+                                </div>
+                                <div className="p-3 space-y-2">
+                                  {findingDetails.rhythm.videoBeforeBreak && (
+                                    <div
+                                      className="flex items-start gap-2 p-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors"
+                                      onClick={() => openVideo(findingDetails.rhythm.videoBeforeBreak)}
+                                    >
+                                      <img
+                                        src={getImageUrl(findingDetails.rhythm.videoBeforeBreak.cover)}
+                                        className="w-16 h-9 rounded object-cover flex-shrink-0"
+                                        referrerPolicy="no-referrer"
+                                        alt=""
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-[10px] text-neutral-400 mb-0.5">断更前最后一条</div>
+                                        <div className="text-xs font-medium text-neutral-800 line-clamp-1">{findingDetails.rhythm.videoBeforeBreak.title}</div>
+                                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
+                                          <span className="flex items-center gap-0.5"><Play size={8} /> {formatNumber(findingDetails.rhythm.videoBeforeBreak.play_count)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {findingDetails.rhythm.videoAfterBreak && (
+                                    <div
+                                      className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                                        findingDetails.rhythm.isComeback ? 'bg-emerald-50 hover:bg-emerald-100' : 'bg-neutral-50 hover:bg-neutral-100'
+                                      }`}
+                                      onClick={() => openVideo(findingDetails.rhythm.videoAfterBreak)}
+                                    >
+                                      <img
+                                        src={getImageUrl(findingDetails.rhythm.videoAfterBreak.cover)}
+                                        className="w-16 h-9 rounded object-cover flex-shrink-0"
+                                        referrerPolicy="no-referrer"
+                                        alt=""
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <div className={`text-[10px] mb-0.5 ${findingDetails.rhythm.isComeback ? 'text-emerald-600 font-medium' : 'text-neutral-400'}`}>
+                                          回归首条 {findingDetails.rhythm.isComeback ? `(${findingDetails.rhythm.comebackMultiple}x 均播)` : ''}
+                                        </div>
+                                        <div className="text-xs font-medium text-neutral-800 line-clamp-1">{findingDetails.rhythm.videoAfterBreak.title}</div>
+                                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
+                                          <span className={`flex items-center gap-0.5 ${findingDetails.rhythm.isComeback ? 'text-emerald-600' : ''}`}>
+                                            <Play size={8} /> {formatNumber(findingDetails.rhythm.videoAfterBreak.play_count)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </HoverCard.Content>
                         </HoverCard.Portal>
                       </HoverCard.Root>
@@ -670,6 +775,64 @@ function InsightReport({
               ))}
             </div>
           </section>
+
+          {/* Title & Rhythm Insights - right column */}
+          {(titleKeywordInsights.length > 0 || titlePatternInsights.length > 0) && (
+            <section className="report-card">
+              <h2 className="section-title">
+                <Type size={16} className="text-blue-500" />
+                标题与节奏洞察
+              </h2>
+
+              {/* A. 标题关键词效果 */}
+              {titleKeywordInsights.length > 0 && (
+                <div className="mb-5">
+                  <div className="text-xs text-neutral-500 mb-2.5">标题关键词效果</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {titleKeywordInsights.map((kw) => (
+                      <VideoListHoverCard
+                        key={kw.keyword}
+                        title={`含"${kw.keyword}"的视频`}
+                        subtitle={`${kw.count} 条视频，均播 ${formatNumber(kw.avgPlay)}，是其余视频的 ${kw.lift}x`}
+                        videos={kw.topVideos}
+                        onVideoClick={openVideo}
+                        colorScheme={kw.lift > 1.5 ? 'emerald' : kw.lift > 1.2 ? 'blue' : 'neutral'}
+                      >
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
+                            kw.lift > 1.5
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              : kw.lift > 1.2
+                              ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                              : kw.lift < 1
+                              ? 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+                              : 'bg-neutral-50 text-neutral-600 hover:bg-neutral-100'
+                          }`}
+                        >
+                          {kw.keyword}
+                          <span className="tabular-nums">{kw.lift}x</span>
+                        </span>
+                      </VideoListHoverCard>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* B. 标题句式规律 */}
+              {titlePatternInsights.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-xs text-neutral-500 mb-1.5">标题句式规律</div>
+                  {titlePatternInsights.slice(0, 2).map((p) => (
+                    <p key={p.pattern} className="text-sm text-neutral-600 leading-relaxed">
+                      标题含<span className="font-medium text-neutral-900">{p.label}</span>的视频，均播高出{' '}
+                      <span className="font-semibold text-emerald-600">{p.lift}x</span>
+                      <span className="text-neutral-400 ml-1">（{p.count}条 vs {p.unmatchedCount}条）</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </div>
 
         {/* Problem Data Analysis */}

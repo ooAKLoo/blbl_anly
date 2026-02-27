@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { formatNumber, parseDuration, parseDurationMinutes, detectGlobalVirals, detectLocalBreakouts } from '../utils';
-import { ACCOUNT_LEVEL_THRESHOLDS, DURATION_BINS, TREND_THRESHOLDS, ANALYSIS_THRESHOLDS } from '../utils/constants';
+import { ACCOUNT_LEVEL_THRESHOLDS, DURATION_BINS, TREND_THRESHOLDS, ANALYSIS_THRESHOLDS, TITLE_ANALYSIS_THRESHOLDS } from '../utils/constants';
 
 /**
  * 视频数据分析指标计算 hook
@@ -554,6 +554,78 @@ export function useVideoMetrics(analysisVideos, allVideos = null) {
     };
   }
 
+  /**
+   * 获取发布节奏洞察
+   * 分析断更期、回归爆款、最佳星期几
+   */
+  function getPublishingRhythmInsight(videoList) {
+    if (videoList.length < 5) return null;
+
+    const sorted = [...videoList].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
+    const avgPlay = videoList.reduce((s, v) => s + v.play_count, 0) / videoList.length;
+
+    // 计算相邻视频间隔天数，找最长断更
+    let longestBreakDays = 0;
+    let breakStartIdx = 0;
+    for (let i = 1; i < sorted.length; i++) {
+      const days = (new Date(sorted[i].publish_time) - new Date(sorted[i - 1].publish_time)) / (1000 * 60 * 60 * 24);
+      if (days > longestBreakDays) {
+        longestBreakDays = Math.round(days);
+        breakStartIdx = i - 1;
+      }
+    }
+
+    const videoBeforeBreak = sorted[breakStartIdx];
+    const videoAfterBreak = sorted[breakStartIdx + 1];
+    const isComeback = videoAfterBreak && videoAfterBreak.play_count >= avgPlay * TITLE_ANALYSIS_THRESHOLDS.comebackMultiple;
+    const comebackMultiple = videoAfterBreak ? Math.round((videoAfterBreak.play_count / avgPlay) * 10) / 10 : 0;
+
+    // 最佳/最差星期几
+    const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const weekdayStats = {};
+    for (let i = 0; i < 7; i++) weekdayStats[i] = { count: 0, totalPlay: 0 };
+
+    videoList.forEach(v => {
+      const day = new Date(v.publish_time).getDay();
+      weekdayStats[day].count++;
+      weekdayStats[day].totalPlay += v.play_count;
+    });
+
+    const weekdayData = Object.entries(weekdayStats)
+      .map(([day, data]) => ({
+        day: parseInt(day),
+        name: weekdayNames[parseInt(day)],
+        count: data.count,
+        avgPlay: data.count >= 3 ? data.totalPlay / data.count : 0,
+      }))
+      .filter(d => d.avgPlay > 0);
+
+    let bestWeekday = null;
+    let worstWeekday = null;
+    let weekdayLift = 0;
+
+    if (weekdayData.length >= 2) {
+      bestWeekday = weekdayData.reduce((b, c) => c.avgPlay > b.avgPlay ? c : b);
+      worstWeekday = weekdayData.reduce((w, c) => c.avgPlay < w.avgPlay ? c : w);
+      weekdayLift = worstWeekday.avgPlay > 0
+        ? Math.round((bestWeekday.avgPlay / worstWeekday.avgPlay - 1) * 100)
+        : 0;
+    }
+
+    return {
+      longestBreakDays,
+      breakStart: videoBeforeBreak?.publish_time,
+      breakEnd: videoAfterBreak?.publish_time,
+      videoBeforeBreak,
+      videoAfterBreak,
+      isComeback,
+      comebackMultiple,
+      bestWeekday,
+      worstWeekday,
+      weekdayLift,
+    };
+  }
+
   function generateDataSummary(upName) {
     const videoList = analysisVideos;
     if (videoList.length === 0) return '';
@@ -671,6 +743,7 @@ ${bottomVideos.map((v, i) => formatVideoDetail(v, i)).join('\n\n')}${undervalued
     getTrendAnalysis,
     getHitVideoFeatures,
     generateDataSummary,
+    getPublishingRhythmInsight,
     // 长尾/利基分析函数
     getVideoEngagementRate,
     getUndervaluedContent,
