@@ -1,6 +1,7 @@
 import { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import * as echarts from 'echarts';
+import { open } from '@tauri-apps/plugin-shell';
 import {
   Zap,
   Play,
@@ -17,6 +18,7 @@ import {
   Calendar
 } from 'lucide-react';
 import VideoFilterBar from '../VideoFilterBar';
+import ZoomRangePanel from './ZoomRangePanel';
 import { useVideoMetrics } from '../../hooks';
 import { formatNumber, formatAxisNumber, parseDurationMinutes, getImageUrl, detectAllVirals } from '../../utils';
 import { ANALYSIS_THRESHOLDS } from '../../utils/constants';
@@ -59,7 +61,6 @@ function DataAnalysis({
   const [showLocalBreakout, setShowLocalBreakout] = useState(false);
   // 发布趋势图表粒度：'month' | 'year'
   const [trendGranularity, setTrendGranularity] = useState('month');
-
   // Use video metrics hook
   const {
     totalPlays,
@@ -101,10 +102,10 @@ function DataAnalysis({
     onOpenDrawer?.({ title, videos });
   }, [onOpenDrawer]);
 
-  // Open video URL (for scatter chart)
+  // Open video URL
   const openVideo = useCallback(async (video) => {
     if (video.video_url) {
-      window.open(video.video_url, '_blank');
+      await open(video.video_url);
     }
   }, []);
 
@@ -398,10 +399,11 @@ function DataAnalysis({
       tooltip: {
         ...chartTheme.tooltip,
         trigger: 'item',
+        enterable: false,
         formatter: (params) => {
           const video = params.data.video;
           if (!video) return '';
-          return tooltipWithCover(video, `播放: ${formatNumber(params.value[0])}<br/>弹幕: ${formatNumber(params.value[1])}<br/>弹幕率: ${((params.value[1] / params.value[0]) * 100).toFixed(2)}%<br/><span style="color:#3B82F6">点击打开视频</span>`);
+          return tooltipWithCover(video, `播放: ${formatNumber(params.value[0])}<br/>弹幕: ${formatNumber(params.value[1])}<br/>弹幕率: ${((params.value[1] / params.value[0]) * 100).toFixed(2)}%`);
         }
       },
       xAxis: {
@@ -547,7 +549,7 @@ function DataAnalysis({
     if (!chart || analysisVideos.length === 0) return;
 
     const topVideosData = [...analysisVideos].sort((a, b) => b.play_count - a.play_count).slice(0, 15);
-    const titles = topVideosData.map(v => v.title.length > 20 ? v.title.slice(0, 20) + '...' : v.title);
+    const titles = topVideosData.map(v => v.title);
     const plays = topVideosData.map(v => v.play_count);
 
     chart.setOption({
@@ -556,13 +558,14 @@ function DataAnalysis({
         ...chartTheme.tooltip,
         trigger: 'axis',
         confine: true,
+        enterable: false,
         formatter: (params) => {
           const idx = 14 - params[0].dataIndex;
           const video = topVideosData[idx];
-          return tooltipWithCover(video, `播放: ${formatNumber(video.play_count)}<br/><span style="color: #3B82F6;">点击打开视频</span>`);
+          return tooltipWithCover(video, `播放: ${formatNumber(video.play_count)}`);
         }
       },
-      grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
+      grid: { left: 8, right: '6%', top: 30, bottom: 30, containLabel: true },
       xAxis: {
         ...chartTheme.xAxis,
         type: 'value',
@@ -572,7 +575,12 @@ function DataAnalysis({
         ...chartTheme.yAxis,
         type: 'category',
         data: titles.reverse(),
-        axisLabel: { ...chartTheme.yAxis.axisLabel, width: 150, overflow: 'truncate' }
+        axisLabel: {
+          ...chartTheme.yAxis.axisLabel,
+          width: 120,
+          overflow: 'truncate',
+          ellipsis: '...'
+        }
       },
       series: [{
         type: 'bar',
@@ -581,7 +589,8 @@ function DataAnalysis({
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, gradients.barHorizontal),
           borderRadius: [0, 6, 6, 0]
-        }
+        },
+        cursor: 'pointer'
       }]
     });
 
@@ -605,7 +614,7 @@ function DataAnalysis({
       .sort((a, b) => b.engagementRate - a.engagementRate)
       .slice(0, 15);
 
-    const titles = videosWithEngagement.map(v => v.title.length > 20 ? v.title.slice(0, 20) + '...' : v.title);
+    const titles = videosWithEngagement.map(v => v.title);
     const rates = videosWithEngagement.map(v => v.engagementRate.toFixed(2));
     const maxIdx = videosWithEngagement.length - 1;
 
@@ -615,13 +624,14 @@ function DataAnalysis({
         ...chartTheme.tooltip,
         trigger: 'axis',
         confine: true,
+        enterable: false,
         formatter: (params) => {
           const idx = maxIdx - params[0].dataIndex;
           const video = videosWithEngagement[idx];
-          return tooltipWithCover(video, `互动率: ${video.engagementRate.toFixed(2)}%<br/>播放: ${formatNumber(video.play_count)}<br/><span style="color: #3B82F6;">点击打开视频</span>`);
+          return tooltipWithCover(video, `互动率: ${video.engagementRate.toFixed(2)}%<br/>播放: ${formatNumber(video.play_count)}`);
         }
       },
-      grid: { left: '22%', right: '10%', top: 30, bottom: 30 },
+      grid: { left: 8, right: '6%', top: 30, bottom: 30, containLabel: true },
       xAxis: {
         ...chartTheme.xAxis,
         type: 'value',
@@ -631,7 +641,12 @@ function DataAnalysis({
         ...chartTheme.yAxis,
         type: 'category',
         data: titles.reverse(),
-        axisLabel: { ...chartTheme.yAxis.axisLabel, width: 150, overflow: 'truncate' }
+        axisLabel: {
+          ...chartTheme.yAxis.axisLabel,
+          width: 120,
+          overflow: 'truncate',
+          ellipsis: '...'
+        }
       },
       series: [{
         type: 'bar',
@@ -640,7 +655,8 @@ function DataAnalysis({
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, gradients.barHorizontal),
           borderRadius: [0, 6, 6, 0]
-        }
+        },
+        cursor: 'pointer'
       }]
     });
 
@@ -1029,6 +1045,7 @@ function DataAnalysis({
               </div>
             </div>
           </div>
+
         </div>
       </section>
 
@@ -1105,7 +1122,7 @@ function DataAnalysis({
             </h2>
             <div className="chart-card">
               <h3 className="chart-title">播放量 vs 弹幕数</h3>
-              <p className="text-xs text-neutral-400 -mt-2 mb-3">点击散点查看视频详情</p>
+              <p className="text-xs text-neutral-400 -mt-2 mb-3">点击散点打开视频</p>
               <div ref={scatterChartRef} className="h-[280px]"></div>
             </div>
           </section>
@@ -1180,6 +1197,11 @@ function DataAnalysis({
           </section>
         </div>
       )}
+
+      <ZoomRangePanel
+        chartInstance={chartsRef.current.timeline}
+        analysisVideos={analysisVideos}
+      />
     </div>
   );
 }

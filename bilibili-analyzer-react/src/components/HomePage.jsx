@@ -3,8 +3,6 @@ import { motion } from 'framer-motion';
 import * as echarts from 'echarts';
 import { Plus, X, Users, Trophy, Play, Calendar, Info } from 'lucide-react';
 import { formatNumber, getImageUrl, parseDuration, detectAllVirals, getEngagementRate } from '../utils';
-import { generateCrossUpFunFacts } from '../utils/crossUpInsights';
-import { FunFactCards } from './common';
 import { open } from '@tauri-apps/plugin-shell';
 import * as HoverCard from '@radix-ui/react-hover-card';
 
@@ -432,13 +430,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
     };
   };
 
-  // 趣味洞见
-  const funFacts = selectedUps.length >= 2
-    ? generateCrossUpFunFacts(
-        selectedUps.map((up, i) => ({ ...up, color: upColors[i % upColors.length] })),
-        getFilteredVideos
-      )
-    : [];
 
   // 渲染散点图
   const renderScatterChart = () => {
@@ -1125,13 +1116,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
               <div className="flex-1 h-px bg-neutral-200"></div>
             </div>
 
-            {/* 趣味洞见卡片 */}
-            {funFacts.length > 0 && (
-              <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
-                <h3 className="text-sm font-medium text-neutral-700 mb-3">趣味洞见</h3>
-                <FunFactCards facts={funFacts} />
-              </div>
-            )}
 
             {/* 时间轴散点图 */}
             <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
