@@ -12,7 +12,6 @@ export function useVideoMetrics(analysisVideos, allVideos = null) {
   const totalPlays = useMemo(() => analysisVideos.reduce((sum, v) => sum + v.play_count, 0), [analysisVideos]);
   const totalDanmu = useMemo(() => analysisVideos.reduce((sum, v) => sum + v.danmu_count, 0), [analysisVideos]);
   const totalComments = useMemo(() => analysisVideos.reduce((sum, v) => sum + (v.comment_count || 0), 0), [analysisVideos]);
-  const totalFavorites = useMemo(() => analysisVideos.reduce((sum, v) => sum + (v.favorite_count || 0), 0), [analysisVideos]);
 
   const avgPlays = useMemo(() => {
     if (analysisVideos.length === 0) return 0;
@@ -32,9 +31,9 @@ export function useVideoMetrics(analysisVideos, allVideos = null) {
 
   const avgEngagementRate = useMemo(() => {
     if (totalPlays === 0) return '0.00';
-    const totalEngagement = totalDanmu + totalComments + totalFavorites;
+    const totalEngagement = totalDanmu + totalComments;
     return ((totalEngagement / totalPlays) * 100).toFixed(2);
-  }, [totalPlays, totalDanmu, totalComments, totalFavorites]);
+  }, [totalPlays, totalDanmu, totalComments]);
 
   const hitRate = useMemo(() => {
     if (analysisVideos.length === 0) return '0.0';
@@ -244,7 +243,7 @@ export function useVideoMetrics(analysisVideos, allVideos = null) {
    * 计算单个视频的互动率
    */
   function getVideoEngagementRate(video) {
-    const engagement = video.danmu_count + (video.comment_count || 0) + (video.favorite_count || 0);
+    const engagement = video.danmu_count + (video.comment_count || 0);
     return video.play_count > 0 ? (engagement / video.play_count) * 100 : 0;
   }
 
@@ -656,7 +655,6 @@ ${bottomVideos.map((v, i) => formatVideoDetail(v, i)).join('\n\n')}${undervalued
     totalPlays,
     totalDanmu,
     totalComments,
-    totalFavorites,
     avgPlays,
     allVideosAvgPlays,
     avgPlaysChange,

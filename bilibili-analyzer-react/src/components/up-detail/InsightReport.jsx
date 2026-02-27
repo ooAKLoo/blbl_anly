@@ -256,13 +256,13 @@ function InsightReport({
 
     // 1. Low engagement (traffic trap) - 高播放低互动
     const avgEngRate = videos.reduce((s, v) => {
-      const eng = v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0);
+      const eng = v.danmu_count + (v.comment_count || 0);
       return s + (v.play_count > 0 ? (eng / v.play_count) * 100 : 0);
     }, 0) / videos.length;
 
     const lowEngVideos = videos
       .map(v => {
-        const eng = v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0);
+        const eng = v.danmu_count + (v.comment_count || 0);
         return {
           ...v,
           engagementRate: v.play_count > 0 ? (eng / v.play_count) * 100 : 0

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import * as echarts from 'echarts';
-import 'echarts-wordcloud';
 import { Plus, X, Users, Trophy, Play, Calendar, Info } from 'lucide-react';
 import { formatNumber, getImageUrl, parseDuration, detectAllVirals, getEngagementRate } from '../utils';
 import { open } from '@tauri-apps/plugin-shell';
@@ -24,24 +23,6 @@ const timeRangeOptions = [
   { value: '1y', label: '近1年' },
   { value: 'thisYear', label: '今年' }
 ];
-
-// 停用词列表
-const stopWords = new Set([
-  '的', '了', '是', '在', '我', '有', '和', '就', '不', '人', '都', '一', '一个', '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '好', '自己', '这', '那', '他', '她', '它',
-  '什么', '怎么', '为什么', '如何', '哪个', '哪些', '这个', '那个', '这些', '那些',
-  '可以', '能', '会', '应该', '必须', '需要', '想', '要', '让', '把', '被', '给', '从', '向', '对', '与', '和', '或', '但', '而', '所以', '因为', '如果', '虽然',
-  '吗', '呢', '吧', '啊', '哦', '嗯', '呀', '啦', '嘛', '哈', '哎',
-  '第一', '第二', '第三', '一下', '一点', '一些', '一样', '一直', '一起',
-  '还是', '已经', '正在', '开始', '结束', '之后', '之前', '以后', '以前', '然后', '最后', '终于',
-  '真的', '其实', '可能', '应该', '大概', '肯定', '确实', '当然', '居然', '竟然', '简直',
-  '非常', '特别', '十分', '更', '最', '太', '越', '比较', '相当', '极', '挺',
-  '视频', '合集', '完整', '全集', '实录', '记录', '分享', '推荐', '必看', '建议', '注意',
-  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can',
-  'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their',
-  'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom', 'whose', 'where', 'when', 'why', 'how',
-  'and', 'or', 'but', 'if', 'because', 'as', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'to', 'from', 'in', 'on', 'up', 'down', 'out', 'off', 'over', 'under',
-  'vol', 'ep', 'part', 'no'
-]);
 
 function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDetail }) {
   // 状态
@@ -70,8 +51,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
   const dropdownRef = useRef(null);
   const scatterChartRef = useRef(null);
   const scatterChartInstance = useRef(null);
-  const wordCloudRefs = useRef({});
-  const wordCloudCharts = useRef({});
 
   // 获取UP主颜色
   const getUpColor = (mid) => {
@@ -397,124 +376,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
     return `${month}/${day} ${weekday} ${hour}:${minute}`;
   };
 
-  // 简单中文分词
-  const segmentText = (text) => {
-    if (!text) return [];
-
-    const cleaned = text.toLowerCase()
-      .replace(/[【】\[\]()（）《》<>「」『』""''！!？?。，,、；;：:～~·…—\-_|\/\\@#$%^&*+=]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    const words = [];
-
-    // 提取英文单词
-    const englishWords = cleaned.match(/[a-zA-Z]{2,}/g) || [];
-    words.push(...englishWords.filter(w => !stopWords.has(w.toLowerCase())));
-
-    // 提取中文
-    const chineseText = cleaned.replace(/[a-zA-Z0-9\s]/g, '');
-
-    for (let len = 4; len >= 2; len--) {
-      for (let i = 0; i <= chineseText.length - len; i++) {
-        const word = chineseText.slice(i, i + len);
-        if (!stopWords.has(word) && !/^\d+$/.test(word)) {
-          words.push(word);
-        }
-      }
-    }
-
-    return words;
-  };
-
-  // 获取UP主爆款标题词频
-  const getHitTitleWords = (mid) => {
-    const videos = getFilteredVideos(mid);
-    if (videos.length === 0) return [];
-
-    const avgPlay = videos.reduce((sum, v) => sum + v.play_count, 0) / videos.length;
-    const hitThreshold = avgPlay * 1.5;
-    let hitVideos = videos
-      .filter(v => v.play_count >= hitThreshold)
-      .sort((a, b) => b.play_count - a.play_count)
-      .slice(0, Math.max(10, Math.ceil(videos.length * 0.3)));
-
-    if (hitVideos.length === 0) {
-      hitVideos = videos.sort((a, b) => b.play_count - a.play_count).slice(0, 10);
-    }
-
-    const wordCount = {};
-    hitVideos.forEach(v => {
-      const words = segmentText(v.title);
-      const seen = new Set();
-      words.forEach(word => {
-        if (!seen.has(word)) {
-          seen.add(word);
-          wordCount[word] = (wordCount[word] || 0) + 1;
-        }
-      });
-    });
-
-    return Object.entries(wordCount)
-      .filter(([word, count]) => count >= 2)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 50)
-      .map(([name, value]) => ({ name, value }));
-  };
-
-  // 渲染词云
-  const renderWordCloud = (mid) => {
-    const el = wordCloudRefs.current[mid];
-    if (!el) return;
-
-    if (wordCloudCharts.current[mid]) {
-      wordCloudCharts.current[mid].dispose();
-    }
-
-    const chart = echarts.init(el);
-    wordCloudCharts.current[mid] = chart;
-
-    const words = getHitTitleWords(mid);
-    const color = getUpColor(mid);
-
-    const option = {
-      tooltip: {
-        show: true,
-        formatter: (params) => {
-          return `<div class="text-sm"><span class="font-medium">${params.name}</span><br/>出现 ${params.value} 次</div>`;
-        }
-      },
-      series: [{
-        type: 'wordCloud',
-        shape: 'circle',
-        left: 'center',
-        top: 'center',
-        width: '90%',
-        height: '90%',
-        sizeRange: [12, 32],
-        rotationRange: [-45, 45],
-        rotationStep: 45,
-        gridSize: 8,
-        drawOutOfBound: false,
-        textStyle: {
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-          fontWeight: 'bold',
-          color: function() {
-            const opacity = 0.6 + Math.random() * 0.4;
-            return color + Math.round(opacity * 255).toString(16).padStart(2, '0');
-          }
-        },
-        emphasis: {
-          textStyle: {
-            color: color
-          }
-        },
-        data: words
-      }]
-    };
-
-    chart.setOption(option);
-  };
 
   // 计算移动平均
   const calculateMovingAverage = (videos, windowSize = 5) => {
@@ -945,7 +806,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
     if (selectedUps.length > 0) {
       setTimeout(() => {
         renderScatterChart();
-        selectedUps.forEach(up => renderWordCloud(up.mid));
       }, 100);
     }
 
@@ -954,10 +814,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
         scatterChartInstance.current.dispose();
         scatterChartInstance.current = null;
       }
-      Object.values(wordCloudCharts.current).forEach(chart => {
-        if (chart) chart.dispose();
-      });
-      wordCloudCharts.current = {};
     };
   }, [selectedUps, selectedTimeRange, customStartDate, customEndDate, upDataMap, chartMetric, showAllPoints, showGlobalVirals, showLocalBreakouts]);
 
@@ -967,9 +823,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
       if (scatterChartInstance.current) {
         scatterChartInstance.current.resize();
       }
-      Object.values(wordCloudCharts.current).forEach(chart => {
-        if (chart) chart.resize();
-      });
     };
 
     window.addEventListener('resize', handleResize);
@@ -1538,30 +1391,6 @@ function HomePage({ savedUpList = [], upDataMap = {}, onLoadUpData, onViewUpDeta
                     </tr>
                   </tbody>
                 </table>
-              </div>
-            </div>
-
-            {/* 爆款标题词云对比 */}
-            <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-sm font-medium text-neutral-700">爆款标题词云对比</h3>
-                  <p className="text-xs text-neutral-400 mt-0.5">基于播放量 TOP 30% 的视频标题分词统计</p>
-                </div>
-              </div>
-              <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(selectedUps.length, 3)}, 1fr)` }}>
-                {selectedUps.map(up => (
-                  <div key={up.mid} className="border border-neutral-100 rounded-lg overflow-hidden">
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 border-b"
-                      style={{ borderColor: getUpColor(up.mid) + '30', backgroundColor: getUpColor(up.mid) + '08' }}
-                    >
-                      <img src={getImageUrl(up.face)} className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" />
-                      <span className="text-sm font-medium" style={{ color: getUpColor(up.mid) }}>{up.name}</span>
-                    </div>
-                    <div ref={el => wordCloudRefs.current[up.mid] = el} className="h-[200px]"></div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

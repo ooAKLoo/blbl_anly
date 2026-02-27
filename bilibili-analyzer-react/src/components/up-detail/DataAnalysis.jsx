@@ -9,7 +9,6 @@ import {
   CalendarDays,
   MessageSquare,
   MessageCircle,
-  Star,
   Clock,
   BarChart3,
   TrendingUp,
@@ -71,7 +70,6 @@ function DataAnalysis({
     monthlyPublishRate,
     totalDanmu,
     totalComments,
-    totalFavorites,
     avgDuration,
     dataTimeRange
   } = useVideoMetrics(analysisVideos, allVideos);
@@ -602,7 +600,7 @@ function DataAnalysis({
       .filter(v => v.play_count >= ANALYSIS_THRESHOLDS.minPlayForEngagement)
       .map(v => ({
         ...v,
-        engagementRate: ((v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0)) / v.play_count) * 100
+        engagementRate: ((v.danmu_count + (v.comment_count || 0)) / v.play_count) * 100
       }))
       .sort((a, b) => b.engagementRate - a.engagementRate)
       .slice(0, 15);
@@ -1016,12 +1014,6 @@ function DataAnalysis({
                     <MessageCircle size={14} className="text-neutral-400" />
                     <span className="text-sm text-neutral-600">
                       <strong className="font-semibold">{formatNumber(totalComments)}</strong> 评论
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Star size={14} className="text-neutral-400" />
-                    <span className="text-sm text-neutral-600">
-                      <strong className="font-semibold">{formatNumber(totalFavorites)}</strong> 收藏
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
