@@ -1,9 +1,13 @@
-import { useMemo, useEffect, useRef, useState } from 'react';
+import { useMemo, useRef, useLayoutEffect } from 'react';
 import { formatNumber, getImageUrl, formatDateCN } from '../../../utils';
 import {
   Play, CalendarDays, Flag, Trophy,
   PartyPopper, Crown, PenTool, Milestone, MessageSquare, Flame
 } from 'lucide-react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const PLAY_MILESTONES = [100000, 500000, 1000000, 5000000, 10000000];
 const VIDEO_COUNT_MILESTONES = [10, 50, 100, 200, 500];
@@ -11,14 +15,17 @@ const NODE_PRIORITY = { start: 0, breakthrough: 1, current: 2, silence: 3, cumul
 const MAX_NODES = 15;
 const MIN_SILENCE_DAYS = 60;
 
-const MARKER_COLORS = {
-  'marker-blue': 'text-blue-500',
-  'marker-amber': 'text-amber-500',
-  'marker-rose': 'text-rose-500',
-  'marker-emerald': 'text-emerald-500',
-  'marker-purple': 'text-purple-500',
-  'marker-cyan': 'text-cyan-500',
-  'marker-slate': 'text-slate-500',
+const HIGH_IMPORTANCE_TYPES = new Set(['start', 'breakthrough', 'current']);
+
+const ANIM = {
+  slideDistance: 40,
+  slideDistanceHigh: 60,
+  markerDuration: 0.4,
+  dateDuration: 0.35,
+  cardDuration: 0.6,
+  coverParallax: 20,
+  intraStagger: 0.12,
+  triggerStart: 'top 80%',
 };
 
 // ============ 节点构建辅助函数 ============
@@ -155,8 +162,7 @@ const createCurrentNode = (video, totalCount) => ({
 
 const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
   const containerRef = useRef(null);
-  const nodeRefs = useRef([]);
-  const [visibleNodes, setVisibleNodes] = useState(new Set());
+  const timelineLineRef = useRef(null);
 
   const sortedVideos = useMemo(() => {
     return [...videos].sort((a, b) => new Date(a.publish_time) - new Date(b.publish_time));
@@ -180,7 +186,6 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
     let maxPlay = firstVideo.play_count;
     let cumulativePlays = firstVideo.play_count;
     const achievedPlayMilestones = new Set();
-    // 第一个视频本身可能已经超过某些累计播放里程碑，提前标记
     PLAY_MILESTONES.forEach(m => {
       if (cumulativePlays >= m) achievedPlayMilestones.add(m);
     });
@@ -292,28 +297,135 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
     return sorted;
   }, [videos, sortedVideos, upName]);
 
-  // 设置 IntersectionObserver
-  useEffect(() => {
-    const scrollContainer = containerRef.current?.closest('.growth-journey-scroll');
-    if (!scrollContainer || storyNodes.length === 0) return;
+  // ============ GSAP ScrollTrigger 动画 ============
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const index = nodeRefs.current.indexOf(entry.target);
-            if (index !== -1) {
-              setVisibleNodes(prev => new Set([...prev, index]));
-            }
-          }
+  useLayoutEffect(() => {
+    if (storyNodes.length === 0 || !containerRef.current) return;
+
+    const scrollContainer = containerRef.current.closest('.growth-journey-scroll');
+    if (!scrollContainer) return;
+
+    const ctx = gsap.context(() => {
+      // 确保 framer-motion 展开后尺寸稳定
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+
+      // A) 时间轴线生长
+      if (timelineLineRef.current) {
+        gsap.set(timelineLineRef.current, { scaleY: 0, transformOrigin: 'top center' });
+        ScrollTrigger.create({
+          trigger: containerRef.current,
+          scroller: scrollContainer,
+          start: 'top 80%',
+          end: 'bottom 20%',
+          scrub: 0.6,
+          animation: gsap.to(timelineLineRef.current, { scaleY: 1, ease: 'none' }),
         });
-      },
-      { root: scrollContainer, threshold: 0.2, rootMargin: '0px 0px -10% 0px' }
-    );
+      }
 
-    nodeRefs.current.forEach(el => el && observer.observe(el));
-    return () => observer.disconnect();
-  }, [storyNodes.length]);
+      // B) 逐节点入场动画
+      const nodeEls = containerRef.current.querySelectorAll('[data-node]');
+      nodeEls.forEach((nodeEl) => {
+        const marker = nodeEl.querySelector('[data-anim="marker"]');
+        const date = nodeEl.querySelector('[data-anim="date"]');
+        const card = nodeEl.querySelector('[data-anim="card"]');
+        const coverImg = nodeEl.querySelector('[data-anim="cover-img"]');
+        const isHigh = nodeEl.dataset.highImportance === 'true';
+        const isRight = nodeEl.dataset.side === 'right';
+
+        const slideX = isHigh ? ANIM.slideDistanceHigh : ANIM.slideDistance;
+        const direction = isRight ? -1 : 1;
+
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: nodeEl,
+            scroller: scrollContainer,
+            start: ANIM.triggerStart,
+            toggleActions: 'play none none none',
+          },
+        });
+
+        // 初始态
+        if (marker) gsap.set(marker, { scale: 0, opacity: 0 });
+        if (date) gsap.set(date, { opacity: 0, y: 8 });
+        if (card) gsap.set(card, { opacity: 0, x: direction * slideX, force3D: true });
+
+        // marker pop
+        if (marker) {
+          tl.to(marker, {
+            scale: 1,
+            opacity: 1,
+            duration: ANIM.markerDuration,
+            ease: 'back.out(2)',
+          });
+        }
+
+        // date fade
+        if (date) {
+          tl.to(date, {
+            opacity: 1,
+            y: 0,
+            duration: ANIM.dateDuration,
+            ease: 'power2.out',
+          }, `-=${ANIM.markerDuration * 0.4}`);
+        }
+
+        // card slide in
+        if (card) {
+          tl.to(card, {
+            opacity: 1,
+            x: 0,
+            duration: ANIM.cardDuration,
+            ease: 'power3.out',
+            onComplete() {
+              // 清除 GSAP inline styles，恢复 CSS hover 控制
+              gsap.set(card, { clearProps: 'transform,opacity' });
+              // 动画结束后才启用 CSS transition，避免和 GSAP 打架
+              card.classList.add('transition-transform', 'duration-200');
+            },
+          }, `-=${ANIM.dateDuration * 0.5}`);
+        }
+
+        // 高光节点脉冲
+        if (isHigh && marker) {
+          tl.to(marker, {
+            scale: 1.4,
+            duration: 0.2,
+            ease: 'power2.out',
+          }).to(marker, {
+            scale: 1,
+            duration: 0.3,
+            ease: 'power2.inOut',
+            clearProps: 'transform,opacity',
+          });
+        } else if (marker) {
+          // 非高光节点也在结束时 clearProps
+          tl.add(() => {
+            gsap.set(marker, { clearProps: 'transform,opacity' });
+          });
+        }
+
+        // C) 封面视差
+        if (coverImg) {
+          gsap.set(coverImg, { scale: 1.15 });
+          gsap.fromTo(coverImg, {
+            y: -ANIM.coverParallax,
+          }, {
+            y: ANIM.coverParallax,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: nodeEl,
+              scroller: scrollContainer,
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: true,
+            },
+          });
+        }
+      });
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, [storyNodes]);
 
   const openVideo = (video) => {
     if (video?.video_url) window.open(video.video_url, '_blank');
@@ -323,45 +435,59 @@ const StoryTimeline = ({ videos = [], upName = 'UP主' }) => {
     <div ref={containerRef} className="max-w-4xl mx-auto px-4 sm:px-6 relative">
       <div className="relative flex flex-col gap-16 py-16">
         {/* 时间轴中线 */}
-        <div className="absolute left-6 sm:left-1/2 w-px bg-slate-200/80 -translate-x-1/2 top-20 bottom-20" />
+        <div
+          ref={timelineLineRef}
+          className="absolute left-6 sm:left-1/2 w-px bg-slate-200/80 -translate-x-1/2 top-20 bottom-20"
+        />
 
         {/* 故事节点 */}
         {storyNodes.map((node, index) => {
           const IconComponent = node.icon;
           const isRight = index % 2 !== 0;
-          const isVisible = visibleNodes.has(index);
+          const isHigh = HIGH_IMPORTANCE_TYPES.has(node.type);
 
           return (
             <div
               key={node.id}
-              ref={el => nodeRefs.current[index] = el}
+              data-node
+              data-side={isRight ? 'right' : 'left'}
+              data-high-importance={isHigh}
               className="relative pl-16 sm:pl-0 sm:flex sm:items-center"
             >
-              {/* 时间轴节点标记 - 纯渐显 */}
+              {/* 时间轴节点标记 */}
               <div
-                className={`absolute z-10 left-0 sm:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-500 ${
-                  isVisible ? 'opacity-100' : 'opacity-0'
-                }`}
+                data-anim="marker"
+                className="absolute z-10 left-0 sm:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
               >
                 <div className="w-2.5 h-2.5 rounded-full bg-slate-300 border-2 border-white" />
               </div>
 
               {/* 日期显示 */}
-              <div className={`text-sm text-slate-400 mb-3 sm:absolute sm:w-[45%] sm:mb-0 sm:top-1/2 sm:-translate-y-1/2 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'} ${isRight ? 'sm:text-left sm:pl-10 sm:right-0' : 'sm:text-right sm:pr-10 sm:left-0'}`}>
+              <div
+                data-anim="date"
+                className={`text-sm text-slate-400 mb-3 sm:absolute sm:w-[45%] sm:mb-0 sm:top-1/2 sm:-translate-y-1/2 ${isRight ? 'sm:text-left sm:pl-10 sm:right-0' : 'sm:text-right sm:pr-10 sm:left-0'}`}
+              >
                 {node.dateDisplay}
               </div>
 
-              {/* 内容卡片 - 滑入动画 */}
+              {/* 内容卡片 */}
               <div
-                className={`bg-white rounded-2xl relative overflow-hidden transition-all duration-500 ease-out hover:-translate-y-0.5 sm:w-[45%] shadow-[0_2px_8px_rgba(0,0,0,0.04),0_4px_24px_rgba(0,0,0,0.06)] ${
-                  isVisible ? 'opacity-100 translate-x-0' : `opacity-0 ${isRight ? 'translate-x-10' : '-translate-x-10'}`
-                } ${isRight ? 'sm:mr-[55%]' : 'sm:ml-[55%]'} ${node.video ? 'cursor-pointer' : ''}`}
+                data-anim="card"
+                className={`bg-white rounded-2xl relative overflow-hidden hover:-translate-y-0.5 sm:w-[45%] shadow-[0_2px_8px_rgba(0,0,0,0.04),0_4px_24px_rgba(0,0,0,0.06)] ${
+                  isRight ? 'sm:mr-[55%]' : 'sm:ml-[55%]'
+                } ${node.video ? 'cursor-pointer' : ''}`}
                 onClick={node.video ? () => openVideo(node.video) : undefined}
               >
                 {/* 视频封面 */}
                 {node.video && node.showCover && (
                   <div className="relative w-full aspect-video overflow-hidden">
-                    <img src={getImageUrl(node.video.cover)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img
+                      data-anim="cover-img"
+                      src={getImageUrl(node.video.cover)}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                       <Play size={32} className="text-white" fill="currentColor" />
                     </div>

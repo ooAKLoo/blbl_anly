@@ -112,7 +112,7 @@ export async function copyToClipboard(text) {
  * 计算视频互动率
  */
 export function getEngagementRate(video) {
-  const engagement = video.danmu_count + (video.comment_count || 0) + (video.favorite_count || 0);
+  const engagement = video.danmu_count + (video.comment_count || 0);
   return video.play_count > 0 ? engagement / video.play_count : 0;
 }
 

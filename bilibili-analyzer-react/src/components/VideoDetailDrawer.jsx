@@ -6,7 +6,6 @@ import {
   Play,
   MessageSquare,
   MessageCircle,
-  Star,
   X,
   ArrowUpDown,
   ChevronDown,
@@ -218,10 +217,6 @@ export default function VideoDetailDrawer({
                       <span className="inline-flex items-center gap-1" title="评论数">
                         <MessageCircle size={14} className="opacity-70" />
                         {formatNumber(video.comment_count || 0)}
-                      </span>
-                      <span className="inline-flex items-center gap-1" title="收藏数">
-                        <Star size={14} className="opacity-70" />
-                        {formatNumber(video.favorite_count || 0)}
                       </span>
                     </div>
                   </div>

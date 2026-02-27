@@ -16,7 +16,6 @@ import {
   Timer,
   LayoutGrid,
   List as ListIcon,
-  Star,
   Clock
 } from 'lucide-react';
 
@@ -140,7 +139,7 @@ export default function VideoList({ videos = [] }) {
     if (filteredVideos.length === 0) return '0.00';
     const totalPlays = filteredVideos.reduce((sum, v) => sum + v.play_count, 0);
     const totalEngagement = filteredVideos.reduce((sum, v) =>
-      sum + v.danmu_count + (v.comment_count || 0) + (v.favorite_count || 0), 0);
+      sum + v.danmu_count + (v.comment_count || 0), 0);
     if (totalPlays === 0) return '0.00';
     return ((totalEngagement / totalPlays) * 100).toFixed(2);
   }, [filteredVideos]);
@@ -479,10 +478,6 @@ export default function VideoList({ videos = [] }) {
                   <span className="flex items-center gap-1">
                     <MessageCircle size={12} className="opacity-60" />
                     {formatNumber(video.comment_count || 0)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Star size={12} className="opacity-60" />
-                    {formatNumber(video.favorite_count || 0)}
                   </span>
                 </div>
               </div>
