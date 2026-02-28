@@ -159,7 +159,6 @@ main::-webkit-scrollbar-thumb:hover {
   @apply w-full overflow-hidden rounded-xl flex flex-col opacity-0;
   @apply transition-[transform,opacity] duration-200;
   background: var(--bg-secondary, #ffffff);
-  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   max-width: 480px;
   max-height: 90vh;
@@ -177,8 +176,7 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .dialog-header {
-  @apply flex items-center justify-between px-6 py-5;
-  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
+  @apply flex items-center justify-between px-6 pt-6 pb-0;
 }
 
 .dialog-header h2 {
@@ -198,7 +196,7 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .dialog-body {
-  @apply p-6 flex flex-col gap-5;
+  @apply px-6 pt-4 pb-2 flex flex-col gap-5;
 }
 
 .input-group {
@@ -261,8 +259,7 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .dialog-footer {
-  @apply flex items-center justify-end gap-3 px-6 py-4;
-  border-top: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
+  @apply flex items-center justify-end gap-3 px-6 pt-2 pb-6;
 }
 
 .setting-section {
@@ -583,6 +580,15 @@ main::-webkit-scrollbar-thumb:hover {
 
 .nav-item.active .nav-item-follower {
   color: rgb(96, 165, 250);
+}
+
+.nav-item.dragging {
+  opacity: 0.9;
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: grabbing;
 }
 
 .context-menu {

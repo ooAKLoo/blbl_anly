@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { getImageUrl, formatNumber } from '../utils';
 
 const sidebarVariants = {
@@ -14,6 +27,52 @@ const sidebarTransition = {
   damping: 30,
 };
 
+function SortableUpItem({ up, isActive, onItemClick, onContextMenu }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: up.mid });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    position: 'relative',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`nav-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+      onClick={() => onItemClick(up.mid)}
+      onContextMenu={(e) => onContextMenu(e, up.mid)}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="avatar-wrapper">
+        <img
+          src={getImageUrl(up.face)}
+          className="avatar"
+          referrerPolicy="no-referrer"
+          alt={up.name}
+        />
+        <div className="avatar-ring"></div>
+      </div>
+      <div className="nav-item-info">
+        <span className="nav-item-text">{up.name}</span>
+        {up.follower != null && (
+          <span className="nav-item-follower">{formatNumber(up.follower)} 粉丝</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const Sidebar = forwardRef(function Sidebar({
   savedUpList = [],
   currentMid = null,
@@ -21,6 +80,7 @@ const Sidebar = forwardRef(function Sidebar({
   onAddUp,
   onLoadUp,
   onDeleteUp,
+  onReorderUp,
   onOpenSettings,
   onExportCsv,
   onGoHome,
@@ -34,6 +94,12 @@ const Sidebar = forwardRef(function Sidebar({
     targetMid: null
   });
   const contextMenuRef = useRef(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    })
+  );
 
   useImperativeHandle(ref, () => ({
     collapsed
@@ -103,6 +169,22 @@ const Sidebar = forwardRef(function Sidebar({
       y: 0,
       targetMid: null
     });
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = savedUpList.findIndex((u) => u.mid === active.id);
+    const newIndex = savedUpList.findIndex((u) => u.mid === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = [...savedUpList];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+
+    const newMids = reordered.map((u) => u.mid);
+    onReorderUp?.(newMids);
   };
 
   return (
@@ -186,32 +268,28 @@ const Sidebar = forwardRef(function Sidebar({
                     <span className="empty-hint">点击下方按钮添加</span>
                   </div>
                 ) : (
-                  <div className="up-list">
-                    {savedUpList.map((up) => (
-                      <div
-                        key={up.mid}
-                        className={`nav-item ${currentMid === up.mid && currentView === 'detail' ? 'active' : ''}`}
-                        onClick={() => handleItemClick(up.mid)}
-                        onContextMenu={(e) => handleContextMenu(e, up.mid)}
-                      >
-                        <div className="avatar-wrapper">
-                          <img
-                            src={getImageUrl(up.face)}
-                            className="avatar"
-                            referrerPolicy="no-referrer"
-                            alt={up.name}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={savedUpList.map((u) => u.mid)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="up-list">
+                        {savedUpList.map((up) => (
+                          <SortableUpItem
+                            key={up.mid}
+                            up={up}
+                            isActive={currentMid === up.mid && currentView === 'detail'}
+                            onItemClick={handleItemClick}
+                            onContextMenu={handleContextMenu}
                           />
-                          <div className="avatar-ring"></div>
-                        </div>
-                        <div className="nav-item-info">
-                          <span className="nav-item-text">{up.name}</span>
-                          {up.follower != null && (
-                            <span className="nav-item-follower">{formatNumber(up.follower)} 粉丝</span>
-                          )}
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </SortableContext>
+                  </DndContext>
                 )}
               </div>
             </nav>
