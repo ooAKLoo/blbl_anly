@@ -284,6 +284,9 @@ fn init_database(db_path: &PathBuf) -> Result<Connection, String> {
     // 迁移：为旧表添加 follower 字段
     let _ = conn.execute("ALTER TABLE up_users ADD COLUMN follower INTEGER", []);
 
+    // 迁移：为旧表添加 sort_order 字段
+    let _ = conn.execute("ALTER TABLE up_users ADD COLUMN sort_order INTEGER DEFAULT 0", []);
+
     // 创建视频表（只存储本地封面路径）
     conn.execute(
         "CREATE TABLE IF NOT EXISTS videos (
@@ -347,9 +350,16 @@ fn load_setting(conn: &Connection, key: &str) -> Option<String> {
 
 // 保存UP主信息到数据库
 fn save_up_info_to_db(conn: &Connection, up_info: &UpInfo) -> Result<(), String> {
+    // 新 UP 主插入时 sort_order 设为当前最小值 - 1（排到列表头部）
+    let min_order: i64 = conn.query_row(
+        "SELECT COALESCE(MIN(sort_order), 0) FROM up_users",
+        [],
+        |row| row.get(0),
+    ).unwrap_or(0);
+
     conn.execute(
-        "INSERT INTO up_users (mid, name, sign, level, face, follower, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP)
+        "INSERT INTO up_users (mid, name, sign, level, face, follower, sort_order, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)
          ON CONFLICT(mid) DO UPDATE SET
             name = excluded.name,
             sign = excluded.sign,
@@ -357,7 +367,7 @@ fn save_up_info_to_db(conn: &Connection, up_info: &UpInfo) -> Result<(), String>
             face = COALESCE(excluded.face, face),
             follower = COALESCE(excluded.follower, follower),
             updated_at = CURRENT_TIMESTAMP",
-        params![up_info.mid, up_info.name, up_info.sign, up_info.level, up_info.face, up_info.follower],
+        params![up_info.mid, up_info.name, up_info.sign, up_info.level, up_info.face, up_info.follower, min_order - 1],
     ).map_err(|e| format!("保存UP主信息失败: {}", e))?;
     Ok(())
 }
@@ -388,7 +398,7 @@ fn save_videos_to_db(conn: &Connection, mid: i64, videos: &[VideoInfo]) -> Resul
 // 从数据库加载UP主列表
 fn load_up_list_from_db(conn: &Connection) -> Result<Vec<UpInfo>, String> {
     let mut stmt = conn.prepare(
-        "SELECT mid, name, sign, level, face, follower FROM up_users ORDER BY updated_at DESC"
+        "SELECT mid, name, sign, level, face, follower FROM up_users ORDER BY sort_order ASC, updated_at DESC"
     ).map_err(|e| format!("准备查询失败: {}", e))?;
 
     let up_iter = stmt.query_map([], |row| {
@@ -793,8 +803,9 @@ async fn scrape_videos(
 
         for v in vlist {
             let created = v["created"].as_i64().unwrap_or(0);
+            let beijing_tz = chrono::FixedOffset::east_opt(8 * 3600).unwrap();
             let publish_time = chrono::DateTime::from_timestamp(created, 0)
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                .map(|dt| dt.with_timezone(&beijing_tz).format("%Y-%m-%d %H:%M:%S").to_string())
                 .unwrap_or_default();
 
             let bvid = v["bvid"].as_str().unwrap_or("").to_string();
@@ -1002,8 +1013,9 @@ async fn refresh_up_videos(
 
         for v in vlist {
             let created = v["created"].as_i64().unwrap_or(0);
+            let beijing_tz = chrono::FixedOffset::east_opt(8 * 3600).unwrap();
             let publish_time = chrono::DateTime::from_timestamp(created, 0)
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                .map(|dt| dt.with_timezone(&beijing_tz).format("%Y-%m-%d %H:%M:%S").to_string())
                 .unwrap_or_default();
 
             let bvid = v["bvid"].as_str().unwrap_or("").to_string();
@@ -1236,6 +1248,19 @@ async fn load_up_videos(mid: i64, app: AppHandle) -> Result<ScrapeResult, String
 
 // 删除已保存的UP主
 #[tauri::command]
+async fn reorder_up_list(mids: Vec<i64>, app: AppHandle) -> Result<bool, String> {
+    let db_path = get_db_path(&app);
+    let conn = init_database(&db_path)?;
+    for (i, mid) in mids.iter().enumerate() {
+        conn.execute(
+            "UPDATE up_users SET sort_order = ?1 WHERE mid = ?2",
+            params![i as i64, mid],
+        ).map_err(|e| format!("更新排序失败: {}", e))?;
+    }
+    Ok(true)
+}
+
+#[tauri::command]
 async fn delete_saved_up(mid: i64, app: AppHandle) -> Result<bool, String> {
     let db_path = get_db_path(&app);
     let conn = init_database(&db_path)?;
@@ -1307,6 +1332,7 @@ pub fn run() {
             get_saved_up_list,
             load_up_videos,
             delete_saved_up,
+            reorder_up_list,
             export_csv,
         ])
         .run(tauri::generate_context!())

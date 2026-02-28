@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { motion, MotionConfig } from 'framer-motion';
+import { motion, MotionConfig, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Sidebar';
 import NewScrapeDialog from './components/NewScrapeDialog';
 import SettingsDialog from './components/SettingsDialog';
@@ -36,6 +36,15 @@ function App() {
 
   // 用于对比功能的UP主数据缓存
   const [upDataMap, setUpDataMap] = useState({});
+
+  // Toast state
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const showToast = (message, type = 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, type });
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  };
 
   // Methods
   const loadSavedUpList = async () => {
@@ -97,9 +106,19 @@ function App() {
     setCurrentMid(null);
   };
 
-  const deleteSavedUp = async (upMid) => {
-    if (!confirm('确定要删除这个UP主的数据吗？')) return;
+  const handleReorderUp = async (mids) => {
+    // 乐观更新本地顺序
+    const reordered = mids.map((m) => savedUpList.find((u) => u.mid === m)).filter(Boolean);
+    setSavedUpList(reordered);
+    try {
+      await invoke('reorder_up_list', { mids });
+    } catch (error) {
+      console.error('保存排序失败:', error);
+      await loadSavedUpList();
+    }
+  };
 
+  const deleteSavedUp = async (upMid) => {
     try {
       await invoke('delete_saved_up', { mid: upMid });
       await loadSavedUpList();
@@ -108,9 +127,10 @@ function App() {
         setVideos([]);
         setUpInfo(null);
         setCurrentMid(null);
+        setCurrentView('home');
       }
     } catch (error) {
-      alert('删除失败: ' + error);
+      console.error('删除失败:', error);
     }
   };
 
@@ -260,9 +280,9 @@ function App() {
         videos: videos,
         path: filename
       });
-      alert(`数据已导出: ${savedPath}`);
+      showToast(`数据已导出: ${savedPath}`);
     } catch (error) {
-      alert('导出失败: ' + error);
+      showToast('导出失败: ' + error, 'error');
     }
   };
 
@@ -339,6 +359,7 @@ function App() {
         onAddUp={() => setShowNewScrapeDialog(true)}
         onLoadUp={loadSavedUp}
         onDeleteUp={deleteSavedUp}
+        onReorderUp={handleReorderUp}
         onOpenSettings={() => setShowSettingsDialog(true)}
         onExportCsv={exportData}
         onGoHome={goToHome}
@@ -413,6 +434,35 @@ function App() {
         cookie={cookie}
         onSave={handleSaveCookie}
       />
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            className={`fixed bottom-8 left-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm text-white ${
+              toast.type === 'error' ? 'bg-red-600' : 'bg-neutral-900'
+            }`}
+            initial={{ opacity: 0, y: 20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          >
+            {toast.type === 'error' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            )}
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
     </MotionConfig>
   );

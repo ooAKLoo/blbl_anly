@@ -85,7 +85,7 @@ export default function NewScrapeDialog({
               onChange={(e) => setLocalMid(e.target.value)}
               type="text"
               className="input"
-              placeholder="输入 UP主的 MID，例如 517327498"
+              placeholder="输入 UP主的 MID，例如 22541325"
               disabled={isLoading}
             />
             <span className="input-hint">可在 UP主空间页面 URL 中找到 MID</span>
