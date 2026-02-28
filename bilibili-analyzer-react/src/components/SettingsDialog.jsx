@@ -131,9 +131,12 @@ export default function SettingsDialog({
           </div>
         </div>
 
-        <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={handleClose}>取消</button>
-          <button className="btn btn-primary" onClick={handleSave}>保存</button>
+        <div className="dialog-footer" style={{ flexDirection: 'column', gap: 12 }}>
+          <div className="flex items-center justify-end gap-3 w-full">
+            <button className="btn btn-ghost" onClick={handleClose}>取消</button>
+            <button className="btn btn-primary" onClick={handleSave}>保存</button>
+          </div>
+          <span className="text-xs opacity-40 select-none" style={{ marginTop: 4 }}>唔叽唔哩｜捕捉"附近"</span>
         </div>
       </div>
     </div>,
