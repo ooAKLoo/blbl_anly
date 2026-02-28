@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Orbit } from '@ooakloowj/orbit';
 
 export default function SettingsDialog({
   open = false,
@@ -10,6 +11,10 @@ export default function SettingsDialog({
   const [localCookie, setLocalCookie] = useState(cookie || '');
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [feedbackContent, setFeedbackContent] = useState('');
+  const [feedbackContact, setFeedbackContact] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
   useEffect(() => {
     setLocalCookie(cookie || '');
@@ -39,6 +44,22 @@ export default function SettingsDialog({
       onSave(localCookie);
     }
     handleClose();
+  };
+
+  const handleSendFeedback = async () => {
+    if (!feedbackContent.trim() || isSending) return;
+    setIsSending(true);
+    try {
+      await Orbit.sendFeedback({ content: feedbackContent.trim(), contact: feedbackContact.trim() });
+      setFeedbackSent(true);
+      setFeedbackContent('');
+      setFeedbackContact('');
+      setTimeout(() => setFeedbackSent(false), 3000);
+    } catch (err) {
+      console.error('发送反馈失败:', err);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleOverlayClick = (e) => {
@@ -77,6 +98,36 @@ export default function SettingsDialog({
               placeholder="从浏览器复制 Cookie..."
               rows="4"
             />
+          </div>
+
+          <div className="setting-section">
+            <div className="setting-header">
+              <label className="setting-label">反馈</label>
+              <span className="setting-hint">遇到问题或有建议？告诉我们</span>
+            </div>
+            <textarea
+              value={feedbackContent}
+              onChange={(e) => setFeedbackContent(e.target.value)}
+              className="input textarea"
+              placeholder="描述你遇到的问题或建议..."
+              rows="3"
+            />
+            <input
+              type="text"
+              value={feedbackContact}
+              onChange={(e) => setFeedbackContact(e.target.value)}
+              className="input"
+              placeholder="邮箱或其他联系方式（可选）"
+              style={{ marginTop: 8 }}
+            />
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: 10, alignSelf: 'flex-start' }}
+              disabled={!feedbackContent.trim() || isSending}
+              onClick={handleSendFeedback}
+            >
+              {isSending ? '发送中...' : feedbackSent ? '已发送 ✓' : '发送反馈'}
+            </button>
           </div>
         </div>
 
