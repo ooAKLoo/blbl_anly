@@ -71,6 +71,11 @@ export function formatDate(dateStr) {
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 }
 
+export function formatDateTime(dateStr) {
+  if (!dateStr) return '';
+  return dateStr.slice(0, 16);
+}
+
 /**
  * 格式化日期为中文格式 (如 "2024年1月15日")
  * @param {string|Date} dateStr - 日期字符串或 Date 对象

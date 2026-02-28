@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getImageUrl, formatNumber } from '../utils';
@@ -33,14 +33,15 @@ const Sidebar = forwardRef(function Sidebar({
     y: 0,
     targetMid: null
   });
+  const contextMenuRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
     collapsed
   }));
 
   useEffect(() => {
-    const handleClickOutside = () => {
-      if (contextMenu.visible) {
+    const handleClickOutside = (e) => {
+      if (contextMenu.visible && contextMenuRef.current && !contextMenuRef.current.contains(e.target)) {
         closeContextMenu();
       }
     };
@@ -77,18 +78,22 @@ const Sidebar = forwardRef(function Sidebar({
     }, 0);
   };
 
-  const handleExportClick = () => {
-    if (contextMenu.targetMid && onExportCsv) {
-      onExportCsv(contextMenu.targetMid);
-    }
+  const handleExportClick = (e) => {
+    e.stopPropagation();
+    const mid = contextMenu.targetMid;
     closeContextMenu();
+    if (mid && onExportCsv) {
+      onExportCsv(mid);
+    }
   };
 
-  const handleDeleteClick = () => {
-    if (contextMenu.targetMid && onDeleteUp) {
-      onDeleteUp(contextMenu.targetMid);
-    }
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    const mid = contextMenu.targetMid;
     closeContextMenu();
+    if (mid && onDeleteUp) {
+      onDeleteUp(mid);
+    }
   };
 
   const closeContextMenu = () => {
@@ -216,6 +221,7 @@ const Sidebar = forwardRef(function Sidebar({
               <AnimatePresence>
                 {contextMenu.visible && (
                   <motion.div
+                    ref={contextMenuRef}
                     className="context-menu"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                     initial={{ opacity: 0, scale: 0.95, y: 4 }}

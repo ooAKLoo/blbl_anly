@@ -1244,8 +1244,13 @@ async fn delete_saved_up(mid: i64, app: AppHandle) -> Result<bool, String> {
 }
 
 #[tauri::command]
-async fn export_csv(videos: Vec<VideoInfo>, path: String) -> Result<bool, String> {
-    let mut wtr = csv::Writer::from_path(&path).map_err(|e| format!("创建CSV失败: {}", e))?;
+async fn export_csv(videos: Vec<VideoInfo>, path: String, app: AppHandle) -> Result<String, String> {
+    let download_dir = app
+        .path()
+        .download_dir()
+        .map_err(|e| format!("获取下载目录失败: {}", e))?;
+    let full_path = download_dir.join(&path);
+    let mut wtr = csv::Writer::from_path(&full_path).map_err(|e| format!("创建CSV失败: {}", e))?;
 
     // 写入表头
     wtr.write_record(&[
@@ -1283,7 +1288,7 @@ async fn export_csv(videos: Vec<VideoInfo>, path: String) -> Result<bool, String
     }
 
     wtr.flush().map_err(|e| format!("保存文件失败: {}", e))?;
-    Ok(true)
+    Ok(full_path.to_string_lossy().to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

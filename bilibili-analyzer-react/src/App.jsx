@@ -256,11 +256,11 @@ function App() {
     const filename = `${upInfo?.name || mid}_videos_${new Date().toISOString().slice(0, 10)}.csv`;
 
     try {
-      await invoke('export_csv', {
+      const savedPath = await invoke('export_csv', {
         videos: videos,
         path: filename
       });
-      alert(`数据已导出: ${filename}`);
+      alert(`数据已导出: ${savedPath}`);
     } catch (error) {
       alert('导出失败: ' + error);
     }
