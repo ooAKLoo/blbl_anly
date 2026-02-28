@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import VirtualGrid from '../VirtualGrid';
-import { formatNumber, getImageUrl, formatDate, sortVideos, parseDuration } from '../../utils';
+import { formatNumber, getImageUrl, formatDate, formatDateTime, sortVideos, parseDuration } from '../../utils';
 import { SORT_OPTIONS } from '../../utils/constants';
 import {
   Calendar,
@@ -481,7 +481,7 @@ export default function VideoList({ videos = [] }) {
                 <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
                   <span className="flex items-center gap-1">
                     <Calendar size={12} className="opacity-60" />
-                    {formatDate(video.publish_time)}
+                    {formatDateTime(video.publish_time)}
                   </span>
                   <span className="flex items-center gap-1">
                     <Play size={12} className="opacity-60" />

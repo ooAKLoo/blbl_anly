@@ -80,6 +80,7 @@
       <Transition name="context-menu">
         <div
           v-if="contextMenu.visible"
+          ref="contextMenuRef"
           class="context-menu"
           :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
         >
@@ -153,6 +154,7 @@ const contextMenu = ref({
   y: 0,
   targetMid: null,
 });
+const contextMenuRef = ref(null);
 
 // Methods
 function toggleCollapse() {
@@ -177,17 +179,19 @@ function handleContextMenu(event, mid) {
 }
 
 function handleExportClick() {
-  if (contextMenu.value.targetMid) {
-    emit('export-csv', contextMenu.value.targetMid);
-  }
+  const mid = contextMenu.value.targetMid;
   closeContextMenu();
+  if (mid) {
+    emit('export-csv', mid);
+  }
 }
 
 function handleDeleteClick() {
-  if (contextMenu.value.targetMid) {
-    emit('delete-up', contextMenu.value.targetMid);
-  }
+  const mid = contextMenu.value.targetMid;
   closeContextMenu();
+  if (mid) {
+    emit('delete-up', mid);
+  }
 }
 
 function closeContextMenu() {
@@ -196,9 +200,9 @@ function closeContextMenu() {
 }
 
 function handleClickOutside(event) {
-  if (contextMenu.value.visible) {
-    closeContextMenu();
-  }
+  if (!contextMenu.value.visible) return;
+  if (contextMenuRef.value && contextMenuRef.value.contains(event.target)) return;
+  closeContextMenu();
 }
 
 // Lifecycle
