@@ -4,6 +4,7 @@ B站UP主视频信息爬取工具
 支持WBI签名机制，解决-403反爬问题
 """
 
+import os
 import requests
 import time
 import pandas as pd
@@ -241,7 +242,8 @@ def main():
     #    1) 在浏览器登录B站
     #    2) 按F12打开开发者工具 -> Network
     #    3) 刷新页面，找任意请求，复制其Cookie
-    COOKIE = "os.environ.get("BILIBILI_COOKIE", "")"
+    #    4) 设置环境变量: export BILIBILI_COOKIE="你的Cookie"
+    COOKIE = os.environ.get("BILIBILI_COOKIE", "")
     
     # 3. 最大爬取页数 (每页30条，100页=3000条视频)
     MAX_PAGES = 100
