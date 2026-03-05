@@ -345,6 +345,7 @@ function DataAnalysis({
         {
           name: '发布数量',
           type: 'bar',
+          z: 3,
           data: counts,
           barMaxWidth: isMonthly ? 32 : 48,
           itemStyle: {
@@ -377,10 +378,26 @@ function DataAnalysis({
 
     chart.off('click');
     chart.on('click', (params) => {
-      if (params.seriesType === 'bar') {
-        const period = params.name;
+      const period = params.name;
+      if (period && trendVideos[period]) {
         const label = isMonthly ? `发布月份: ${period}` : `${period}年发布的视频`;
         openVideoDrawer(label, trendVideos[period]);
+      }
+    });
+
+    chart.getZr().off('click.trend');
+    chart.getZr().on('click.trend', (params) => {
+      const pointInPixel = [params.offsetX, params.offsetY];
+      if (chart.containPixel('grid', pointInPixel)) {
+        const pointInGrid = chart.convertFromPixel('grid', pointInPixel);
+        const xIndex = Math.round(pointInGrid[0]);
+        if (xIndex >= 0 && xIndex < periods.length) {
+          const period = periods[xIndex];
+          if (trendVideos[period]) {
+            const label = isMonthly ? `发布月份: ${period}` : `${period}年发布的视频`;
+            openVideoDrawer(label, trendVideos[period]);
+          }
+        }
       }
     });
   };
@@ -750,6 +767,7 @@ function DataAnalysis({
         data: barData,
         encode: { x: 0, y: 1 },
         barMaxWidth: 16,
+        cursor: 'pointer',
         markLine: threshold !== null ? {
           silent: true,
           symbol: 'none',
@@ -871,6 +889,7 @@ function DataAnalysis({
         ],
         series
       }, { notMerge: true });
+
     };
 
     renderChart(null);
@@ -878,10 +897,11 @@ function DataAnalysis({
     chart.getZr().off('click');
     chart.getZr().on('click', (params) => {
       const pointInPixel = [params.offsetX, params.offsetY];
-      const pointInGrid = chart.convertFromPixel('grid', pointInPixel);
-
       const gridInfo = chart.getModel().getComponent('grid').coordinateSystem.getRect();
+
+      // 点击 Y 轴区域 → 设置阈值筛选
       if (params.offsetX < gridInfo.x && params.offsetX > 0) {
+        const pointInGrid = chart.convertFromPixel('grid', pointInPixel);
         const yValue = pointInGrid[1];
         if (yValue !== null && yValue >= 0) {
           if (currentThreshold !== null && currentThreshold > 0 && Math.abs(yValue - currentThreshold) / currentThreshold < 0.1) {
@@ -890,6 +910,28 @@ function DataAnalysis({
             currentThreshold = Math.round(yValue);
           }
           renderChart(currentThreshold);
+        }
+        return;
+      }
+
+      // 点击 grid 内部区域 → 打开视频
+      if (chart.containPixel('grid', pointInPixel)) {
+        const pointInGrid = chart.convertFromPixel('grid', pointInPixel);
+        const xIndex = Math.round(pointInGrid[0]);
+        // 从当前显示的 series 数据中查找对应视频
+        const seriesData = chart.getOption().series[0]?.data;
+        if (seriesData) {
+          const matched = seriesData.find(d => {
+            const val = d.value || d;
+            return val[0] === xIndex;
+          });
+          if (matched) {
+            const videoIdx = (matched.value || matched)[2];
+            const video = sortedVideos[videoIdx];
+            if (video) {
+              openVideo(video);
+            }
+          }
         }
       }
     });
